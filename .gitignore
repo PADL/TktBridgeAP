@@ -1,0 +1,9 @@
+kseceap.inf
+kseceap.rc
+x86/
+x64/
+debug/
+release/
+*.user
+.vs/
+*.aps

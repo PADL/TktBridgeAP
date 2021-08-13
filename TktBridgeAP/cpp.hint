@@ -1,0 +1,2 @@
+#define TKTBRIDGEAP_API __declspec(dllexport)
+#define TKTBRIDGEAP_API __declspec(dllimport)
