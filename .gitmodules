@@ -1,0 +1,3 @@
+[submodule "wil"]
+	path = wil
+	url = git@github.com:microsoft/wil.git
