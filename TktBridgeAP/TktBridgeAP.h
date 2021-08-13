@@ -59,6 +59,8 @@ extern "C" {
 #include <krb5.h>
 
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
+extern PLSA_DISPATCH_TABLE LsaDispatchTable;
+extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
 
 extern SECPKG_PARAMETERS SpParameters;
 extern ULONG APFlags;
@@ -71,6 +73,7 @@ extern LPWSTR APRestrictPackage;
 
 #define TKTBRIDGEAP_REGISTRY_KEY_W		L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_VERSION		1
+#define TKTBRIDGEAP_PACKAGE_NAME_A		 "TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_NAME_W		L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
 

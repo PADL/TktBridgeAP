@@ -10,111 +10,56 @@
 
 #include "TktBridgeAP.h"
 
+/* from LSA */
+ULONG LsaAuthenticationPackageId = 0;
+PLSA_DISPATCH_TABLE LsaDispatchTable = NULL;
 PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = NULL;
 
-static SpGetInfoFn SpGetInfo;
-
+/* local state to be freed */
 SECPKG_PARAMETERS SpParameters;
 ULONG APFlags = 0;
 ULONG APLogLevel = 0;
 LPWSTR APKdcHostName = NULL;
 LPWSTR APRestrictPackage = NULL;
 
+static SpGetInfoFn SpGetInfo;
+
+static NTSTATUS
+InitializeRegistryNotification(VOID);
+
 static NTSTATUS NTAPI
 InitializePackage(
     IN ULONG AuthenticationPackageId,
-    IN PLSA_DISPATCH_TABLE LsaDispatchTable,
+    IN PLSA_DISPATCH_TABLE DispatchTable,
     IN OPTIONAL PLSA_STRING Database,
     IN OPTIONAL PLSA_STRING Confidentiality,
     OUT PLSA_STRING *AuthenticationPackageName)
 {
-    return STATUS_INVALID_PARAMETER;
-}
+    LsaAuthenticationPackageId = AuthenticationPackageId;
+    LsaDispatchTable = DispatchTable;
+    *AuthenticationPackageName = NULL;
 
-static VOID
-RegistryNotifyChanged(VOID)
-{
-    DWORD dwResult;
-    DWORD dwType, dwValue, dwSize;
-    HKEY hKey;
+    InitializeRegistryNotification();
 
-    dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
-        0, KEY_QUERY_VALUE, &hKey);
-    if (dwResult != ERROR_SUCCESS)
-        return;
+    NTSTATUS Status;
+    ULONG cbAPName = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
+    PLSA_STRING APName;
 
-    dwType = REG_DWORD;
-    dwValue = 0;
-    dwSize = sizeof(dwValue);
-    dwResult = RegQueryValueEx(hKey, L"Flags", NULL, &dwType,
-        (PBYTE)&dwValue, &dwSize);
-    if (dwResult == ERROR_SUCCESS &&
-        dwType == REG_DWORD &&
-        dwSize == sizeof(dwValue)) {
-        APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
-        APFlags |= dwValue & TKTBRIDGEAP_FLAG_USER;
-    }
+    APName = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(*APName));
+    if (APName != NULL) {
+        APName->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(cbAPName);
+        if (APName->Buffer != NULL) {
+            RtlCopyMemory(APName->Buffer, TKTBRIDGEAP_PACKAGE_NAME_A, cbAPName);
+            APName->Length = cbAPName - 1;
+            APName->MaximumLength = cbAPName;
+            *AuthenticationPackageName = APName;
 
-    dwType = REG_DWORD;
-    dwValue = 0;
-    dwSize = sizeof(dwValue);
-    dwResult = RegQueryValueEx(hKey, L"LogLevel", NULL, &dwType,
-        (PBYTE)&dwValue, &dwSize);
-    if (dwResult == ERROR_SUCCESS &&
-        dwType == REG_DWORD &&
-        dwSize == sizeof(dwValue)) {
-        APLogLevel = dwValue;
-    }
-
-    dwType = REG_SZ;
-    dwValue = 0;
-    dwSize = 0;
-    dwResult = RegQueryValueEx(hKey, L"KdcHostName", NULL, &dwType, NULL, &dwSize);
-    if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        LPWSTR szValue;
-
-        szValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
-        if (szValue != NULL) {
-            dwResult = RegQueryValueEx(hKey, L"KdcHostName", NULL, &dwType, NULL, &dwSize);
-            if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-                szValue[dwSize / sizeof(WCHAR)] = 0;
-
-            LsaSpFunctionTable->FreePrivateHeap(APKdcHostName);
-            APKdcHostName = szValue;
+            return STATUS_SUCCESS;
         }
+
     }
 
-    dwType = REG_SZ;
-    dwValue = 0;
-    dwSize = 0;
-    dwResult = RegQueryValueEx(hKey, L"RestrictPackage", NULL, &dwType, NULL, &dwSize);
-    if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        LPWSTR szValue;
-
-        szValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
-        if (szValue != NULL) {
-            dwResult = RegQueryValueEx(hKey, L"RestrictPackage", NULL, &dwType, NULL, &dwSize);
-            if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-                szValue[dwSize / sizeof(WCHAR)] = 0;
-
-            LsaSpFunctionTable->FreePrivateHeap(APKdcHostName);
-            APKdcHostName = szValue;
-        }
-    }
-}
-
-static NTSTATUS
-InitializeRegistryNotification(VOID)
-{
-    auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
-        TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
-            ::RegistryNotifyChanged();
-        });
-
-    if (watcher == NULL)
-        return STATUS_NO_MEMORY;
-
-    return STATUS_SUCCESS;
+    return STATUS_NO_MEMORY;
 }
 
 static NTSTATUS NTAPI
@@ -151,8 +96,6 @@ SpInitialize(
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
 
-    InitializeRegistryNotification();
-
     return Status;
 }
 
@@ -163,6 +106,23 @@ SpShutdown(VOID)
     RtlFreeUnicodeString(&SpParameters.DomainName);
     RtlFreeUnicodeString(&SpParameters.DnsDomainName);
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
+
+    APFlags = 0;
+    APLogLevel = 0;
+
+    if (APKdcHostName) {
+        LsaSpFunctionTable->FreePrivateHeap(APKdcHostName);
+        APKdcHostName = NULL;
+    }
+
+    if (APRestrictPackage) {
+        LsaSpFunctionTable->FreePrivateHeap(APRestrictPackage);
+        APRestrictPackage = NULL;
+    }
+
+    LsaAuthenticationPackageId = 0;
+    LsaDispatchTable = NULL;
+    LsaSpFunctionTable = NULL;
 
     return STATUS_SUCCESS;
 }
@@ -209,6 +169,89 @@ SpGetInfo(OUT PSecPkgInfo PackageInfo)
     PackageInfo->cbMaxToken = 0;
     PackageInfo->Name = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_NAME_W;
     PackageInfo->Comment = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_COMMENT_W;
+
+    return STATUS_SUCCESS;
+}
+
+
+static DWORD
+RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName)
+{
+    DWORD dwResult, dwType, dwValue, dwSize;
+
+    dwType = REG_DWORD;
+    dwValue = 0;
+    dwSize = sizeof(dwValue);
+    dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
+        (PBYTE)&dwValue, &dwSize);
+
+    if (dwResult == ERROR_SUCCESS && dwType == REG_DWORD &&
+        dwSize == sizeof(dwValue))
+        return dwValue;
+
+    return 0;
+}
+
+static PWSTR
+RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
+{
+    DWORD dwResult, dwType, dwValue, dwSize;
+
+    dwType = REG_SZ;
+    dwValue = 0;
+    dwSize = 0;
+    dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
+    if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
+        LPWSTR szValue;
+
+        szValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
+        if (szValue != NULL) {
+            dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
+            if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
+                szValue[dwSize / sizeof(WCHAR)] = 0;
+
+            return szValue;
+        }
+    }
+
+    return NULL;
+}
+
+static VOID
+RegistryNotifyChanged(VOID)
+{
+    DWORD dwResult;
+    HKEY hKey;
+
+    dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
+        0, KEY_QUERY_VALUE, &hKey);
+    if (dwResult != ERROR_SUCCESS)
+        return;
+
+    APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
+    APFlags |= RegistryGetDWordValueForKey(hKey, L"Flags") & TKTBRIDGEAP_FLAG_USER;
+
+    APLogLevel = RegistryGetDWordValueForKey(hKey, L"LogLevel");
+
+    LsaSpFunctionTable->FreePrivateHeap(APKdcHostName);
+    APKdcHostName = RegistryGetStringValueForKey(hKey, L"KdcHostName");
+
+    LsaSpFunctionTable->FreePrivateHeap(APRestrictPackage);
+    APRestrictPackage = RegistryGetStringValueForKey(hKey, L"RestrictPackage");
+
+    RegCloseKey(hKey);
+}
+
+static NTSTATUS
+InitializeRegistryNotification(VOID)
+{
+    auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
+        TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
+            ::RegistryNotifyChanged();
+        });
+
+    if (watcher == NULL)
+        return STATUS_NO_MEMORY;
 
     return STATUS_SUCCESS;
 }
