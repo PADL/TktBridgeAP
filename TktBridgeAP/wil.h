@@ -33,6 +33,7 @@ namespace wil {
         }
     }
 
-    using unique_lsa_string = wil::unique_any<PLSA_STRING, decltype(&::FreeLsaString), &::FreeLsaString>;
+    typedef unique_any<PLSA_STRING, decltype(&::FreeLsaString), &::FreeLsaString> unique_lsa_string;
+    typedef unique_any<PSID, decltype(&::RtlFreeSid), ::FreeSid> unique_rtl_sid;
 }
 

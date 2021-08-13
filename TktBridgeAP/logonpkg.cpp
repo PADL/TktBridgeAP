@@ -44,12 +44,15 @@ InitializePackage(
     InitializeRegistryNotification();
 
     LSA_STRING APName;
+    NTSTATUS Status;
 
     APName.Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1;
     APName.MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
     APName.Buffer = TKTBRIDGEAP_PACKAGE_NAME_A;
 
-    return DuplicateLsaString(&ApName, AuthenticationPackageName);
+    Status = DuplicateLsaString(&ApName, AuthenticationPackageName);
+
+    return Status;
 }
 
 static NTSTATUS NTAPI
@@ -135,7 +138,7 @@ SpLsaModeInitialize(
     if (LsaVersion != SECPKG_INTERFACE_VERSION) {
         DebugTrace(WINEVENT_LEVEL_ERROR,
             L"SpLsaModeInitialize: unsupported SPM interface version %08x", LsaVersion);
-        return STATUS_INVALID_PARAMETER;
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
     }
 
     *PackageVersion = SECPKG_INTERFACE_VERSION_10;

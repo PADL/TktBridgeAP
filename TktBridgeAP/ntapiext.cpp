@@ -3,23 +3,17 @@
 NTSTATUS NTAPI
 RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
 {
-	NTSTATUS Status;
-	ULONG SidLength;
-	PSID Sid;
+    NTSTATUS Status;
+    ULONG SidLength;
+    unique_rtl_sid Sid;
 
-	SidLength = RtlLengthSid(OriginalSid);
-	Sid = RtlAllocateHeap(GetProcessHeap(), 0, SidLength);
-	if (Sid == NULL) {
-		return STATUS_NO_MEMORY;
-	}
+    SidLength = RtlLengthSid(OriginalSid);
+    Sid = RtlAllocateHeap(GetProcessHeap(), 0, SidLength);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
-	Status = RtlCopySid(SidLength, OriginalSid, Sid);
-	if (!NT_SUCCESS(Status)) {
-		RtlFreeHeap(GetProcessHeap(), 0, Sid);
-		return Status;
-	}
+    Status = RtlCopySid(SidLength, OriginalSid, Sid);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
-	*NewSid = Sid;
-	return STATUS_SUCCESS;
+    *NewSid = Sid;
+    return STATUS_SUCCESS;
 }
-

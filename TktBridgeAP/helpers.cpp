@@ -23,7 +23,7 @@ GetLocalHostName(BOOLEAN bLsaAlloc, PUNICODE_STRING HostName)
     UNICODE_STRING Src;
 
     if (!GetComputerName(MachineName, &cchMachineName))
-        return STATUS_INVALID_PARAMETER;
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
     RtlInitUnicodeString(&Src, MachineName);
 
