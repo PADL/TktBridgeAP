@@ -77,13 +77,25 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_PACKAGE_NAME_W		L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
 
+// helpers.cpp
+
+NTSTATUS
+DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst);
+
+DWORD
+RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName);
+
+PWSTR
+RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName);
+
+VOID
+RegistryFreeValue(PWSTR Value);
+
 // sspipreauth.cpp
 NTSTATUS
 HeimdalErrToNtStatus(krb5_error_code ret);
 
-
 // tracing.cpp
-
 krb5_error_code
 InitializeHeimdalTracing(krb5_context KrbContext);
 

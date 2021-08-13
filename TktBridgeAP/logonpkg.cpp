@@ -35,28 +35,21 @@ InitializePackage(
     IN OPTIONAL PLSA_STRING Confidentiality,
     OUT PLSA_STRING *AuthenticationPackageName)
 {
+    static_assert(DispatchTable != NULL, "dispatch table most be non-NULL");
+
     LsaAuthenticationPackageId = AuthenticationPackageId;
     LsaDispatchTable = DispatchTable;
     *AuthenticationPackageName = NULL;
 
     InitializeRegistryNotification();
 
-    NTSTATUS Status;
-    ULONG cbAPName = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
-    unique_lsa_string APName;
+    LSA_STRING APName;
 
-    APName = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(*APName));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(APName);
+    APName.Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1;
+    APName.MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
+    APName.Buffer = TKTBRIDGEAP_PACKAGE_NAME_A;
 
-    APName->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(cbAPName);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(APName->Buffer);
-
-    RtlCopyMemory(APName->Buffer, TKTBRIDGEAP_PACKAGE_NAME_A, cbAPName);
-    APName->Length = cbAPName - 1;
-    APName->MaximumLength = cbAPName;
-    *AuthenticationPackageName = APName;
-
-    return STATUS_SUCCESS;
+    return DuplicateLsaString(&ApName, AuthenticationPackageName);
 }
 
 static NTSTATUS NTAPI
@@ -107,13 +100,13 @@ SpShutdown(VOID)
     APFlags = 0;
     APLogLevel = 0;
 
-    if (APKdcHostName) {
-        LsaSpFunctionTable->FreePrivateHeap(APKdcHostName);
+    if (APKdcHostName != NULL) {
+        RegistryFreeValue(APKdcHostName);
         APKdcHostName = NULL;
     }
 
-    if (APRestrictPackage) {
-        LsaSpFunctionTable->FreePrivateHeap(APRestrictPackage);
+    if (APRestrictPackage != NULL) {
+        RegistryFreeValue(APRestrictPackage);
         APRestrictPackage = NULL;
     }
 
@@ -172,49 +165,6 @@ SpGetInfo(OUT PSecPkgInfo PackageInfo)
 
 
 static DWORD
-RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName)
-{
-    DWORD dwResult, dwType, dwValue, dwSize;
-
-    dwType = REG_DWORD;
-    dwValue = 0;
-    dwSize = sizeof(dwValue);
-    dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
-        (PBYTE)&dwValue, &dwSize);
-
-    if (dwResult == ERROR_SUCCESS && dwType == REG_DWORD &&
-        dwSize == sizeof(dwValue))
-        return dwValue;
-
-    return 0;
-}
-
-static PWSTR
-RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
-{
-    DWORD dwResult, dwType, dwValue, dwSize;
-
-    dwType = REG_SZ;
-    dwValue = 0;
-    dwSize = 0;
-    dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
-    if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        LPWSTR szValue;
-
-        szValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
-        if (szValue != NULL) {
-            dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
-            if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-                szValue[dwSize / sizeof(WCHAR)] = 0;
-
-            return szValue;
-        }
-    }
-
-    return NULL;
-}
-
-static DWORD
 RegistryNotifyChanged(VOID)
 {
     DWORD dwResult;
@@ -229,10 +179,10 @@ RegistryNotifyChanged(VOID)
 
     APLogLevel = RegistryGetDWordValueForKey(hKey, L"LogLevel");
 
-    LsaSpFunctionTable->FreePrivateHeap(APKdcHostName);
+    RegistryFreeValue(APKdcHostName);
     APKdcHostName = RegistryGetStringValueForKey(hKey, L"KdcHostName");
 
-    LsaSpFunctionTable->FreePrivateHeap(APRestrictPackage);
+    RegistryFreeValue(APRestrictPackage);
     APRestrictPackage = RegistryGetStringValueForKey(hKey, L"RestrictPackage");
 }
 

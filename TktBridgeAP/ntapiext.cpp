@@ -1,6 +1,5 @@
 #include "TktBridgeAP.h"
 
-
 NTSTATUS NTAPI
 RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
 {
@@ -23,3 +22,4 @@ RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
 	*NewSid = Sid;
 	return STATUS_SUCCESS;
 }
+
