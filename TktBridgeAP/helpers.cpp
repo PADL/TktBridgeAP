@@ -29,3 +29,4 @@ GetLocalHostName(BOOLEAN bLsaAlloc, PUNICODE_STRING HostName)
 
     return RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE, &Src, HostName);
 }
+

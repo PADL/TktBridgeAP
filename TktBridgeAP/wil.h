@@ -17,3 +17,22 @@ typedef weak_any<shared_hkey> weak_hkey;
 
 #include <wil/registry.h>
 #include <wil/nt_result_macros.h>
+
+// extensions
+
+namespace wil {
+
+#define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
+
+    static INLINE VOID
+    FreeLsaString(PLSA_STRING pLsaString)
+    {
+        if (pLsaString != NULL) {
+    	LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
+	LsaDispatchTable(pLsaString);
+        }
+    }
+
+    using unique_lsa_string = wil::unique_any<PLSA_STRING, decltype(&::FreeLsaString), &::FreeLsaString>;
+}
+

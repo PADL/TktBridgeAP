@@ -43,23 +43,20 @@ InitializePackage(
 
     NTSTATUS Status;
     ULONG cbAPName = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
-    PLSA_STRING APName;
+    unique_lsa_string APName;
 
     APName = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(*APName));
-    if (APName != NULL) {
-        APName->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(cbAPName);
-        if (APName->Buffer != NULL) {
-            RtlCopyMemory(APName->Buffer, TKTBRIDGEAP_PACKAGE_NAME_A, cbAPName);
-            APName->Length = cbAPName - 1;
-            APName->MaximumLength = cbAPName;
-            *AuthenticationPackageName = APName;
+    RETURN_NTSTATUS_IF_NULL_ALLOC(APName);
 
-            return STATUS_SUCCESS;
-        }
+    APName->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(cbAPName);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(APName->Buffer);
 
-    }
+    RtlCopyMemory(APName->Buffer, TKTBRIDGEAP_PACKAGE_NAME_A, cbAPName);
+    APName->Length = cbAPName - 1;
+    APName->MaximumLength = cbAPName;
+    *AuthenticationPackageName = APName;
 
-    return STATUS_NO_MEMORY;
+    return STATUS_SUCCESS;
 }
 
 static NTSTATUS NTAPI
@@ -70,8 +67,8 @@ SpInitialize(
 {
     NTSTATUS Status;
 
-    _ASSERT(Parameters != NULL);
-    _ASSERT(FunctionTable != NULL);
+    static_assert(Parameters != NULL, "parameters must be non-NULL");
+    static_assert(FunctionTable != NULL, "function table most be non-NULL");
 
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
 
@@ -96,7 +93,7 @@ SpInitialize(
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
 
-    return Status;
+    return STATUS_SUCCESS;
 }
 
 static NTSTATUS NTAPI
@@ -225,7 +222,7 @@ RegistryNotifyChanged(VOID)
 
     dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
         0, KEY_QUERY_VALUE, &hKey);
-    RETURN_IF_WIN32_ERROR(dwResult);
+    RETURN_IF_WIN32_ERROR_EXPECTED(dwResult);
 
     APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
     APFlags |= RegistryGetDWordValueForKey(hKey, L"Flags") & TKTBRIDGEAP_FLAG_USER;
@@ -242,13 +239,14 @@ RegistryNotifyChanged(VOID)
 static NTSTATUS
 InitializeRegistryNotification(VOID)
 {
+    RegistryNotifyChanged();
+
     auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
         TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
-            (VOID)::RegistryNotifyChanged();
+            ::RegistryNotifyChanged();
         });
 
-    if (watcher == NULL)
-        return STATUS_NO_MEMORY;
+    RETURN_NTSTATUS_IF_NULL_ALLOC(watcher);
 
     return STATUS_SUCCESS;
 }
