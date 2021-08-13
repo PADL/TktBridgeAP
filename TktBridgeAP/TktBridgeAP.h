@@ -34,6 +34,7 @@
 #include <winternl.h>
 #include <winreg.h>
 #include <wincred.h>
+#include <Tracelogging.h>
 #include <sspi.h>
 #define _NTDEF_
 #include <NTSecAPI.h>
@@ -68,7 +69,23 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_FLAG_DEBUG			0x00000001
 #define TKTBRIDGEAP_FLAG_USER			0x0000FFFF
 
-#define TKTBRIDGEAP_REGISTRY_KEY_W  L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
+#define TKTBRIDGEAP_REGISTRY_KEY_W		L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
+#define TKTBRIDGEAP_PACKAGE_VERSION		1
+#define TKTBRIDGEAP_PACKAGE_NAME_W		L"TktBridgeAP"
+#define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
+
+// sspipreauth.cpp
+NTSTATUS
+HeimdalErrToNtStatus(krb5_error_code ret);
+
+
+// tracing.cpp
+
+krb5_error_code
+InitializeHeimdalTracing(krb5_context KrbContext);
+
+VOID
+__cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...);
 
 #ifdef __cplusplus
 }

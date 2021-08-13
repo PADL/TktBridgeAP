@@ -12,7 +12,7 @@
 
 PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = NULL;
 
-static SpGetInfoFn SpGetInfoTktBridgeAP;
+static SpGetInfoFn SpGetInfo;
 
 SECPKG_PARAMETERS SpParameters;
 ULONG APFlags = 0;
@@ -29,12 +29,6 @@ InitializePackage(
     OUT PLSA_STRING *AuthenticationPackageName)
 {
     return STATUS_INVALID_PARAMETER;
-}
-
-static NTSTATUS
-InitializeHeimdalTracing(VOID)
-{
-    return STATUS_SUCCESS;
 }
 
 static VOID
@@ -123,7 +117,6 @@ InitializeRegistryNotification(VOID)
     return STATUS_SUCCESS;
 }
 
-
 static NTSTATUS NTAPI
 SpInitialize(
     IN ULONG_PTR PackageId,
@@ -158,9 +151,6 @@ SpInitialize(
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
 
-    InitializeHeimdalTracing();
-
-    RegistryNotifyChanged();
     InitializeRegistryNotification();
 
     return Status;
@@ -182,15 +172,43 @@ TktBridgeAPFunctionTable = {
     .InitializePackage = InitializePackage,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
+    .GetInfo = SpGetInfo,
 };
 
 TKTBRIDGEAP_API NTSTATUS NTAPI
 SpLsaModeInitialize(
     IN ULONG LsaVersion,
     OUT PULONG PackageVersion,
-    OUT PSECPKG_FUNCTION_TABLE* ppTables,
+    OUT PSECPKG_FUNCTION_TABLE *ppTables,
     OUT PULONG pcTables)
 {
+    if (LsaVersion != SECPKG_INTERFACE_VERSION) {
+        DebugTrace(WINEVENT_LEVEL_ERROR,
+            L"SpLsaModeInitialize: unsupported SPM interface version %08x", LsaVersion);
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    *PackageVersion = SECPKG_INTERFACE_VERSION_10;
+    *ppTables = &TktBridgeAPFunctionTable;
+    *pcTables = 1;
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+        L"SpLsaModeInitialize: SPM version %08x", LsaVersion);
+
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS NTAPI
+SpGetInfo(OUT PSecPkgInfo PackageInfo)
+{
+    RtlZeroMemory(PackageInfo, sizeof(*PackageInfo));
+
+    PackageInfo->fCapabilities = SECPKG_FLAG_LOGON;
+    PackageInfo->wVersion = TKTBRIDGEAP_PACKAGE_VERSION;
+    PackageInfo->wRPCID = SECPKG_ID_NONE;
+    PackageInfo->cbMaxToken = 0;
+    PackageInfo->Name = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_NAME_W;
+    PackageInfo->Comment = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_COMMENT_W;
 
     return STATUS_SUCCESS;
 }

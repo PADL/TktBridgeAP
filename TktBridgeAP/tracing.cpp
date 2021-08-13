@@ -17,6 +17,7 @@ DebugTraceLevelString(UCHAR Level)
     else
         return rgwszLevels[Level];
 }
+
 VOID
 __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
 {
@@ -46,4 +47,37 @@ __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
             OutputDebugStringW(L"\r\n");
         }
     }
+}
+
+
+
+static VOID KRB5_CALLCONV
+HeimdalLogLogCB(krb5_context KrbContext,
+    PCSTR pszPrefix,
+    PCSTR pszMessage,
+    PVOID Context)
+{
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%s: %s", pszPrefix, pszMessage);
+}
+
+static VOID KRB5_CALLCONV
+HeimdalLogCloseCB(PVOID Context)
+{
+}
+
+krb5_error_code
+InitializeHeimdalTracing(krb5_context KrbContext)
+{
+    krb5_error_code KrbError;
+
+    KrbError = krb5_addlog_func(KrbContext,
+        NULL,
+        0,
+        APLogLevel,
+        HeimdalLogLogCB,
+        HeimdalLogCloseCB,
+        NULL);
+
+
+    return KrbError;
 }
