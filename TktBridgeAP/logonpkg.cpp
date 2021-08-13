@@ -217,16 +217,15 @@ RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
     return NULL;
 }
 
-static VOID
+static DWORD
 RegistryNotifyChanged(VOID)
 {
     DWORD dwResult;
-    HKEY hKey;
+    wil::unique_hkey hKey;
 
     dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
         0, KEY_QUERY_VALUE, &hKey);
-    if (dwResult != ERROR_SUCCESS)
-        return;
+    RETURN_IF_WIN32_ERROR(dwResult);
 
     APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
     APFlags |= RegistryGetDWordValueForKey(hKey, L"Flags") & TKTBRIDGEAP_FLAG_USER;
@@ -238,8 +237,6 @@ RegistryNotifyChanged(VOID)
 
     LsaSpFunctionTable->FreePrivateHeap(APRestrictPackage);
     APRestrictPackage = RegistryGetStringValueForKey(hKey, L"RestrictPackage");
-
-    RegCloseKey(hKey);
 }
 
 static NTSTATUS
@@ -247,7 +244,7 @@ InitializeRegistryNotification(VOID)
 {
     auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
         TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
-            ::RegistryNotifyChanged();
+            (VOID)::RegistryNotifyChanged();
         });
 
     if (watcher == NULL)
