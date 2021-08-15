@@ -1,12 +1,20 @@
-/*
- * Copyright (C) 2021 PADL Software Pty Ltd.
- * All rights reserved.
- * Use is subject to license.
- *
- * CONFIDENTIAL
- *
- * AP initialization
- */
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    logonpkg.cpp
+
+Abstract:
+
+    Ticket Bridge Authentciation Package (AP)
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
 
 #include "TktBridgeAP.h"
 

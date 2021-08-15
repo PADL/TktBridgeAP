@@ -1,10 +1,20 @@
-/*
- * Copyright (C) 2021 PADL Software Pty Ltd.
- * All rights reserved.
- * Use is subject to license.
- *
- * CONFIDENTIAL
- */
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    TktBridgeAP.h
+
+Abstract:
+
+    Ticket Bridge Authentication Provider (AP)
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
 
 #pragma once
 
@@ -93,11 +103,11 @@ RegistryFreeValue(PWSTR Value);
 
 // sspipreauth.cpp
 NTSTATUS
-HeimdalErrToNtStatus(krb5_error_code ret);
+HeimErrToNtStatus(krb5_error_code ret);
 
 // tracing.cpp
 krb5_error_code
-InitializeHeimdalTracing(krb5_context KrbContext);
+InitializeHeimTracing(krb5_context KrbContext);
 
 VOID
 __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...);

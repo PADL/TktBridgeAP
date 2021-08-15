@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    helpers.cpp
+
+Abstract:
+
+    Helpers
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #include "TktBridgeAP.h"
 
 BOOLEAN

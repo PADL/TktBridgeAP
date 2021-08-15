@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    ntapiext.cpp
+
+Abstract:
+
+    NTDLL extensions
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #include "TktBridgeAP.h"
 
 NTSTATUS NTAPI

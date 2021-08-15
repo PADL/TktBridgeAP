@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    wil.h
+
+Abstract:
+
+    WIL extensions
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #pragma once
 
 #undef _LSALOOKUP_
@@ -28,12 +46,12 @@ namespace wil {
     FreeLsaString(PLSA_STRING pLsaString)
     {
         if (pLsaString != NULL) {
-    	LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
-	LsaDispatchTable(pLsaString);
+	    LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
+	    LsaDispatchTable(pLsaString);
         }
     }
 
-    typedef unique_any<PLSA_STRING, decltype(&::FreeLsaString), &::FreeLsaString> unique_lsa_string;
+    typedef unique_any<PLSA_STRING, decltype(&FreeLsaString), &FreeLsaString> unique_lsa_string;
     typedef unique_any<PSID, decltype(&::RtlFreeSid), ::FreeSid> unique_rtl_sid;
 }
 

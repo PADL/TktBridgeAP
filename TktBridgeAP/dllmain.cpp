@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    dllmain.cpp
+
+Abstract:
+
+    Ticket Bridge Authentication Provider (AP)
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #include "TktBridgeAP.h"
 
 BOOL APIENTRY DllMain( HMODULE hModule,

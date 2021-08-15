@@ -1,7 +1,25 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    sspipreauth.cpp
+
+Abstract:
+
+    SSPI to Heimdal glue
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #include "TktBridgeAP.h"
 
 NTSTATUS
-HeimdalErrToNtStatus(krb5_error_code KrbError)
+HeimErrToNtStatus(krb5_error_code KrbError)
 {
 	switch (KrbError) {
 	case 0:

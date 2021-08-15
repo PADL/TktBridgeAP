@@ -1,53 +1,69 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    ntapiext.h
+
+Abstract:
+
+    Undocumented NTDLL APIs
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #pragma once
 
 extern "C" {
 
-#define RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE			1
+#define RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE		1
 #define RTL_DUPLICATE_UNICODE_STRING_ALLOCATE_NULL_STRING	2
 
-	NTSTATUS NTAPI
-		RtlDuplicateUnicodeString(
-			ULONG Flags,
-			PCUNICODE_STRING StringIn,
-			PUNICODE_STRING StringOut);
+NTSTATUS NTAPI
+RtlDuplicateUnicodeString(
+	ULONG Flags,
+	PCUNICODE_STRING StringIn,
+	PUNICODE_STRING StringOut);
 
-	BOOLEAN NTAPI
-		RtlEqualUnicodeString(
-			_In_ PCUNICODE_STRING String1,
-			_In_ PCUNICODE_STRING String2,
-			_In_ BOOLEAN CaseInSensitive
-		);
+BOOLEAN NTAPI
+RtlEqualUnicodeString(
+	IN PCUNICODE_STRING String1,
+	IN PCUNICODE_STRING String2,
+	IN BOOLEAN CaseInSensitive
+);
 
-	NTSTATUS NTAPI
-		RtlDuplicateSid(OUT PSID* NewSid, IN PSID OriginalSid);
+NTSTATUS NTAPI
+RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid);
 
-	VOID NTAPI
-		RtlFreeSid(IN PSID Sid);
+VOID NTAPI
+RtlFreeSid(INOUT PSID Sid);
 
-	ULONG NTAPI
-		RtlLengthSid(
-			PSID Sid
-		);
+ULONG NTAPI
+RtlLengthSid(IN PSID Sid);
 
-	PVOID NTAPI
-		RtlAllocateHeap(
-			PVOID  HeapHandle,
-			ULONG  Flags,
-			SIZE_T Size
-		);
+PVOID NTAPI
+RtlAllocateHeap(
+	IN PVOID HeapHandle,
+	IN ULONG Flags,
+	IN SIZE_T Size
+);
 
-	BOOLEAN NTAPI
-		RtlFreeHeap(
-			PVOID                 HeapHandle,
-			ULONG                 Flags,
-			_Frees_ptr_opt_ PVOID BaseAddress
-		);
+BOOLEAN NTAPI
+RtlFreeHeap(
+	IN PVOID HeapHandle,
+	IN ULONG Flags,
+	_Frees_ptr_opt_ PVOID BaseAddress
+);
 
-	NTSTATUS
-		NTAPI RtlCopySid(
-			ULONG DestinationSidLength,
-			PSID  DestinationSid,
-			PSID  SourceSid
-		);
+NTSTATUS
+NTAPI RtlCopySid(
+	IN ULONG DestinationSidLength,
+	INOUT PSID DestinationSid,
+	IN PSID  SourceSid
+);
 
 }

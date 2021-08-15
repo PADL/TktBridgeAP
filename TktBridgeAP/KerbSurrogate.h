@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    KerbSurrogate.h
+
+Abstract:
+
+    Interface between SPM surrogate API and Kerberos package.
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #pragma once
 
 typedef struct _KERB_AS_REP_CREDENTIAL {
@@ -10,7 +28,7 @@ typedef struct _KERB_AS_REP_CREDENTIAL {
 	ULONG VsmBindingPrivateKeyOffset;
 	ULONG VsmBindingPrivateKeySize;
 	ULONG TgtKeyType;
-} KERB_AS_REP_CREDENTIAL, * PKERB_AS_REP_CREDENTIAL;
+} KERB_AS_REP_CREDENTIAL, *PKERB_AS_REP_CREDENTIAL;
 
 #define KERB_AS_REP_CREDENTIAL_VERSION_1	1
 

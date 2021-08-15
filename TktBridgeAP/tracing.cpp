@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    tracing.cpp
+
+Abstract:
+
+    Tracing functions
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #include "TktBridgeAP.h"
 
 static __inline PCWSTR
@@ -52,7 +70,7 @@ __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
 
 
 static VOID KRB5_CALLCONV
-HeimdalLogLogCB(krb5_context KrbContext,
+HeimLogLogCB(krb5_context KrbContext,
     PCSTR pszPrefix,
     PCSTR pszMessage,
     PVOID Context)
@@ -61,12 +79,12 @@ HeimdalLogLogCB(krb5_context KrbContext,
 }
 
 static VOID KRB5_CALLCONV
-HeimdalLogCloseCB(PVOID Context)
+HeimLogCloseCB(PVOID Context)
 {
 }
 
 krb5_error_code
-InitializeHeimdalTracing(krb5_context KrbContext)
+InitializeHeimTracing(krb5_context KrbContext)
 {
     krb5_error_code KrbError;
 
@@ -74,8 +92,8 @@ InitializeHeimdalTracing(krb5_context KrbContext)
         NULL,
         0,
         APLogLevel,
-        HeimdalLogLogCB,
-        HeimdalLogCloseCB,
+        HeimLogLogCB,
+        HeimLogCloseCB,
         NULL);
 
 
