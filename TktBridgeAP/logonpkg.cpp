@@ -19,14 +19,14 @@ Environment:
 #include "TktBridgeAP.h"
 
 ULONG LsaAuthenticationPackageId = 0;
-PLSA_DISPATCH_TABLE LsaDispatchTable = NULL;
-PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = NULL;
+PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
+PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
 
 SECPKG_PARAMETERS SpParameters;
 ULONG APFlags = 0;
 ULONG APLogLevel = 0;
-LPWSTR APKdcHostName = NULL;
-LPWSTR APRestrictPackage = NULL;
+LPWSTR APKdcHostName = nullptr;
+LPWSTR APRestrictPackage = nullptr;
 
 static SpGetInfoFn SpGetInfo;
 
@@ -41,11 +41,11 @@ InitializePackage(
     IN OPTIONAL PLSA_STRING Confidentiality,
     OUT PLSA_STRING *AuthenticationPackageName)
 {
-    assert(DispatchTable != NULL);
+    assert(DispatchTable != nullptr);
 
     LsaAuthenticationPackageId = AuthenticationPackageId;
     LsaDispatchTable = DispatchTable;
-    *AuthenticationPackageName = NULL;
+    *AuthenticationPackageName = nullptr;
 
     InitializeRegistryNotification();
 
@@ -57,8 +57,9 @@ InitializePackage(
     APName.Buffer = (PCHAR)TKTBRIDGEAP_PACKAGE_NAME_A;
 
     Status = DuplicateLsaString(&APName, AuthenticationPackageName);
+    NT_RETURN_IF_NTSTATUS_FAILED(Status);
 
-    return Status;
+    return STATUS_SUCCESS;
 }
 
 static NTSTATUS NTAPI
@@ -69,8 +70,8 @@ SpInitialize(
 {
     NTSTATUS Status;
 
-    assert(Parameters != NULL);
-    assert(FunctionTable != NULL);
+    assert(Parameters != nullptr);
+    assert(FunctionTable != nullptr);
 
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
 
@@ -78,7 +79,7 @@ SpInitialize(
     SpParameters.MachineState   = Parameters->MachineState;
     SpParameters.SetupMode      = Parameters->SetupMode;
 
-    if (Parameters->DomainSid != NULL) {
+    if (Parameters->DomainSid != nullptr) {
         Status = RtlDuplicateSid(&SpParameters.DomainSid, Parameters->DomainSid);
         NT_RETURN_IF_NTSTATUS_FAILED(Status);
     }
@@ -109,19 +110,19 @@ SpShutdown(VOID)
     APFlags = 0;
     APLogLevel = 0;
 
-    if (APKdcHostName != NULL) {
-        RegistryFreeValue(APKdcHostName);
-        APKdcHostName = NULL;
+    if (APKdcHostName != nullptr) {
+        WIL_FreeMemory(APKdcHostName);
+        APKdcHostName = nullptr;
     }
 
-    if (APRestrictPackage != NULL) {
-        RegistryFreeValue(APRestrictPackage);
-        APRestrictPackage = NULL;
+    if (APRestrictPackage != nullptr) {
+        WIL_FreeMemory(APRestrictPackage);
+        APRestrictPackage = nullptr;
     }
 
     LsaAuthenticationPackageId = 0;
-    LsaDispatchTable = NULL;
-    LsaSpFunctionTable = NULL;
+    LsaDispatchTable = nullptr;
+    LsaSpFunctionTable = nullptr;
 
     return STATUS_SUCCESS;
 }
@@ -187,10 +188,10 @@ RegistryNotifyChanged(VOID)
 
     APLogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
 
-    RegistryFreeValue(APKdcHostName);
+    WIL_FreeMemory(APKdcHostName);
     APKdcHostName = RegistryGetStringValueForKey(hKey.get(), L"KdcHostName");
 
-    RegistryFreeValue(APRestrictPackage);
+    WIL_FreeMemory(APRestrictPackage);
     APRestrictPackage = RegistryGetStringValueForKey(hKey.get(), L"RestrictPackage");
 
     return ERROR_SUCCESS;

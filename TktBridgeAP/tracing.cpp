@@ -89,12 +89,12 @@ HeimTracingInit(krb5_context KrbContext)
     krb5_error_code KrbError;
 
     KrbError = krb5_addlog_func(KrbContext,
-        NULL,
+        nullptr,
         0,
         APLogLevel,
         HeimLogLogCB,
         HeimLogCloseCB,
-        NULL);
+        nullptr);
 
 
     return KrbError;

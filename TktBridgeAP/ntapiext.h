@@ -25,45 +25,67 @@ extern "C" {
 
 NTSTATUS NTAPI
 RtlDuplicateUnicodeString(
-	ULONG Flags,
-	PCUNICODE_STRING StringIn,
-	PUNICODE_STRING StringOut);
+	_In_ ULONG Flags,
+	_In_ PCUNICODE_STRING StringIn,
+	_Inout_ PUNICODE_STRING StringOut);
 
 BOOLEAN NTAPI
 RtlEqualUnicodeString(
-	IN PCUNICODE_STRING String1,
-	IN PCUNICODE_STRING String2,
-	IN BOOLEAN CaseInSensitive
+	_In_ PCUNICODE_STRING String1,
+	_In_ PCUNICODE_STRING String2,
+	_In_ BOOLEAN CaseInSensitive
 );
 
 NTSTATUS NTAPI
-RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid);
+RtlDuplicateSid(_Out_ PSID *NewSid, _In_ PSID OriginalSid);
 
 VOID NTAPI
-RtlFreeSid(IN OUT PSID Sid);
+RtlFreeSid(_Inout_ PSID Sid);
 
 ULONG NTAPI
-RtlLengthSid(IN PSID Sid);
+RtlLengthSid(_Inout_ PSID Sid);
 
 PVOID NTAPI
 RtlAllocateHeap(
-	IN PVOID HeapHandle,
-	IN ULONG Flags,
-	IN SIZE_T Size
+	_In_ PVOID HeapHandle,
+	_In_ ULONG Flags,
+	_In_ SIZE_T Size
 );
 
 BOOLEAN NTAPI
 RtlFreeHeap(
-	IN PVOID HeapHandle,
-	IN ULONG Flags,
+	_In_ PVOID HeapHandle,
+	_In_ ULONG Flags,
 	_Frees_ptr_opt_ PVOID BaseAddress
 );
 
-NTSTATUS NTAPI RtlCopySid(
-	IN ULONG DestinationSidLength,
-	IN OUT PSID DestinationSid,
-	IN PSID  SourceSid
+NTSTATUS NTAPI
+RtlCopySid(
+	_In_ ULONG DestinationSidLength,
+	_Inout_ PSID DestinationSid,
+	_In_ PSID SourceSid
 );
 
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlUnicodeToUTF8N(
+    __out_bcount_part(UTF8StringMaxByteCount, *UTF8StringActualByteCount) PCHAR  UTF8StringDestination,
+    __in                                ULONG  UTF8StringMaxByteCount,
+    __out                               PULONG UTF8StringActualByteCount,
+    __in_bcount(UnicodeStringByteCount) PCWCH UnicodeStringSource,
+    __in                                ULONG  UnicodeStringByteCount
+);
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlUTF8ToUnicodeN(
+    __out_bcount_part(UnicodeStringMaxByteCount, *UnicodeStringActualByteCount) PWSTR  UnicodeStringDestination,
+    __in                             ULONG  UnicodeStringMaxByteCount,
+    __out                            PULONG UnicodeStringActualByteCount,
+    __in_bcount(UTF8StringByteCount) PCCH   UTF8StringSource,
+    __in                             ULONG  UTF8StringByteCount
+);
 
 }

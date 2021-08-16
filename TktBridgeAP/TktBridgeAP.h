@@ -91,26 +91,31 @@ extern LPWSTR APRestrictPackage;
 // helpers.cpp
 
 VOID
-FreeLsaString(IN OUT PLSA_STRING pLsaString);
+FreeLsaString(_Inout_ PLSA_STRING pLsaString);
 
 NTSTATUS
-DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst);
+DuplicateLsaString(_In_ PLSA_STRING Src, _Out_ PLSA_STRING *Dst);
 
 DWORD
-RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName);
+RegistryGetDWordValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
 PWSTR
-RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName);
+RegistryGetStringValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
-VOID
-RegistryFreeValue(PWSTR Value);
+NTSTATUS
+UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
+    _Out_ PCHAR *pszUTF8String);
+
+NTSTATUS
+UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
+    _Out_ PWSTR *pwszUnicodeString);
 
 // sspipreauth.cpp
 NTSTATUS
-KrbErrorToNtStatus(krb5_error_code ret);
+KrbErrorToNtStatus(_In_ krb5_error_code ret);
 
 krb5_error_code
-SspiStatusToKrbError(SECURITY_STATUS SecStatus);
+SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
 
 // surrogate.cpp
 NTSTATUS
@@ -146,10 +151,10 @@ PostLogonUserSurrogate(
 
 // tracing.cpp
 krb5_error_code
-HeimTracingInit(krb5_context KrbContext);
+HeimTracingInit(_In_ krb5_context KrbContext);
 
 VOID
-__cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...);
+__cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
 
 #ifdef __cplusplus
 }

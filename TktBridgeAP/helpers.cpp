@@ -19,16 +19,16 @@ Environment:
 #include "TktBridgeAP.h"
 
 VOID
-FreeLsaString(PLSA_STRING pLsaString)
+FreeLsaString(_Inout_ PLSA_STRING pLsaString)
 {
-    if (pLsaString != NULL) {
+    if (pLsaString != nullptr) {
         LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
         LsaDispatchTable->FreeLsaHeap(pLsaString);
     }
 }
 
 BOOLEAN
-IsLocalHost(PUNICODE_STRING HostName)
+IsLocalHost(_In_ PUNICODE_STRING HostName)
 {
     WCHAR MachineName[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD cchMachineName = sizeof(MachineName) / 2;
@@ -43,7 +43,8 @@ IsLocalHost(PUNICODE_STRING HostName)
 }
 
 NTSTATUS
-GetLocalHostName(BOOLEAN bLsaAlloc, PUNICODE_STRING HostName)
+GetLocalHostName(_In_ BOOLEAN bLsaAlloc,
+                 _Inout_ PUNICODE_STRING HostName)
 {
     WCHAR MachineName[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD cchMachineName = sizeof(MachineName) / 2;
@@ -54,15 +55,17 @@ GetLocalHostName(BOOLEAN bLsaAlloc, PUNICODE_STRING HostName)
 
     RtlInitUnicodeString(&Src, MachineName);
 
-    return RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE, &Src, HostName);
+    return RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
+                                     &Src, HostName);
 }
 
 NTSTATUS
-DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst)
+DuplicateLsaString(_In_ PLSA_STRING Src,
+                   _Out_ PLSA_STRING *Dst)
 {
-    *Dst = NULL;
+    *Dst = nullptr;
 
-    PLSA_STRING String = NULL;
+    PLSA_STRING String = nullptr;
     
     auto cleanup = wil::scope_exit([&]
         {
@@ -86,12 +89,13 @@ DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst)
 }
 
 DWORD
-RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName)
+RegistryGetDWordValueForKey(_In_ HKEY hKey,
+                            _In_z_ PCWSTR KeyName)
 {
     DWORD dwResult, dwType = REG_DWORD, dwSize = sizeof(ULONG);
     DWORD dwValue = 0;
 
-    dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
+    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
                                (PBYTE)&dwValue, &dwSize);
     if (dwResult != ERROR_SUCCESS || dwType == REG_DWORD ||
         dwSize == sizeof(dwValue))
@@ -101,17 +105,18 @@ RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName)
 }
 
 PWSTR
-RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
+RegistryGetStringValueForKey(_In_ HKEY hKey,
+                             _In_z_ PCWSTR KeyName)
 {
     DWORD dwResult, dwType = REG_SZ;
     DWORD dwValue = 0, dwSize = 0;
-    PWSTR wszValue = NULL;
+    PWSTR wszValue = nullptr;
 
-    dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
+    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType, nullptr, &dwSize);
     if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        wszValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
-        if (wszValue != NULL) {
-            dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
+        wszValue = (LPWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
+        if (wszValue != nullptr) {
+            dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
                                        (PBYTE)wszValue, &dwSize);
             if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
                 wszValue[dwSize / sizeof(WCHAR)] = 0;
@@ -121,9 +126,48 @@ RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
     return wszValue;
 }
 
-VOID
-RegistryFreeValue(PWSTR Value)
+NTSTATUS
+UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
+                   _Out_ PCHAR *pszUTF8String)
 {
-    if (Value)
-        LsaSpFunctionTable->FreePrivateHeap(Value);
+    NTSTATUS Status;
+    ULONG cbUTF8String = 0;
+    ULONG cbUnicodeString = (wcslen(wszUnicodeString) + 1) * sizeof(WCHAR);
+
+    *pszUTF8String = nullptr;
+
+    Status = RtlUnicodeToUTF8N(nullptr, 0, &cbUTF8String, wszUnicodeString, cbUnicodeString);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    *pszUTF8String = (PCHAR)WIL_AllocateMemory(cbUTF8String);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(*pszUTF8String);
+
+    Status = RtlUnicodeToUTF8N(*pszUTF8String, cbUTF8String, &cbUTF8String,
+                               wszUnicodeString, cbUnicodeString);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS
+UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
+    _Out_ PWSTR* pwszUnicodeString)
+{
+    NTSTATUS Status;
+    ULONG cbUnicodeString = 0;
+    ULONG cbUTF8String = strlen(szUTF8String) + 1;
+
+    *pwszUnicodeString = nullptr;
+
+    Status = RtlUTF8ToUnicodeN(nullptr, 0, &cbUnicodeString, szUTF8String, cbUTF8String);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    *pwszUnicodeString = (PWSTR)WIL_AllocateMemory(cbUnicodeString);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(*pwszUnicodeString);
+
+    Status = RtlUTF8ToUnicodeN(*pwszUnicodeString, cbUnicodeString, &cbUnicodeString,
+        szUTF8String, cbUTF8String);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    return STATUS_SUCCESS;
 }
