@@ -62,11 +62,18 @@ DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst)
 {
     *Dst = NULL;
 
-    PLSA_STRING String = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
+    PLSA_STRING String = NULL;
+    
+    auto cleanup = wil::scope_exit([&]
+        {
+            FreeLsaString(String);
+        });
+
+    String = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
     RETURN_NTSTATUS_IF_NULL_ALLOC(String);
 
     String->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(Src->MaximumLength);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(String->Buffer); // FIXME leaks String
+    RETURN_NTSTATUS_IF_NULL_ALLOC(String->Buffer);
 
     RtlCopyMemory(String->Buffer, Src->Buffer, Src->MaximumLength);
 

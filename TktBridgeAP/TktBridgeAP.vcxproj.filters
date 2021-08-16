@@ -30,6 +30,9 @@
     <ClInclude Include="wil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="HeimPrivate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="logonpkg.cpp">

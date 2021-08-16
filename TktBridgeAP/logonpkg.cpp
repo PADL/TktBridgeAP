@@ -172,7 +172,6 @@ SpGetInfo(OUT PSecPkgInfo PackageInfo)
     return STATUS_SUCCESS;
 }
 
-
 static DWORD
 RegistryNotifyChanged(VOID)
 {
@@ -184,15 +183,17 @@ RegistryNotifyChanged(VOID)
     RETURN_IF_WIN32_ERROR_EXPECTED(dwResult);
 
     APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
-    APFlags |= RegistryGetDWordValueForKey(hKey, L"Flags") & TKTBRIDGEAP_FLAG_USER;
+    APFlags |= RegistryGetDWordValueForKey(hKey.get(), L"Flags") & TKTBRIDGEAP_FLAG_USER;
 
-    APLogLevel = RegistryGetDWordValueForKey(hKey, L"LogLevel");
+    APLogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
 
     RegistryFreeValue(APKdcHostName);
-    APKdcHostName = RegistryGetStringValueForKey(hKey, L"KdcHostName");
+    APKdcHostName = RegistryGetStringValueForKey(hKey.get(), L"KdcHostName");
 
     RegistryFreeValue(APRestrictPackage);
-    APRestrictPackage = RegistryGetStringValueForKey(hKey, L"RestrictPackage");
+    APRestrictPackage = RegistryGetStringValueForKey(hKey.get(), L"RestrictPackage");
+
+    return ERROR_SUCCESS;
 }
 
 static NTSTATUS
