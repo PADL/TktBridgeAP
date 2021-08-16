@@ -25,7 +25,10 @@ RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
     ULONG SidLength;
     unique_rtl_sid Sid;
 
+    *NewSid = NULL;
+
     SidLength = RtlLengthSid(OriginalSid);
+
     Sid = RtlAllocateHeap(GetProcessHeap(), 0, SidLength);
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
@@ -33,5 +36,6 @@ RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
     *NewSid = Sid;
+
     return STATUS_SUCCESS;
 }

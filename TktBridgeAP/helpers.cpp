@@ -74,44 +74,36 @@ DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst)
 DWORD
 RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName)
 {
-    DWORD dwResult, dwType, dwValue, dwSize;
+    DWORD dwResult, dwType = REG_DWORD, dwSize = sizeof(dwValue);
 
-    dwType = REG_DWORD;
-    dwValue = 0;
-    dwSize = sizeof(dwValue);
     dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
-        (PBYTE)&dwValue, &dwSize);
-
-    if (dwResult == ERROR_SUCCESS && dwType == REG_DWORD &&
+                               (PBYTE)&dwValue, &dwSize);
+    if (dwResult != ERROR_SUCCESS || dwType == REG_DWORD ||
         dwSize == sizeof(dwValue))
-        return dwValue;
+        dwValue = 0;
 
-    return 0;
+    return dwValue;
 }
 
 PWSTR
 RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
 {
-    DWORD dwResult, dwType, dwValue, dwSize;
+    DWORD dwResult, dwType = REG_SZ;
+    DWORD dwValue = 0, dwSize = 0;
+    PWSTR wszValue = NULL;
 
-    dwType = REG_SZ;
-    dwValue = 0;
-    dwSize = 0;
     dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
     if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        LPWSTR szValue;
-
-        szValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
-        if (szValue != NULL) {
-            dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
+        wszValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
+        if (sszValue != NULL) {
+            dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
+                                       (PBYTE)wszValue, &dwSize);
             if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-                szValue[dwSize / sizeof(WCHAR)] = 0;
-
-            return szValue;
+                wszValue[dwSize / sizeof(WCHAR)] = 0;
         }
     }
 
-    return NULL;
+    return wszValue;
 }
 
 VOID

@@ -18,12 +18,10 @@ Environment:
 
 #include "TktBridgeAP.h"
 
-/* from LSA */
 ULONG LsaAuthenticationPackageId = 0;
 PLSA_DISPATCH_TABLE LsaDispatchTable = NULL;
 PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = NULL;
 
-/* local state to be freed */
 SECPKG_PARAMETERS SpParameters;
 ULONG APFlags = 0;
 ULONG APLogLevel = 0;
@@ -76,9 +74,9 @@ SpInitialize(
 
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
 
-    SpParameters.Version = Parameters->Version;
-    SpParameters.MachineState = Parameters->MachineState;
-    SpParameters.SetupMode = Parameters->SetupMode;
+    SpParameters.Version        = Parameters->Version;
+    SpParameters.MachineState   = Parameters->MachineState;
+    SpParameters.SetupMode      = Parameters->SetupMode;
 
     if (Parameters->DomainSid != NULL) {
         Status = RtlDuplicateSid(&SpParameters.DomainSid, Parameters->DomainSid);
@@ -86,13 +84,13 @@ SpInitialize(
     }
 
     Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-        &Parameters->DomainName,
-        &SpParameters.DomainName);
+                                       &Parameters->DomainName,
+                                       &SpParameters.DomainName);
     NT_RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-        &Parameters->DnsDomainName,
-        &SpParameters.DnsDomainName);
+                                       &Parameters->DnsDomainName,
+                                       &SpParameters.DnsDomainName);
     NT_RETURN_IF_NTSTATUS_FAILED(Status);
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
@@ -164,12 +162,12 @@ SpGetInfo(OUT PSecPkgInfo PackageInfo)
 {
     RtlZeroMemory(PackageInfo, sizeof(*PackageInfo));
 
-    PackageInfo->fCapabilities = SECPKG_FLAG_LOGON;
-    PackageInfo->wVersion = TKTBRIDGEAP_PACKAGE_VERSION;
-    PackageInfo->wRPCID = SECPKG_ID_NONE;
-    PackageInfo->cbMaxToken = 0;
-    PackageInfo->Name = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_NAME_W;
-    PackageInfo->Comment = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_COMMENT_W;
+    PackageInfo->fCapabilities  = SECPKG_FLAG_LOGON;
+    PackageInfo->wVersion       = TKTBRIDGEAP_PACKAGE_VERSION;
+    PackageInfo->wRPCID         = SECPKG_ID_NONE;
+    PackageInfo->cbMaxToken     = 0;
+    PackageInfo->Name           = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_NAME_W;
+    PackageInfo->Comment        = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_COMMENT_W;
 
     return STATUS_SUCCESS;
 }

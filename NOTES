@@ -1,0 +1,286 @@
+typedef struct _KERB_AS_REP_CREDENTIAL {
+	ULONG Version;
+	ULONG Flags;
+	ULONG TgtMessageOffset;
+	ULONG TgtMessageSize;
+	ULONG TgtClientKeyOffset;
+	ULONG TgtClientKeySize;
+	ULONG VsmBindingPrivateKeyOffset;
+	ULONG VsmBindingPrivateKeySize;
+	ULONG TgtKeyType;
+} KERB_AS_REP_CREDENTIAL, *PKERB_AS_REP_CREDENTIAL;
+
+#define KERB_AS_REP_CREDENTIAL_VERSION_1	1
+
+typedef struct _KERB_SURROGATE_LOGON_ENTRY {
+	ULONG_PTR Reserved[10];
+	NTSTATUS (*RetrieveKerbAsRepCredential)(LUID, PVOID, ULONG, PKERB_AS_REP_CREDENTIAL *);
+	PVOID SurrogateData;
+} KERB_SURROGATE_LOGON_ENTRY;
+
+NTSTATUS
+CopyAsRepCredential(
+	PKERB_AS_REP_CREDENTIAL pkasrcIn,
+	PKERB_AS_REP_CREDENTIAL *ppkasrcOut);
+
+NTSTATUS
+RetrieveAsRepCredential(
+	LUID LogonID,
+	PVOID SurrogateData,
+	ULONG dwFlags,
+	PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
+{
+	PKERB_AS_REP_CREDENTIAL ProtectedCred = (PKERB_AS_REP_CREDENTIAL)SurrogateData;
+
+	// copy it
+	// LsaUnprotect it
+	LsaSpFunctionTable->LsaProtectMemory((PUCHAR)CredCopy + TgtClientKeyOffset, TgtClientKeySize);
+	*pKerbAsRepCred = CredCopy;
+}
+
+NTSTATUS
+BuildAsRepCredential()
+{
+}
+
+
+/*
+ * 00		Version				1
+ * 04		Flags
+ * 08		TgtMessageOffset
+ * 0C		TgtMessageLength
+ *
+ * 10		TgtClientKeyOffset		0x24
+ * 14		TgtClientKeyLength			
+ * 18		VsmBindingPrivateKeyOffset
+ * 1C		VsmBindingPrivateKeyLength
+ * 20		TgtKeyType
+ *
+ * 24						TgtClientKey
+ * TgtClientKeyOffset + TgtClientKeyLength 	TgtMessage
+ * TgtMessageOffset + TgtMessageLength		VsmBindingPrivateKey
+ */
+
+NTSTATUS
+DeriveGssPreAuthReplyKey(
+	LSA_SEC_HANDLE ContextHandle,
+	PUCHAR *pKerbCryptoKeyValue,
+	PULONG pKerbCryptoKeyLength);
+
+NTSTATUS
+AcquireGssPreAuthenticatedTgt()
+{
+
+	// target name = krbtgt/REALM@REALM
+	// which we can get from PrimaryDomainInfo or possibly registry override
+
+	SspiExcludeSecurityPackage();
+	AcquireCredentialsHandle(OpaqueAuthIdentity, &CredHandle);
+
+	do {
+		InitializeSecurityContext();
+		krb5_init_creds_set_gss_padata();
+		krb5_init_creds_step();
+	} while (Status == SEC_I_CONTINUE_NEEDED);
+
+	// check mutual auth flag set
+/*
+KDC-REP ::= SEQUENCE {
+        pvno[0]                 Krb5Int32,
+        msg-type[1]             MESSAGE-TYPE,
+        padata[2]               METHOD-DATA OPTIONAL,
+        crealm[3]               Realm,					creds->client
+        cname[4]                PrincipalName,				creds->client
+        ticket[5]               Ticket,					creds->ticket
+        enc-part[6]             EncryptedData				ctx->enc_part
+}
+*/
+
+
+
+}
+
+LsaApPreLogonUserSurrogate
+{
+	// trace everything with WPPTraceLog
+	// validate parameters including surrogate version, logon type, return STATUS_INVALID_PARAMETER if invalid
+	// canonicalize logon identity to opaque auth identity
+	ConvertLogonCredsToOpaqueAuthIdentity();
+	// check PolicyPrimaryDomainInformation() / PolicyDnsDomainInformation / LsaQueryTrustedDomainInfoByName/ TrustedDomainNameInformation (SEC_E_NO_CREDENTIALS)
+	ValidateAuthIdentity();
+	// check ticket cache for username/domain name, if matches
+	if (gEnableTicketCache) {
+		DeriveWrapKey();
+		LocateTicketCacheEntry(true);
+		LockAndUnprotectTicketCacheEntry(true);
+	}
+	SspiFreeAuthIdentity(convertedIdentity);
+	// 	- try to decrypt reply key using PBKDF2(credentials)
+	if (HasNotExpired(CacheEntry) && CacheEntry->WrappedReplyKeyValue) {
+		KERB_CRYPTO_KEY32 TgtReplyKey;
+		UnwrapKeyData(CacheEntry->WrappedReplyKeyValue, CacheEntry->WrappedReplyKeyLength, ...);
+		if (TgtReplyKey->KeyType != CacheEntry->TgtKeyType)
+			return STATUS_ACCESS_DENIED;
+		// - if this succeeds, and cache entry hasn't expired, return those
+	} else {
+		// ACH(credentials); PBKDF2 to derive key; forget credentials; ISC/KDC AS-REQ
+		// 	- allocate surrogate entry containing AS-REP credentials
+	}
+	// GUIDs 0x045fbe6b 0x42057995 0xfa741191 0x273cdd9c || RetrieveKerbSupplementalCredential pointer + session key callback
+	//       0x8ece955b 0x41f8e32c 0x7c953684 0x36326823 || session key
+	// don't destroy surrogate logon data, needs to be reallocated if present
+	if (gEnableTicketCache) {
+		// 	- create cache entry with TGT and PBKDF2 encrypted reply key
+		ProtectAndUnlockTicketCacheEntry();
+		ReleaseTicketCacheEntry();
+	}
+}
+
+/* globals */
+BOOL gEnableTicketCache;
+UNICODE_STRING gRestrictPackageName;
+UNICODE_STRING gBridgeKdcRealmName;
+
+/* cache structure */
+
+BOOL
+ValidateAuthIdentity()
+{
+	// if not local domain, pass
+}
+
+// username, domain, password => ticket, session key
+
+NTSTATUS
+ConvertLogonCredsToOpaqueAuthIdentity()
+{
+	// check it's at least a ULONG
+	switch (*(PULONG)LogonSubmitBuffer) {
+		case SEC_WINNT_AUTH_IDENTITY_VERSION_2:
+			SspiUnmarshalAuthIdentity();
+			validate;
+			SspiCopyAuthIdentity();
+			if (SspiIsAuthIdentityEncrypted())
+				SspiDecryptAuthIdentityEx();
+			break;
+		case KerbInteractiveLogon:
+			SspiEncodeStringsAsAuthIdentity();
+		case ...
+	}
+
+	// validate all offsets in auth identities
+
+	// CredPackAuthenticationBuffer UserName/Password
+	//
+	//
+	//
+
+	// then Lsa Encrypt auth identity
+}
+
+//
+// derive a key from user, domain and password
+//
+NTSTATUS
+DeriveWrapKey(
+	PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+	BCRYPT_KEY_HANDLE *phKey)
+{
+	// copy
+	Status = SspiEncodeAuthIdentityAsStrings(ClaimantIdentity, NULL, NULL, &pszPackedCredentialsString);
+	Status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_SHA512_ALGORITHM, NULL, BCRYPT_ALG_HANDLE_HMAC_FLAG)
+	Status = BCryptDeriveKeyPBKDF2(hAlg, pszPackedCredentialsString, wcslen(pszPackedCredentialsString),
+			"USER\\Domain", sizeof("USER\\Domain") - 1, 10000, pbDerivedKey, cbDerivedKey, 0);
+	Status = BCryptGenerateSymmetricKey(..., &hKey, NULL, NULL, pbDerivedKey, cbDerivedKey, 0);
+}
+
+NTSTATUS
+WrapKeyData(
+	BCRYPT_KEY_HANDLE hKey,
+	PUCHAR pbInput,
+	ULONG cbInput,
+	PUCHAR *pbOutput,
+	PULONG *cbOutput)
+{
+	Status = BCryptDecrypt(hKey, CacheEntry->WrappedReplyKeyValue, CacheEntry->WrappedReplyKeySize, &AuthenticatedCipherModeInfo, ...);
+	// lsa protect it
+}
+
+typedef struct _TKT_BRIDGE_CACHE_ENTRY {
+	volatile LONG RefCount;
+	LUID LogonId;
+	//
+	// An auth identity containing the username and domainname,
+	// for cache lookups. The password is empty.
+	//
+	PSEC_WINNT_AUTH_IDENTITY_OPAQUE LogonUser;
+	LARGE_INTEGER TgtEndTime;
+	//
+	// The AS-REP returned from the KDC, containing the partial
+	// TGT along with the encrypted session key.
+	//
+	ULONG TgtMessageSize;
+	PUCHAR TgtMessageValue;
+	//
+	// The AS-REP reply key, derived using PRF(SKey, "KRB-GSS" || nonce)
+	// and encrypted using the user's long-term credential and LSA key.
+	// The plaintext value is a KERB_CRYPTO_KEY32.
+	//
+	ULONG WrappedReplyKeySize;
+	PUCHAR WrappedReplyKeyValue;
+	ULONG TgtKeyType;
+} TKT_BRIDGE_CACHE_ENTRY, *PTKT_BRIDGE_CACHE_ENTRY;
+
+// RtlAcquireResourceExclusive for ticket cache list to enable multiple readers
+//
+VOID InitializeTicketCache(VOID);
+VOID DeleteTicketCache(VOID);
+VOID DebugPrintTicketCache(VOID);
+VOID RemoveTicketCacheEntry(PTKT_BRIDGE_CACHE_ENTRY CacheEntry);
+
+NTSTATUS
+LocateTicketCacheEntry(
+	LUID LogonId,
+	PSEC_WINNT_AUTH_IDENTITY_OPAQUE pAuthIdentity,
+	BOOL bCreateIfNotFound,
+	PTKT_BRIDGE_CACHE_ENTRY *pCacheEntry);
+
+NTSTATUS
+UpdateTicketCacheEntry(
+	PTKT_BRIDGE_CACHE_ENTRY CacheEntry,
+	PUCHAR TgtMessageData,
+	ULONG TgtMessageLength,
+	LARGE_INTEGER TgtExpiry);
+
+VOID ReleaseTicketCacheEntry(PTKT_BRIDGE_CACHE_ENTRY CacheEntry);
+
+VOID LockAndUnprotectTicketCacheEntry(PTKT_BRIDGE_CACHE_ENTRY CacheEntry, BOOL Exclusive)
+{
+	if (Exclusive)
+		RtlAcquireResourceExclusive(&CacheEntry->Lock);
+	else
+		RtlAcquireResourceShared(&CacheEntry->Lock);
+
+	if (CacheEntry->ActiveCount == 0)
+		Unprotect();
+
+	InterlockedIncrement(&CacheEntry->RefCount);
+}
+
+VOID ProtectAndUnlockTicketCacheEntry(PTKT_BRIDGE_CACHE_ENTRY CacheEntry, BOOL Exclusive)
+{
+	InterlockedDecrement(&CacheEntry->ActiveCount);
+	if (CacheEntry->ActiveCount == 0)
+		Protect();
+	RtlReleaseResource(&CacheEntry->Lock);
+}
+
+// returns TRUE if we have a valid ticket for username/password combination
+// RtlEqualUnicodeString to compare domain and possibly user
+BOOL
+LogonCanAcquireTicketCacheEntry(
+	LUID LogonId,
+	PSEC_WINNT_AUTH_IDENTITY_OPAQUE pAuthIdentity,
+	LARGE_INTEGER LogonTime,
+	PTKT_BRIDGE_CACHE_ENTRY CacheEntry);
+

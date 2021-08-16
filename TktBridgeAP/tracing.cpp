@@ -84,7 +84,7 @@ HeimLogCloseCB(PVOID Context)
 }
 
 krb5_error_code
-InitializeHeimTracing(krb5_context KrbContext)
+HeimTracingInit(krb5_context KrbContext)
 {
     krb5_error_code KrbError;
 
