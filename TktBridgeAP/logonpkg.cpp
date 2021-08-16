@@ -136,11 +136,10 @@ TktBridgeAPFunctionTable = {
 };
 
 TKTBRIDGEAP_API NTSTATUS NTAPI
-SpLsaModeInitialize(
-    IN ULONG LsaVersion,
-    OUT PULONG PackageVersion,
-    OUT PSECPKG_FUNCTION_TABLE *ppTables,
-    OUT PULONG pcTables)
+SpLsaModeInitialize(_In_ ULONG LsaVersion,
+                    _Out_ PULONG PackageVersion,
+                    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
+                    _Out_ PULONG pcTables)
 {
     if (LsaVersion != SECPKG_INTERFACE_VERSION) {
         DebugTrace(WINEVENT_LEVEL_ERROR,

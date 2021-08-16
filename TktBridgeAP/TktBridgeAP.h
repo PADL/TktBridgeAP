@@ -111,7 +111,21 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     _Out_ PWSTR *pwszUnicodeString);
 
 
+// logonapi.cpp
+TKTBRIDGEAP_API NTSTATUS NTAPI
+SpLsaModeInitialize(_In_ ULONG LsaVersion,
+		    _Out_ PULONG PackageVersion,
+		    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
+		    _Out_ PULONG pcTables);
+
+// sspipreauth.cpp
+NTSTATUS
+KrbErrorToNtStatus(_In_ krb5_error_code ret);
+
 krb5_error_code
+SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
+
+TKTBRIDGEAP_API krb5_error_code
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_In_opt_z_ PCWSTR PackageName,
 			_In_opt_z_ PCWSTR KdcHostName,
@@ -121,13 +135,6 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_Out_ SECURITY_STATUS *SecStatus,
 			_Inout_ krb5_data *AsRep,
 			_Inout_ krb5_keyblock *AsReplyKey);
-
-// sspipreauth.cpp
-NTSTATUS
-KrbErrorToNtStatus(_In_ krb5_error_code ret);
-
-krb5_error_code
-SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
 
 // surrogate.cpp
 NTSTATUS

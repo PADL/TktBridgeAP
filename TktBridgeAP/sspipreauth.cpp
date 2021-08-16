@@ -259,7 +259,7 @@ MakeChannelBindings(_In_ krb5_context KrbContext,
 	return KrbError;
     }
 
-    ChannelBindings->cbApplicationDataLength = EncAsReq->length;
+    ChannelBindings->cbApplicationDataLength = (ULONG)EncAsReq->length;
     ChannelBindings->dwApplicationDataOffset = sizeof(*ChannelBindings);
     memcpy((PBYTE)ChannelBindings + ChannelBindings->dwApplicationDataOffset,
 	   EncAsReq->data, EncAsReq->length);
@@ -287,26 +287,38 @@ SspiPreauthStep(krb5_context KrbContext,
     SecBuffer OutputBuffer = { .cbBuffer = 0, .pvBuffer = nullptr };
     SecBufferDesc InputBufferDesc, OutputBufferDesc;
     TimeStamp tsExpiry;
+    SECURITY_STATUS SecStatus;
 
     assert(KrbCred != nullptr);
     assert(KrbCred->server != nullptr);
 
+    krb5_data_zero(OutputToken);
+
     auto cleanup = wil::scope_exit([&]() {
+	if (KrbError != 0 && KrbError != HEIM_ERR_PA_CONTINUE_NEEDED)
+	    krb5_data_free(OutputToken);
 	krb5_free_principal(KrbContext, TgsName);
 	WIL_FreeMemory(TargetName);
 	WIL_FreeMemory(ChannelBindings);
-	if (OutputBuffer.pvBuffer != nullptr)
-	    FreeContextBuffer(OutputBuffer.pvBuffer);
 				   });
 
-    fContextReq = ISC_REQ_MUTUAL_AUTH | ISC_REQ_ALLOCATE_MEMORY;
+    auto Mech = _krb5_init_creds_get_gss_mechanism(KrbContext, GssICContext);
+    PSecPkgInfo SecurityInfo;
+    SecStatus = QuerySecurityPackageInfo(const_cast<PWSTR>(Mech->Package), &SecurityInfo);
+    if (SecStatus != SEC_E_OK) {
+	KrbError = SspiStatusToKrbError(SecStatus);
+	return KrbError;
+    }
+
+    fContextReq = ISC_REQ_MUTUAL_AUTH;
     if (KrbReqFlags.request_anonymous)
 	fContextReq |= ISC_REQ_NULL_SESSION;
 
     auto GssCredHandle = _krb5_init_creds_get_gss_cred(KrbContext, GssICContext);
     assert(GssCredHandle != nullptr);
 
-    KrbError = krb5_make_principal(KrbContext, &TgsName,
+    KrbError = krb5_make_principal(KrbContext,
+				   &TgsName,
 				   KrbCred->server->realm,
 				   KRB5_TGS_NAME,
 				   KrbCred->server->realm,
@@ -324,7 +336,7 @@ SspiPreauthStep(krb5_context KrbContext,
 	PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
 
 	pSecBuffer->BufferType = SECBUFFER_TOKEN;
-	pSecBuffer->cbBuffer = InputToken->length;
+	pSecBuffer->cbBuffer = (ULONG)InputToken->length;
 	pSecBuffer->pvBuffer = InputToken->data;
     }
 
@@ -333,18 +345,20 @@ SspiPreauthStep(krb5_context KrbContext,
 
     PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
     pSecBuffer->BufferType = SECBUFFER_CHANNEL_BINDINGS;
-    pSecBuffer->cbBuffer = sizeof(*ChannelBindings) + EncAsReq->length;
+    pSecBuffer->cbBuffer = sizeof(*ChannelBindings) + (ULONG)EncAsReq->length;
     pSecBuffer->pvBuffer = ChannelBindings;
 
     OutputBufferDesc.ulVersion = SECBUFFER_VERSION;
     OutputBufferDesc.cBuffers = 1;
     OutputBufferDesc.pBuffers = &OutputBuffer;
 
-    OutputBuffer.BufferType = SECBUFFER_TOKEN;
-    OutputBuffer.cbBuffer = 0;
-    OutputBuffer.pvBuffer = nullptr;
+    KrbError = krb5_data_alloc(OutputToken, SecurityInfo->cbMaxToken);
+    RETURN_IF_KRB_FAILED(KrbError);
 
-    SECURITY_STATUS SecStatus;
+    OutputBuffer.BufferType = SECBUFFER_TOKEN;
+    OutputBuffer.cbBuffer = SecurityInfo->cbMaxToken;
+    OutputBuffer.pvBuffer = OutputToken->data;
+
     PCtxtHandle InputContextHandle;
     CtxtHandle OutputContextHandle = { .dwLower = 0, .dwUpper = 0 };
 
@@ -366,31 +380,27 @@ SspiPreauthStep(krb5_context KrbContext,
 					  &fContextAttr,
 					  &tsExpiry);
 
-    if (*GssContextHandle == nullptr &&
-	(SecStatus == SEC_E_OK || SecStatus == SEC_I_CONTINUE_NEEDED)) {
-	*GssContextHandle = (gss_ctx_id_t)WIL_AllocateMemory(sizeof(gss_ctx_id_t_desc_struct));
+    if (SecStatus == SEC_E_OK || SecStatus == SEC_I_CONTINUE_NEEDED) {
+	OutputToken->length = OutputBuffer.cbBuffer;
+
 	if (*GssContextHandle == nullptr) {
-	    DeleteSecurityContext(&OutputContextHandle); // don't orphan it
-	    return krb5_enomem(KrbContext);
+	    *GssContextHandle = (gss_ctx_id_t)WIL_AllocateMemory(sizeof(gss_ctx_id_t_desc_struct));
+	    if (*GssContextHandle == nullptr) {
+		DeleteSecurityContext(&OutputContextHandle); // don't orphan it
+		return krb5_enomem(KrbContext);
+	    }
 	}
+    } else {
+	LastSecStatus = SecStatus;
     }
 
     (*GssContextHandle)->Handle = OutputContextHandle;
-
-    if (OutputBuffer.pvBuffer != nullptr) {
-	KrbError = krb5_data_alloc(OutputToken, OutputBuffer.cbBuffer);
-	RETURN_IF_KRB_FAILED(KrbError);
-
-	memcpy(OutputToken->data, OutputBuffer.pvBuffer, OutputBuffer.cbBuffer);
-    }
 
     if (SecStatus == SEC_E_OK &&
 	(fContextAttr & ISC_RET_MUTUAL_AUTH) == 0)
 	KrbError = KRB5_MUTUAL_FAILED;
     else
 	KrbError = SspiStatusToKrbError(SecStatus);
-
-    LastSecStatus = SecStatus;
 
     return KrbError;
 }
@@ -538,7 +548,7 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
 // Acquire a TGT for a given username/domain/credential/package
 //
 
-krb5_error_code
+TKTBRIDGEAP_API krb5_error_code
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_In_opt_z_ PCWSTR PackageName,
 			_In_opt_z_ PCWSTR KdcHostName,
@@ -587,6 +597,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 	    FreeCredentialsHandle(&GssCredHandle.Handle);
 	}
 				   });
+
+    if (PackageName == nullptr)
+	PackageName = L"Negotiate";
 
     TimeStamp tsExpiry;
     auto SecStatus = AcquireCredentialsHandle(NULL, // pszPrincipal
@@ -643,7 +656,8 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
 	KrbError = krb5_init_creds_step(KrbContext, InitCredsContext,
 					AsRep, &AsReq, NULL, &Flags);
-	*pSecStatus = LastSecStatus;
+	if (KrbError != 0)
+	    *pSecStatus = LastSecStatus;
 	RETURN_IF_KRB_FAILED(KrbError);
 
 	if ((Flags & KRB5_INIT_CREDS_STEP_FLAG_CONTINUE) == 0)
