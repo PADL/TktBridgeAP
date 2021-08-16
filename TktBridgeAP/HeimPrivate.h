@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sspi.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
