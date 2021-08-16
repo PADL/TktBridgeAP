@@ -110,6 +110,18 @@ NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     _Out_ PWSTR *pwszUnicodeString);
 
+
+krb5_error_code
+SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
+			_In_opt_z_ PCWSTR PackageName,
+			_In_opt_z_ PCWSTR KdcHostName,
+			_In_opt_ PLUID pvLogonID,
+			_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+			_Out_ PWSTR *pClientName,
+			_Out_ SECURITY_STATUS *SecStatus,
+			_Inout_ krb5_data *AsRep,
+			_Inout_ krb5_keyblock *AsReplyKey);
+
 // sspipreauth.cpp
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code ret);
@@ -162,6 +174,8 @@ __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
 
 namespace wil {
 #define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
+
+    using unique_cred_handle = unique_struct<SecHandle, decltype(&::FreeCredentialsHandle), ::FreeCredentialsHandle>;
 
     using unique_lsa_string = unique_any<PLSA_STRING, decltype(&::FreeLsaString), ::FreeLsaString>;
     using unique_rtl_sid = unique_any<PSID, decltype(&::RtlFreeSid), ::RtlFreeSid>;

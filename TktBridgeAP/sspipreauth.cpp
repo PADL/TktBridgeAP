@@ -62,6 +62,9 @@ SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus)
     }
 }
 
+thread_local static SECURITY_STATUS
+LastSecStatus = SEC_E_INTERNAL_ERROR;
+
 static krb5_error_code
 RFC4401PRF(_In_ krb5_context KrbContext,
 	   _In_ PCtxtHandle phContext,
@@ -218,16 +221,6 @@ SspiPreauthUnparseName(_In_ krb5_context KrbContext,
 
     return KrbError;
 }
-
-static krb5_error_code
-SspiPreauthMakeAnonymousName(_In_ krb5_context KrbContext,
-			     _Out_ krb5_principal *pPrincipal)
-{
-    return krb5_make_principal(KrbContext, pPrincipal,
-			       KRB5_ANON_REALM, KRB5_WELLKNOWN_NAME,
-			       KRB5_ANON_NAME, nullptr);
-}
-
 
 static krb5_error_code
 SspiPreauthParseName(_In_ krb5_context KrbContext,
@@ -397,6 +390,8 @@ SspiPreauthStep(krb5_context KrbContext,
     else
 	KrbError = SspiStatusToKrbError(SecStatus);
 
+    LastSecStatus = SecStatus;
+
     return KrbError;
 }
   
@@ -428,13 +423,11 @@ SspiPreauthFinish(
 	    FreeContextBuffer(NativeNames.sServerName);
 				   });
 
-    SecStatus = QueryContextAttributesEx(&GssContextHandle->Handle,
-					 SECPKG_ATTR_NATIVE_NAMES,
-				         &NativeNames,
-					 sizeof(NativeNames));
+    SecStatus = QueryContextAttributes(&GssContextHandle->Handle,
+				       SECPKG_ATTR_NATIVE_NAMES,
+				       &NativeNames);
     if (SecStatus != SEC_E_OK)
 	return SspiStatusToKrbError(SecStatus);
-
 
     KrbError = SspiPreauthParseName(KrbContext,
 				    NativeNames.sClientName,
@@ -475,34 +468,200 @@ SspiPreauthReleaseCred(
     }
 }
 
+
+static krb5_error_code
+MakeWKAnonymousName(_In_ krb5_context KrbContext,
+		    _Out_ krb5_principal *pPrincipal)
+{
+    return krb5_make_principal(KrbContext, pPrincipal,
+			       KRB5_ANON_REALM, KRB5_WELLKNOWN_NAME,
+			       KRB5_ANON_NAME, nullptr);
+}
+
+
+static krb5_error_code
+MakeWKFederatedName(_In_ krb5_context KrbContext,
+		    _In_z_ PCWSTR RealmName,
+		    _Out_ krb5_principal *pPrincipal)
+{
+    PCHAR RealmNameUTF8;
+
+    *pPrincipal = NULL;
+
+    if (!NT_SUCCESS(UnicodeToUTF8Alloc(RealmName, &RealmNameUTF8)))
+	return krb5_enomem(KrbContext);
+
+    krb5_error_code KrbError = krb5_make_principal(KrbContext,
+						   pPrincipal,
+						   RealmNameUTF8,
+						   KRB5_WELLKNOWN_NAME,
+						   KRB5_FEDERATED_NAME,
+						   NULL);
+
+    WIL_FreeMemory(RealmNameUTF8);
+
+    return KrbError;
+}
+
+static krb5_error_code
+AllocateSendToContext(_In_ krb5_context KrbContext,
+		      _In_opt_z_ PCWSTR KdcHostName,
+		      _Out_ krb5_sendto_ctx *pSendToContext)
+{
+    krb5_error_code KrbError;
+    krb5_sendto_ctx SendToContext;
+
+    *pSendToContext = nullptr;
+
+    KrbError = krb5_sendto_ctx_alloc(KrbContext, &SendToContext);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    if (KdcHostName != nullptr) {
+	PSTR KdcHostNameUTF8;
+
+	if (!NT_SUCCESS(UnicodeToUTF8Alloc(KdcHostName, &KdcHostNameUTF8)))
+	    return krb5_enomem(KrbContext);
+
+	krb5_sendto_set_hostname(KrbContext, SendToContext, KdcHostNameUTF8);
+	WIL_FreeMemory(KdcHostNameUTF8);
+    }
+
+    krb5_sendto_ctx_add_flags(SendToContext, KRB5_KRBHST_FLAGS_LARGE_MSG);
+    krb5_sendto_ctx_set_type(SendToContext, KRB5_KRBHST_TKTBRIDGEAP);
+
+    *pSendToContext = SendToContext;
+
+    return 0;
+}
+
 //
 // Acquire a TGT for a given username/domain/credential/package
 //
 
-SECURITY_STATUS
-SspiPreauthGetInitCreds(
-    _In_z_ PCWSTR Principal,
-    _In_z_ PCWSTR PackageName,
-    _In_opt_ PLUID pvLogonID,
-    _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-    _Out_ PWSTR *pClientName,
-    _Inout_ krb5_data *TgtMessage,
-    _Inout_ krb5_keyblock *AsReplyKey)
+krb5_error_code
+SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
+			_In_opt_z_ PCWSTR PackageName,
+			_In_opt_z_ PCWSTR KdcHostName,
+			_In_opt_ PLUID pvLogonID,
+			_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+			_Out_ PWSTR *pClientName,
+			_Out_ SECURITY_STATUS *pSecStatus,
+			_Inout_ krb5_data *AsRep,
+			_Inout_ krb5_keyblock *AsReplyKey)
 {
     krb5_error_code KrbError;
+    krb5_context KrbContext;
+    krb5_init_creds_context InitCredsContext;
+    krb5_get_init_creds_opt *InitCredsOpt = NULL;
+    krb5_principal FederatedPrinc = NULL;
+    struct gss_cred_id_t_desc_struct GssCredHandle;
+    struct gss_OID_desc_struct GssMech = { .Package = PackageName };
+    krb5_data AsReq;
+    krb5_sendto_ctx SendToContext = nullptr;
 
-    krb5_data_zero(TgtMessage);
+    *pSecStatus = LastSecStatus = SEC_E_UNKNOWN_CREDENTIALS;
 
-    return SEC_E_NOT_SUPPORTED;
+    ZeroMemory(&GssCredHandle, sizeof(GssCredHandle));
+
+    krb5_data_zero(&AsReq);
+    krb5_data_zero(AsRep);
+    AsReplyKey->keytype = (krb5_enctype)ENCTYPE_NULL;
+    krb5_data_zero(&AsReplyKey->keyvalue);
+    *pClientName = NULL;
+
+    auto cleanup = wil::scope_exit([&] {
+	if (KrbContext != nullptr) {
+	    krb5_data_free(&AsReq);
+	    if (KrbError != 0) {
+		krb5_free_keyblock_contents(KrbContext, AsReplyKey);
+		krb5_data_free(AsRep);
+	    }
+	    if (SendToContext != nullptr)
+		krb5_sendto_ctx_free(KrbContext, SendToContext);
+	    if (InitCredsContext != nullptr)
+		krb5_init_creds_free(KrbContext, InitCredsContext);
+	    krb5_get_init_creds_opt_free(KrbContext, InitCredsOpt);
+	    krb5_free_principal(KrbContext, FederatedPrinc);
+	    krb5_free_context(KrbContext);
+
+	    FreeCredentialsHandle(&GssCredHandle.Handle);
+	}
+				   });
+
+    TimeStamp tsExpiry;
+    auto SecStatus = AcquireCredentialsHandle(NULL, // pszPrincipal
+					      const_cast<LPWSTR>(PackageName),
+					      SECPKG_CRED_AUTOLOGON_RESTRICTED | SECPKG_CRED_OUTBOUND,
+					      pvLogonID,
+					      AuthIdentity,
+					      NULL,
+					      NULL,
+					      &GssCredHandle.Handle,
+					      &tsExpiry);
+    if (SecStatus != SEC_E_OK) {
+	*pSecStatus = SecStatus;
+
+	KrbError = SspiStatusToKrbError(SecStatus);
+	return KrbError;
+    }
+
+    KrbError = krb5_init_context(&KrbContext);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    KrbError = MakeWKFederatedName(KrbContext, RealmName, &FederatedPrinc);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    KrbError = krb5_get_init_creds_opt_alloc(KrbContext, &InitCredsOpt);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    krb5_get_init_creds_opt_set_pac_request(KrbContext, InitCredsOpt, FALSE);
+    krb5_get_init_creds_opt_set_canonicalize(KrbContext, InitCredsOpt, TRUE);
+
+    KrbError = krb5_init_creds_init(KrbContext, FederatedPrinc, nullptr, nullptr, 0,
+				    InitCredsOpt, &InitCredsContext);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    KrbError = krb5_init_creds_set_service(KrbContext, InitCredsContext, NULL);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    KrbError = _krb5_init_creds_init_gss(KrbContext,
+					 InitCredsContext,
+					 SspiPreauthStep,
+					 SspiPreauthFinish,
+					 SspiPreauthReleaseCred,
+					 SspiPreauthDeleteSecContext,
+					 &GssCredHandle,
+					 &GssMech,
+					 0); // no flags, do not free cred handle
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    KrbError = AllocateSendToContext(KrbContext, KdcHostName, &SendToContext);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    while (1) {
+	unsigned int Flags = 0;
+
+	KrbError = krb5_init_creds_step(KrbContext, InitCredsContext,
+					AsRep, &AsReq, NULL, &Flags);
+	*pSecStatus = LastSecStatus;
+	RETURN_IF_KRB_FAILED(KrbError);
+
+	if ((Flags & KRB5_INIT_CREDS_STEP_FLAG_CONTINUE) == 0)
+	    break;
+
+	krb5_data_free(AsRep);
+
+	// note: AsReq buffer is owned by InitCredsContext, do not free
+	KrbError = krb5_sendto_context(KrbContext, SendToContext, &AsReq,
+				       FederatedPrinc->realm, AsRep);
+	RETURN_IF_KRB_FAILED(KrbError);
+    }
+
+    auto ClientName = _krb5_init_creds_get_cred_client(KrbContext, InitCredsContext);
+    KrbError = SspiPreauthUnparseName(KrbContext, ClientName, pClientName);
+
+    KrbError = krb5_init_creds_get_as_reply_key(KrbContext, InitCredsContext, AsReplyKey);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    return 0;
 }
-
-/*
-*     return _krb5_init_creds_init_gss(context,ctx,
-                                     pa_gss_step,
-                                     pa_gss_finish,
-                                     pa_gss_release_cred,
-                                     pa_gss_delete_sec_context,
-                                     gss_cred,
-                                     gss_mech,
-                                     0);
-*/

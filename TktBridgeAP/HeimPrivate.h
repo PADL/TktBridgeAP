@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+#include <krb5.h>
+
 struct krb5_gss_init_ctx_data;
 typedef struct krb5_gss_init_ctx_data *krb5_gss_init_ctx;
 
@@ -21,7 +23,10 @@ struct gss_cred_id_t_desc_struct {
 
 typedef struct gss_cred_id_t_desc_struct *gss_cred_id_t;
 
-struct gss_OID_desc_struct;
+struct gss_OID_desc_struct {
+    PCWSTR Package;
+};
+
 typedef gss_OID_desc_struct *gss_OID;
 
 typedef krb5_error_code(KRB5_LIB_CALL *krb5_gssic_step)(
@@ -90,6 +95,9 @@ KRB5_LIB_FUNCTION void KRB5_LIB_CALL
         krb5_context /*context*/,
         krb5_gss_init_ctx /*gssic*/,
         const struct gss_OID_desc_struct */*gss_mech*/);
+
+KRB5_LIB_FUNCTION krb5_principal KRB5_LIB_CALL
+_krb5_init_creds_get_cred_client(krb5_context context, krb5_init_creds_context ctx);
 
 #ifdef __cplusplus
 }
