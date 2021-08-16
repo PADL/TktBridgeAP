@@ -41,7 +41,7 @@ InitializePackage(
     IN OPTIONAL PLSA_STRING Confidentiality,
     OUT PLSA_STRING *AuthenticationPackageName)
 {
-    static_assert(DispatchTable != NULL, "dispatch table most be non-NULL");
+    assert(DispatchTable != NULL);
 
     LsaAuthenticationPackageId = AuthenticationPackageId;
     LsaDispatchTable = DispatchTable;
@@ -54,9 +54,9 @@ InitializePackage(
 
     APName.Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1;
     APName.MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
-    APName.Buffer = TKTBRIDGEAP_PACKAGE_NAME_A;
+    APName.Buffer = (PCHAR)TKTBRIDGEAP_PACKAGE_NAME_A;
 
-    Status = DuplicateLsaString(&ApName, AuthenticationPackageName);
+    Status = DuplicateLsaString(&APName, AuthenticationPackageName);
 
     return Status;
 }
@@ -69,8 +69,8 @@ SpInitialize(
 {
     NTSTATUS Status;
 
-    static_assert(Parameters != NULL, "parameters must be non-NULL");
-    static_assert(FunctionTable != NULL, "function table most be non-NULL");
+    assert(Parameters != NULL);
+    assert(FunctionTable != NULL);
 
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
 

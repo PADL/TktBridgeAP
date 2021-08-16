@@ -53,14 +53,15 @@ Environment:
 #include <evntprov.h>
 #include <strsafe.h>
 #include <crtdbg.h>
-
-#ifndef STATUS_SUCCESS
-#define STATUS_SUCCESS 0
-#endif
+#include <assert.h>
 
 #include "wil.h"
 #include "ntapiext.h"
 #include "KerbSurrogate.h"
+
+#ifndef STATUS_SUCCESS
+#define STATUS_SUCCESS 0 // FIXME
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,6 +89,9 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
 
 // helpers.cpp
+
+VOID
+FreeLsaString(IN OUT PLSA_STRING pLsaString);
 
 NTSTATUS
 DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst);

@@ -18,6 +18,15 @@ Environment:
 
 #include "TktBridgeAP.h"
 
+VOID
+FreeLsaString(PLSA_STRING pLsaString)
+{
+    if (pLsaString != NULL) {
+        LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
+        LsaDispatchTable->FreeLsaHeap(pLsaString);
+    }
+}
+
 BOOLEAN
 IsLocalHost(PUNICODE_STRING HostName)
 {
@@ -51,15 +60,13 @@ GetLocalHostName(BOOLEAN bLsaAlloc, PUNICODE_STRING HostName)
 NTSTATUS
 DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst)
 {
-    unique_lsa_string String;
-
     *Dst = NULL;
 
-    String = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(*String));
+    PLSA_STRING String = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
     RETURN_NTSTATUS_IF_NULL_ALLOC(String);
 
     String->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(Src->MaximumLength);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(String);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(String->Buffer); // FIXME leaks String
 
     RtlCopyMemory(String->Buffer, Src->Buffer, Src->MaximumLength);
 
@@ -74,7 +81,8 @@ DuplicateLsaString(IN PLSA_STRING Src, OUT PLSA_STRING *Dst)
 DWORD
 RegistryGetDWordValueForKey(HKEY hKey, PCWSTR KeyName)
 {
-    DWORD dwResult, dwType = REG_DWORD, dwSize = sizeof(dwValue);
+    DWORD dwResult, dwType = REG_DWORD, dwSize = sizeof(ULONG);
+    DWORD dwValue = 0;
 
     dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
                                (PBYTE)&dwValue, &dwSize);
@@ -95,7 +103,7 @@ RegistryGetStringValueForKey(HKEY hKey, PCWSTR KeyName)
     dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType, NULL, &dwSize);
     if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
         wszValue = (LPWSTR)LsaSpFunctionTable->AllocatePrivateHeap(dwSize + sizeof(WCHAR));
-        if (sszValue != NULL) {
+        if (wszValue != NULL) {
             dwResult = RegQueryValueEx(hKey, KeyName, NULL, &dwType,
                                        (PBYTE)wszValue, &dwSize);
             if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
@@ -110,5 +118,5 @@ VOID
 RegistryFreeValue(PWSTR Value)
 {
     if (Value)
-	LsaSpFunctionTable->FreePrivateHeap(Value):
+        LsaSpFunctionTable->FreePrivateHeap(Value);
 }

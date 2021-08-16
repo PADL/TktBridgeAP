@@ -23,7 +23,7 @@ RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
 {
     NTSTATUS Status;
     ULONG SidLength;
-    unique_rtl_sid Sid;
+    PSID Sid;
 
     *NewSid = NULL;
 
@@ -32,8 +32,8 @@ RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
     Sid = RtlAllocateHeap(GetProcessHeap(), 0, SidLength);
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
-    Status = RtlCopySid(SidLength, OriginalSid, Sid);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
+    Status = RtlCopySid(SidLength, Sid, OriginalSid);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid); // FIXME leaks
 
     *NewSid = Sid;
 

@@ -18,6 +18,50 @@ Environment:
 
 #include "TktBridgeAP.h"
 
+struct krb5_gss_init_ctx_data;
+typedef struct krb5_gss_init_ctx_data *krb5_gss_init_ctx;
+
+struct gss_ctx_id_t_desc_struct;
+typedef struct gss_ctx_id_t_desc_struct *gss_ctx_id_t;
+
+struct gss_cred_id_t_desc_struct;
+typedef struct gss_cred_id_t_desc_struct *gss_cred_id_t;
+
+struct gss_OID_desc_struct;
+typedef gss_OID_desc_struct *gss_OID;
+
+typedef krb5_error_code(KRB5_LIB_CALL* krb5_gssic_step)(
+    krb5_context,
+    krb5_gss_init_ctx,
+    const krb5_creds*,
+    struct gss_ctx_id_t_desc_struct**,
+    KDCOptions options,
+    krb5_data*,
+    krb5_data*,
+    krb5_data*);
+
+typedef krb5_error_code(KRB5_LIB_CALL* krb5_gssic_finish)(
+    krb5_context,
+    krb5_gss_init_ctx,
+    const krb5_creds*,
+    struct gss_ctx_id_t_desc_struct*,
+    krb5int32,
+    krb5_enctype,
+    krb5_principal*,
+    krb5_keyblock**);
+
+typedef void (KRB5_LIB_CALL* krb5_gssic_release_cred)(
+    krb5_context,
+    krb5_gss_init_ctx,
+    struct gss_cred_id_t_desc_struct*);
+
+typedef void (KRB5_LIB_CALL* krb5_gssic_delete_sec_context)(
+    krb5_context,
+    krb5_gss_init_ctx,
+    struct gss_ctx_id_t_desc_struct*);
+
+#define KRB5_GSS_IC_FLAG_RELEASE_CRED 1
+
 NTSTATUS
 KrbErrorToNtStatus(krb5_error_code KrbError)
 {
@@ -27,7 +71,7 @@ KrbErrorToNtStatus(krb5_error_code KrbError)
     case KRB5KRB_AP_ERR_BAD_INTEGRITY:
         return STATUS_WRONG_PASSWORD;
     case ENOMEM:
-        return STATUS_INSUFFICIENT_RESOURCES;
+        return STATUS_NO_MEMORY;
     default:
     case EINVAL:
         return STATUS_INVALID_PARAMETER;
@@ -60,7 +104,7 @@ SspiStatusToKrbError(SECURITY_STATUS SecStatus)
 static krb5_error_code
 PseudoRandomFunction(krb5_context KrbContext,
     PCtxtHandle hContext,
-    PCBYTE pbPrfInput,
+    const PBYTE pbPrfInput,
     ULONG pulPrfInputLength,
     ULONG ulDesiredOutputLength,
     PBYTE pbPrfOutput,

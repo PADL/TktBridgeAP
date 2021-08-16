@@ -40,7 +40,7 @@ NTSTATUS NTAPI
 RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid);
 
 VOID NTAPI
-RtlFreeSid(INOUT PSID Sid);
+RtlFreeSid(IN OUT PSID Sid);
 
 ULONG NTAPI
 RtlLengthSid(IN PSID Sid);
@@ -59,11 +59,11 @@ RtlFreeHeap(
 	_Frees_ptr_opt_ PVOID BaseAddress
 );
 
-NTSTATUS
-NTAPI RtlCopySid(
+NTSTATUS NTAPI RtlCopySid(
 	IN ULONG DestinationSidLength,
-	INOUT PSID DestinationSid,
+	IN OUT PSID DestinationSid,
 	IN PSID  SourceSid
 );
+
 
 }
