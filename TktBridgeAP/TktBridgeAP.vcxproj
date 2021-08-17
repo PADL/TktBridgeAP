@@ -124,6 +124,12 @@
       <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
+    <Manifest>
+      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <InputResourceManifests>
+      </InputResourceManifests>
+      <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -156,6 +162,12 @@
       <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
+    <Manifest>
+      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <InputResourceManifests>
+      </InputResourceManifests>
+      <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -184,6 +196,12 @@
       <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
+    <Manifest>
+      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <InputResourceManifests>
+      </InputResourceManifests>
+      <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -216,6 +234,12 @@
       <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
+    <Manifest>
+      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <InputResourceManifests>
+      </InputResourceManifests>
+      <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="cpp.hint" />

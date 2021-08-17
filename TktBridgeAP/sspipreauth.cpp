@@ -639,9 +639,10 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                 krb5_sendto_ctx_free(KrbContext, SendToContext);
             if (InitCredsContext != nullptr)
                 krb5_init_creds_free(KrbContext, InitCredsContext);
-            krb5_get_init_creds_opt_free(KrbContext, InitCredsOpt);
+            krb5_get_init_creds_opt_free(KrbContext, InitCredsOpt);           
             krb5_free_principal(KrbContext, FederatedPrinc);
             krb5_free_context(KrbContext);
+            KrbContext = nullptr;
         }
 
         SspiFreeAuthIdentity(NegoAuthIdentity);
@@ -659,6 +660,8 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
             KrbError = SspiStatusToKrbError(SecStatus);
             return KrbError;
         }
+
+        AuthIdentity = NegoAuthIdentity;
     }
 
     GssMech.Package = PackageName;

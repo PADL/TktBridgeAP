@@ -18,6 +18,10 @@ Environment:
 
 #pragma once
 
+#ifndef NDEBUG
+#define _CRTDBG_MAP_ALLOC 1
+#endif /* !NDEBUG */
+
 #ifdef TKTBRIDGEAP_EXPORTS
 #define TKTBRIDGEAP_API __declspec(dllexport)
 #else
@@ -45,12 +49,14 @@ Environment:
 #include <winreg.h>
 #include <wincred.h>
 #include <Tracelogging.h>
+#include <evntprov.h>
 #include <sspi.h>
 #define _NTDEF_
 #include <NTSecAPI.h>
 #undef _NTDEF_
 #include <NTSecPkg.h>
-#include <evntprov.h>
+#include <security.h>
+
 #include <strsafe.h>
 #include <crtdbg.h>
 #include <assert.h>
@@ -60,8 +66,8 @@ Environment:
 #include "KerbSurrogate.h"
 #include "TktBridgeAP-trace.h"
 
-#ifndef STATUS_SUCCESS
-#define STATUS_SUCCESS 0 // FIXME
+#ifndef NEGOSSP_NAME
+#define NEGOSSP_NAME_W  L"Negotiate"
 #endif
 
 #ifdef __cplusplus

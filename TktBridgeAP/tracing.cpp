@@ -86,25 +86,20 @@ HeimLogCloseCB(PVOID Context)
 {
 }
 
-static thread_local krb5_log_facility *HeimLogFacility;
-
 krb5_error_code
 HeimTracingInit(_In_ krb5_context KrbContext)
 {
     krb5_error_code KrbError;
+    krb5_log_facility *LogFacility;
 
-    if (HeimLogFacility == nullptr) {
-        KrbError = krb5_openlog(KrbContext, "TktBridgeAP", &HeimLogFacility);
-        if (KrbError != 0)
-            return KrbError;
-    }
+    KrbError = krb5_openlog(KrbContext, "TktBridgeAP", &LogFacility);
+    if (KrbError != 0)
+        return KrbError;
 
-    krb5_set_warn_dest(KrbContext, HeimLogFacility);
-    krb5_set_log_dest(KrbContext, HeimLogFacility);
-    //krb5_set_debug_dest(KrbContext, "TktBridgeAP", "STDERR");
+    krb5_set_log_dest(KrbContext, LogFacility);
 
     KrbError = krb5_addlog_func(KrbContext,
-                                HeimLogFacility,
+                                LogFacility,
                                 0,
                                 APLogLevel,
                                 HeimLogLogCB,
