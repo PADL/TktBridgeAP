@@ -575,9 +575,23 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     krb5_data_zero(&AsReplyKey->keyvalue);
     *pClientName = nullptr;
 
+    if (PackageName == nullptr)
+	PackageName = L"Negotiate";
+
     auto cleanup = wil::scope_exit([&] {
+	if (KrbError == 0) {
+	   EventWriteTKTBRIDGEAP_EVENT_AS_REQ_SUCCESS(RealmName, PackageName, KdcHostName,
+						      *pClientName, *pSecStatus, KrbError, "");
+	} else {
+	    auto szError = krb5_get_error_message(KrbContext, KrbError);
+	    EventWriteTKTBRIDGEAP_EVENT_AS_REQ_FAILURE(RealmName, PackageName, KdcHostName,
+						       *pClientName, *pSecStatus, KrbError, szError);
+	    krb5_free_error_message(KrbContext, szError);
+	}
+
+	krb5_data_free(&AsReq);
+
 	if (KrbContext != nullptr) {
-	    krb5_data_free(&AsReq);
 	    if (KrbError != 0) {
 		krb5_free_keyblock_contents(KrbContext, AsReplyKey);
 		krb5_data_free(AsRep);
@@ -589,13 +603,10 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 	    krb5_get_init_creds_opt_free(KrbContext, InitCredsOpt);
 	    krb5_free_principal(KrbContext, FederatedPrinc);
 	    krb5_free_context(KrbContext);
-
-	    FreeCredentialsHandle(&GssCredHandle.Handle);
 	}
-				   });
 
-    if (PackageName == nullptr)
-	PackageName = L"Negotiate";
+	FreeCredentialsHandle(&GssCredHandle.Handle);
+				   });
 
     TimeStamp tsExpiry;
     auto SecStatus = AcquireCredentialsHandle(nullptr, // pszPrincipal

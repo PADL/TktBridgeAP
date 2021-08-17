@@ -127,6 +127,8 @@ SpShutdown(VOID)
     LsaDispatchTable = nullptr;
     LsaSpFunctionTable = nullptr;
 
+    EventUnregisterPADL_TktBridgeAP();
+
     return STATUS_SUCCESS;
 }
 
@@ -156,6 +158,8 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
         L"SpLsaModeInitialize: SPM version %08x", LsaVersion);
+
+    EventRegisterPADL_TktBridgeAP();
 
     return STATUS_SUCCESS;
 }

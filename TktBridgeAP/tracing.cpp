@@ -39,7 +39,8 @@ DebugTraceLevelString(UCHAR Level)
 VOID
 __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
 {
-    if (APFlags & TKTBRIDGEAP_FLAG_DEBUG) {
+    if (EventProviderId_Context.IsEnabled ||
+        (APFlags & TKTBRIDGEAP_FLAG_DEBUG)) {
         WCHAR TraceMsg[BUFSIZ] = L"";
         va_list ap;
         SIZE_T cchDebugPrefix;
@@ -60,20 +61,24 @@ __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
         EventDescriptor.Level = Level;
         EventDescriptor.Keyword = (ULONGLONG)0;
 
+        if (MCGEN_ENABLE_CHECK(EventProviderId_Context, EventDescriptor)) {
+            EventWriteString(PADL_TktBridgeAPHandle, Level, 0, TraceMsg);
+        }
+
         if (APFlags & TKTBRIDGEAP_FLAG_DEBUG) {
             OutputDebugStringW(TraceMsg);
             OutputDebugStringW(L"\r\n");
-        }
 
 #ifndef NDEBUG
-        auto hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD dwWritten;
-        if (hOut) {
-            WriteConsole(hOut, TraceMsg, wcslen(TraceMsg), &dwWritten, NULL);
-            WriteConsole(hOut, L"\r\n", 2, &dwWritten, NULL);
-            CloseHandle(hOut);
-        }
+            auto hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+            DWORD dwWritten;
+            if (hOut) {
+                WriteConsole(hOut, TraceMsg, wcslen(TraceMsg), &dwWritten, NULL);
+                WriteConsole(hOut, L"\r\n", 2, &dwWritten, NULL);
+                CloseHandle(hOut);
+            }
 #endif
+        }
     }
 }
 

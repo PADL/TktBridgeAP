@@ -33,11 +33,9 @@
             <data name="PackageName" inType="win:UnicodeString" outType="xs:string"></data>
             <data name="KdcHostName" inType="win:UnicodeString" outType="xs:string"></data>
             <data name="PrincipalName" inType="win:UnicodeString" outType="xs:string"></data>
-            <data name="TargetName" inType="win:UnicodeString" outType="xs:string"></data>
-            <data name="ExpirationTime" inType="win:FILETIME" outType="xs:dateTime"></data>
             <data name="SecStatus" inType="win:UInt32" outType="win:Win32Error"></data>
             <data name="KrbError" inType="win:Int32" outType="xs:int"></data>
-            <data name="ErrorMessage" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="ErrorMessage" inType="win:AnsiString" outType="win:Utf8"></data>
           </template>
         </templates>
       </provider>

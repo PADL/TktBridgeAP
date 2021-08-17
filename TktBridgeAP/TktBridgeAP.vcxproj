@@ -225,6 +225,7 @@
     <ClInclude Include="HeimPrivate.h" />
     <ClInclude Include="KerbSurrogate.h" />
     <ClInclude Include="ntapiext.h" />
+    <ClInclude Include="TktBridgeAP-trace.h" />
     <ClInclude Include="TktBridgeAP.h" />
     <ClInclude Include="wil.h" />
   </ItemGroup>
