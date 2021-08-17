@@ -37,7 +37,7 @@ KrbErrorToNtStatus(_In_ krb5_error_code KrbError)
     }
 }
 
-krb5_error_code
+static krb5_error_code
 SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus)
 {
     switch (SecStatus) {
@@ -61,9 +61,6 @@ SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus)
 	return KRB5KDC_ERR_PREAUTH_FAILED;
     }
 }
-
-thread_local static SECURITY_STATUS
-LastSecStatus = SEC_E_INTERNAL_ERROR;
 
 static krb5_error_code
 RFC4401PRF(_In_ krb5_context KrbContext,
@@ -125,7 +122,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     Input.length = cbPrfInput + 4;
     Input.data = WIL_AllocateMemory(Input.length);
     if (Input.data == nullptr) {
-	return krb5_enomem(KrbContext);
+	KrbError = krb5_enomem(KrbContext);
+	return KrbError;
     }
 
     memcpy(&((PBYTE)Input.data)[4], pbPrfInput, cbPrfInput);
@@ -248,15 +246,13 @@ MakeChannelBindings(_In_ krb5_context KrbContext,
 		    _In_ krb5_data *EncAsReq,
 		    _Out_ PSEC_CHANNEL_BINDINGS *pChannelBindings)
 {
-    krb5_error_code KrbError;
     PSEC_CHANNEL_BINDINGS ChannelBindings;
 
     *pChannelBindings = nullptr;
 
     ChannelBindings = (PSEC_CHANNEL_BINDINGS)WIL_AllocateMemory(sizeof(*ChannelBindings) + EncAsReq->length);
     if (ChannelBindings == nullptr) {
-	KrbError = krb5_enomem(KrbContext);
-	return KrbError;
+	return krb5_enomem(KrbContext);
     }
 
     ChannelBindings->cbApplicationDataLength = (ULONG)EncAsReq->length;
@@ -314,7 +310,7 @@ SspiPreauthStep(krb5_context KrbContext,
     if (KrbReqFlags.request_anonymous)
 	fContextReq |= ISC_REQ_NULL_SESSION;
 
-    auto GssCredHandle = _krb5_init_creds_get_gss_cred(KrbContext, GssICContext);
+    auto GssCredHandle = const_cast<gss_cred_id_t>(_krb5_init_creds_get_gss_cred(KrbContext, GssICContext));
     assert(GssCredHandle != nullptr);
 
     KrbError = krb5_make_principal(KrbContext,
@@ -391,7 +387,7 @@ SspiPreauthStep(krb5_context KrbContext,
 	    }
 	}
     } else {
-	LastSecStatus = SecStatus;
+	GssCredHandle->LastStatus = SecStatus;
     }
 
     (*GssContextHandle)->Handle = OutputContextHandle;
@@ -419,8 +415,8 @@ SspiPreauthFinish(
     krb5_error_code KrbError;
     SECURITY_STATUS SecStatus;
     SecPkgContext_NativeNames NativeNames = {
-	.sClientName = NULL,
-	.sServerName = NULL
+	.sClientName = nullptr,
+	.sServerName = nullptr
     };
 
     *pClientPrincipal = nullptr;
@@ -496,7 +492,7 @@ MakeWKFederatedName(_In_ krb5_context KrbContext,
 {
     PCHAR RealmNameUTF8;
 
-    *pPrincipal = NULL;
+    *pPrincipal = nullptr;
 
     if (!NT_SUCCESS(UnicodeToUTF8Alloc(RealmName, &RealmNameUTF8)))
 	return krb5_enomem(KrbContext);
@@ -506,7 +502,7 @@ MakeWKFederatedName(_In_ krb5_context KrbContext,
 						   RealmNameUTF8,
 						   KRB5_WELLKNOWN_NAME,
 						   KRB5_FEDERATED_NAME,
-						   NULL);
+						   nullptr);
 
     WIL_FreeMemory(RealmNameUTF8);
 
@@ -537,6 +533,7 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
     }
 
     krb5_sendto_ctx_add_flags(SendToContext, KRB5_KRBHST_FLAGS_LARGE_MSG);
+    // looks for the _kerberos-tkt-bridge DNS SRV name
     krb5_sendto_ctx_set_type(SendToContext, KRB5_KRBHST_TKTBRIDGEAP);
 
     *pSendToContext = SendToContext;
@@ -548,7 +545,7 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
 // Acquire a TGT for a given username/domain/credential/package
 //
 
-TKTBRIDGEAP_API krb5_error_code
+krb5_error_code
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_In_opt_z_ PCWSTR PackageName,
 			_In_opt_z_ PCWSTR KdcHostName,
@@ -562,22 +559,21 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     krb5_error_code KrbError;
     krb5_context KrbContext;
     krb5_init_creds_context InitCredsContext;
-    krb5_get_init_creds_opt *InitCredsOpt = NULL;
-    krb5_principal FederatedPrinc = NULL;
+    krb5_get_init_creds_opt *InitCredsOpt = nullptr;
+    krb5_principal FederatedPrinc = nullptr;
     struct gss_cred_id_t_desc_struct GssCredHandle;
     struct gss_OID_desc_struct GssMech = { .Package = PackageName };
     krb5_data AsReq;
     krb5_sendto_ctx SendToContext = nullptr;
 
-    *pSecStatus = LastSecStatus = SEC_E_UNKNOWN_CREDENTIALS;
-
     ZeroMemory(&GssCredHandle, sizeof(GssCredHandle));
+    GssCredHandle.LastStatus = SEC_E_UNKNOWN_CREDENTIALS;
 
     krb5_data_zero(&AsReq);
     krb5_data_zero(AsRep);
     AsReplyKey->keytype = (krb5_enctype)ENCTYPE_NULL;
     krb5_data_zero(&AsReplyKey->keyvalue);
-    *pClientName = NULL;
+    *pClientName = nullptr;
 
     auto cleanup = wil::scope_exit([&] {
 	if (KrbContext != nullptr) {
@@ -602,13 +598,13 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 	PackageName = L"Negotiate";
 
     TimeStamp tsExpiry;
-    auto SecStatus = AcquireCredentialsHandle(NULL, // pszPrincipal
+    auto SecStatus = AcquireCredentialsHandle(nullptr, // pszPrincipal
 					      const_cast<LPWSTR>(PackageName),
 					      SECPKG_CRED_AUTOLOGON_RESTRICTED | SECPKG_CRED_OUTBOUND,
 					      pvLogonID,
 					      AuthIdentity,
-					      NULL,
-					      NULL,
+					      nullptr,
+					      nullptr,
 					      &GssCredHandle.Handle,
 					      &tsExpiry);
     if (SecStatus != SEC_E_OK) {
@@ -619,6 +615,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     }
 
     KrbError = krb5_init_context(&KrbContext);
+    RETURN_IF_KRB_FAILED(KrbError);
+
+    KrbError = HeimTracingInit(KrbContext);
     RETURN_IF_KRB_FAILED(KrbError);
 
     KrbError = MakeWKFederatedName(KrbContext, RealmName, &FederatedPrinc);
@@ -634,7 +633,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 				    InitCredsOpt, &InitCredsContext);
     RETURN_IF_KRB_FAILED(KrbError);
 
-    KrbError = krb5_init_creds_set_service(KrbContext, InitCredsContext, NULL);
+    KrbError = krb5_init_creds_set_service(KrbContext, InitCredsContext, nullptr);
     RETURN_IF_KRB_FAILED(KrbError);
 
     KrbError = _krb5_init_creds_init_gss(KrbContext,
@@ -655,9 +654,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 	unsigned int Flags = 0;
 
 	KrbError = krb5_init_creds_step(KrbContext, InitCredsContext,
-					AsRep, &AsReq, NULL, &Flags);
+					AsRep, &AsReq, nullptr, &Flags);
 	if (KrbError != 0)
-	    *pSecStatus = LastSecStatus;
+	    *pSecStatus = GssCredHandle.LastStatus;
 	RETURN_IF_KRB_FAILED(KrbError);
 
 	if ((Flags & KRB5_INIT_CREDS_STEP_FLAG_CONTINUE) == 0)

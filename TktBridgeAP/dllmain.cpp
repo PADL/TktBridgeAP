@@ -34,3 +34,26 @@ BOOL APIENTRY DllMain(
     return TRUE;
 }
 
+#ifndef NDEBUG
+extern "C"
+TKTBRIDGEAP_API
+VOID __cdecl EntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdShow)
+{
+    AllocConsole();
+ 
+    APFlags |= TKTBRIDGEAP_FLAG_DEBUG;
+
+    auto hIn = GetStdHandle(STD_INPUT_HANDLE);
+
+    DebugTrace(WINEVENT_LEVEL_INFO, L"Starting TktBridgeAP test");
+
+    TCHAR buffer[1024];
+    DWORD dwLength = 1;
+    DWORD dwRead = 0;
+
+    ReadConsole(hIn, buffer, dwLength, &dwRead, NULL);
+    CloseHandle(hIn);
+
+    FreeConsole();
+}
+#endif

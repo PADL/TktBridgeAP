@@ -80,18 +80,22 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <TargetName>TktBridgeAP</TargetName>
+    <CustomBuildBeforeTargets>BuildGenerateSources</CustomBuildBeforeTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <TargetName>TktBridgeAP</TargetName>
+    <CustomBuildBeforeTargets>BuildGenerateSources</CustomBuildBeforeTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <TargetName>TktBridgeAP</TargetName>
+    <CustomBuildBeforeTargets>BuildGenerateSources</CustomBuildBeforeTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <TargetName>TktBridgeAP</TargetName>
+    <CustomBuildBeforeTargets>BuildGenerateSources</CustomBuildBeforeTargets>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -110,6 +114,16 @@
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuildStep>
+      <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>TktBridgeAP-trace.h;TktBridgeAP-trace.rc</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
+      <Message>Generating ETW Dependencies</Message>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -132,6 +146,16 @@
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuildStep>
+      <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>TktBridgeAP-trace.h;TktBridgeAP-trace.rc</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
+      <Message>Generating ETW Dependencies</Message>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -150,6 +174,16 @@
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuildStep>
+      <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>TktBridgeAP-trace.h;TktBridgeAP-trace.rc</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
+      <Message>Generating ETW Dependencies</Message>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -172,9 +206,20 @@
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CustomBuildStep>
+      <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Outputs>TktBridgeAP-trace.h;TktBridgeAP-trace.rc</Outputs>
+    </CustomBuildStep>
+    <CustomBuildStep>
+      <Inputs>$(ProjectDir)\TktBridgeAP-trace.man</Inputs>
+      <Message>Generating ETW Dependencies</Message>
+    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="TktBridgeAP-trace.man" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HeimPrivate.h" />
@@ -191,6 +236,9 @@
     <ClCompile Include="ntapiext.cpp" />
     <ClCompile Include="sspipreauth.cpp" />
     <ClCompile Include="tracing.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="TktBridgeAP-trace.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

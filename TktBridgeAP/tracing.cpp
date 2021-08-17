@@ -64,6 +64,16 @@ __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
             OutputDebugStringW(TraceMsg);
             OutputDebugStringW(L"\r\n");
         }
+
+#ifndef NDEBUG
+        auto hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        DWORD dwWritten;
+        if (hOut) {
+            WriteConsole(hOut, TraceMsg, wcslen(TraceMsg), &dwWritten, NULL);
+            WriteConsole(hOut, L"\r\n", 2, &dwWritten, NULL);
+            CloseHandle(hOut);
+        }
+#endif
     }
 }
 

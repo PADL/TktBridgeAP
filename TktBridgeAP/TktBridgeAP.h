@@ -58,6 +58,7 @@ Environment:
 #include "wil.h"
 #include "ntapiext.h"
 #include "KerbSurrogate.h"
+#include "TktBridgeAP-trace.h"
 
 #ifndef STATUS_SUCCESS
 #define STATUS_SUCCESS 0 // FIXME
@@ -68,6 +69,10 @@ extern "C" {
 #endif
 
 #include <krb5.h>
+
+#ifdef __cplusplus
+}
+#endif
 
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
 extern PLSA_DISPATCH_TABLE LsaDispatchTable;
@@ -110,9 +115,8 @@ NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     _Out_ PWSTR *pwszUnicodeString);
 
-
 // logonapi.cpp
-TKTBRIDGEAP_API NTSTATUS NTAPI
+TKTBRIDGEAP_API NTSTATUS __cdecl
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
 		    _Out_ PULONG PackageVersion,
 		    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
@@ -121,9 +125,6 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 // sspipreauth.cpp
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code ret);
-
-krb5_error_code
-SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
 
 TKTBRIDGEAP_API krb5_error_code
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
@@ -137,36 +138,8 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_Inout_ krb5_keyblock *AsReplyKey);
 
 // surrogate.cpp
-NTSTATUS
-PreLogonUserSurrogate(
-    _In_ PLSA_CLIENT_REQUEST ClientRequest,
-    _In_ SECURITY_LOGON_TYPE LogonType,
-    _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-    _In_ PVOID ClientBufferBase,
-    _In_ ULONG SubmitBufferSize,
-    _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-    _Out_ PNTSTATUS SubStatus);
-
-NTSTATUS
-PostLogonUserSurrogate(
-    _In_ PLSA_CLIENT_REQUEST ClientRequest,
-    _In_ SECURITY_LOGON_TYPE LogonType,
-    _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-    _In_ PVOID ClientBufferBase,
-    _In_ ULONG SubmitBufferSize,
-    _In_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-    _In_reads_bytes_(ProfileBufferSize) PVOID ProfileBuffer,
-    _In_ ULONG ProfileBufferSize,
-    _In_ PLUID LogonId,
-    _In_ NTSTATUS Status,
-    _In_ NTSTATUS SubStatus,
-    _In_ LSA_TOKEN_INFORMATION_TYPE TokenInformationType,
-    _In_ PVOID TokenInformation,
-    _In_ PUNICODE_STRING AccountName,
-    _In_ PUNICODE_STRING AuthenticatingAuthority,
-    _In_ PUNICODE_STRING MachineName,
-    _In_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
-    _In_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY SupplementalCredentials);
+LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
+LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
 
 // tracing.cpp
 krb5_error_code
@@ -174,10 +147,6 @@ HeimTracingInit(_In_ krb5_context KrbContext);
 
 VOID
 __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
-
-#ifdef __cplusplus
-}
-#endif
 
 namespace wil {
 #define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)

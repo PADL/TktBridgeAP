@@ -19,6 +19,7 @@ typedef struct gss_ctx_id_t_desc_struct *gss_ctx_id_t;
 
 struct gss_cred_id_t_desc_struct {
     CredHandle Handle;
+    SECURITY_STATUS LastStatus;
 };
 
 typedef struct gss_cred_id_t_desc_struct *gss_cred_id_t;
