@@ -37,7 +37,7 @@ DebugTraceLevelString(UCHAR Level)
 }
 
 VOID
-__cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
+__cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...)
 {
     if (EventProviderId_Context.IsEnabled ||
         (APFlags & TKTBRIDGEAP_FLAG_DEBUG)) {
@@ -68,21 +68,9 @@ __cdecl DebugTrace(UCHAR Level, PCWSTR wszFormat, ...)
         if (APFlags & TKTBRIDGEAP_FLAG_DEBUG) {
             OutputDebugStringW(TraceMsg);
             OutputDebugStringW(L"\r\n");
-
-#ifndef NDEBUG
-            auto hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-            DWORD dwWritten;
-            if (hOut) {
-                WriteConsole(hOut, TraceMsg, wcslen(TraceMsg), &dwWritten, NULL);
-                WriteConsole(hOut, L"\r\n", 2, &dwWritten, NULL);
-                CloseHandle(hOut);
-            }
-#endif
         }
     }
 }
-
-
 
 static VOID KRB5_CALLCONV
 HeimLogLogCB(krb5_context KrbContext,
@@ -98,19 +86,30 @@ HeimLogCloseCB(PVOID Context)
 {
 }
 
+static thread_local krb5_log_facility *HeimLogFacility;
+
 krb5_error_code
-HeimTracingInit(krb5_context KrbContext)
+HeimTracingInit(_In_ krb5_context KrbContext)
 {
     krb5_error_code KrbError;
 
-    KrbError = krb5_addlog_func(KrbContext,
-        nullptr,
-        0,
-        APLogLevel,
-        HeimLogLogCB,
-        HeimLogCloseCB,
-        nullptr);
+    if (HeimLogFacility == nullptr) {
+        KrbError = krb5_openlog(KrbContext, "TktBridgeAP", &HeimLogFacility);
+        if (KrbError != 0)
+            return KrbError;
+    }
 
+    krb5_set_warn_dest(KrbContext, HeimLogFacility);
+    krb5_set_log_dest(KrbContext, HeimLogFacility);
+    //krb5_set_debug_dest(KrbContext, "TktBridgeAP", "STDERR");
+
+    KrbError = krb5_addlog_func(KrbContext,
+                                HeimLogFacility,
+                                0,
+                                APLogLevel,
+                                HeimLogLogCB,
+                                HeimLogCloseCB,
+                                nullptr);
 
     return KrbError;
 }

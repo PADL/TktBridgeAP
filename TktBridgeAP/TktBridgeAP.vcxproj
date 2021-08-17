@@ -236,6 +236,7 @@
     <ClCompile Include="logonpkg.cpp" />
     <ClCompile Include="ntapiext.cpp" />
     <ClCompile Include="sspipreauth.cpp" />
+    <ClCompile Include="testing.cpp" />
     <ClCompile Include="tracing.cpp" />
   </ItemGroup>
   <ItemGroup>
