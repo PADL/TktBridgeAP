@@ -22,6 +22,9 @@ Environment:
 // Looks in the credentials cache for a credential that matches the supplied
 // auth identity, returned PreauthCreds with +1 reference count.
 //
+// Note TGT key is protected using LsaProtectMemory(), will be unprotected
+// by callback
+//
 
 NTSTATUS
 AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
@@ -29,6 +32,22 @@ AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
                                 _In_opt_ PLUID pvLogonID,
                                 _Out_ PPREAUTH_INIT_CREDS *PreauthCreds)
 {
+    //
+    // Unpack auth identity into username, domain name and password
+    //
+
+    //
+    // Look for username and password match, if found check expiry
+    //
+ 
+    //
+    // Make PBKDF2 of password and compare protected version with TGT key
+    //
+
+    //
+    // If we have a match, return a +1 of cache entry
+    //
+
     RETURN_NTSTATUS(STATUS_NO_SUCH_LOGON_SESSION);
 }
 
@@ -44,7 +63,71 @@ AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                         _In_opt_ PLUID pvLogonID,
-                        _In_ PPREAUTH_INIT_CREDS PreauthCreds)
+                        _In_ PCPREAUTH_INIT_CREDS PreauthCreds)
 {
+    //
+    // Unpack auth identity into username, domain name and password
+    //
+    
+    //
+    // Make PBKDF2 of password
+    //
+
+    //
+    // Decrypt and re-encrypt AS-REP with PBKDF2
+    //
+
+    //
+    // Make a new entry with PBKDF2 key and re-encrypted AS-REP, storing
+    // username and domainname alongside
+    //
+
+    //
+    // Add to head of cache list
+    //
+
     RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+VOID
+RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds)
+{
+    if (Creds == nullptr)
+        return;
+
+    if (Creds->RefCount == LONG_MAX)
+        return;
+
+    InterlockedDecrement(&Creds->RefCount);
+}
+
+VOID
+FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *pCreds)
+{
+    PPREAUTH_INIT_CREDS Creds = *pCreds;
+
+    if (Creds == nullptr)
+        return;
+
+    if (Creds->RefCount == LONG_MAX)
+        return;
+
+    auto Old = InterlockedDecrement(&Creds->RefCount) + 1;
+    if (Old > 1)
+        return;
+
+    assert(Old == 1);
+
+    WIL_FreeMemory(Creds->ClientName);
+    krb5_data_free(&Creds->AsRep);
+    SecureZeroMemory(Creds->AsReplyKey.keyvalue.data, Creds->AsReplyKey.keyvalue.length);
+    krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
+
+    WIL_FreeMemory(Creds->DomainName);
+    WIL_FreeMemory(Creds->UserName);
+
+    ZeroMemory(Creds, sizeof(*Creds));
+    WIL_FreeMemory(Creds);
+
+    *pCreds = nullptr;
 }

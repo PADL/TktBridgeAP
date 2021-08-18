@@ -18,6 +18,20 @@ Environment:
 
 #include "TktBridgeAP.h"
 
+ULONG
+GetCallAttributes(VOID)
+{
+    SECPKG_CALL_INFO CallInfo;
+
+    if (LsaSpFunctionTable == nullptr)
+        return 0;
+
+    if (!LsaSpFunctionTable->GetCallInfo(&CallInfo))
+        return 0;
+
+    return CallInfo.Attributes;
+}
+
 VOID
 FreeLsaString(_Inout_ PLSA_STRING pLsaString)
 {
@@ -60,32 +74,35 @@ GetLocalHostName(_In_ BOOLEAN bLsaAlloc,
 }
 
 NTSTATUS
-DuplicateLsaString(_In_ PLSA_STRING Src,
-                   _Out_ PLSA_STRING *Dst)
+DuplicateLsaString(_In_ PLSA_STRING SourceString,
+                   _Out_ PLSA_STRING *pDestString)
 {
-    *Dst = nullptr;
+    PLSA_STRING DestString = nullptr;
 
-    PLSA_STRING String = nullptr;
+    *pDestString = nullptr;
     
+    assert(LsaDispatchTable != nullptr);
+
     auto cleanup = wil::scope_exit([&]
         {
-            FreeLsaString(String);
+            FreeLsaString(DestString);
         });
 
-    String = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(String);
+    DestString = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(DestString);
 
-    String->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(Src->MaximumLength);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(String->Buffer);
+    DestString->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(DestString->Buffer);
 
-    RtlCopyMemory(String->Buffer, Src->Buffer, Src->MaximumLength);
+    RtlCopyMemory(DestString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
 
-    String->Length = Src->Length;
-    String->MaximumLength = Src->MaximumLength;
+    DestString->Length = SourceString->Length;
+    DestString->MaximumLength = SourceString->MaximumLength;
 
-    *Dst = String;
+    *pDestString = DestString;
+    DestString = nullptr; // don't free in cleanup
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 DWORD

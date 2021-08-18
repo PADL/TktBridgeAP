@@ -18,49 +18,11 @@ Environment:
 
 #include "TktBridgeAP.h"
 
-VOID
-RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds)
-{
-    if (Creds == nullptr)
-        return;
-
-    if (Creds->RefCount == LONG_MAX)
-        return;
-
-    InterlockedDecrement(&Creds->RefCount);
-}
-
-VOID
-FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *pCreds)
-{
-    PPREAUTH_INIT_CREDS Creds = *pCreds;
-
-    if (Creds == nullptr)
-        return;
-
-    if (Creds->RefCount == LONG_MAX)
-        return;
-
-    auto Old = InterlockedDecrement(&Creds->RefCount) + 1;
-    if (Old > 1)
-        return;
-
-    assert(Old == 1);
-
-    WIL_FreeMemory(Creds->ClientName);
-    krb5_data_free(&Creds->AsRep);
-    SecureZeroMemory(Creds->AsReplyKey.keyvalue.data, Creds->AsReplyKey.keyvalue.length);
-    krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
-
-    WIL_FreeMemory(Creds->DomainName);
-    WIL_FreeMemory(Creds->UserName);
-
-    ZeroMemory(Creds, sizeof(*Creds));
-    WIL_FreeMemory(Creds);
-
-    *pCreds = nullptr;
-}
-
+//
+// Callback function called from Kerberos package that passes TktBridgeAP-
+// specific private data and retrieves a KERB_AS_REP_CREDENTIAL
+// containing the AS-REP and reply key
+//
 extern "C"
 static NTSTATUS NTAPI
 RetrievePreauthInitCreds(LUID LogonID,
@@ -68,9 +30,14 @@ RetrievePreauthInitCreds(LUID LogonID,
                          ULONG dwFlags,
                          PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
-    PPREAUTH_INIT_CREDS PreauthCreds = (PPREAUTH_INIT_CREDS)PackageData;
+    auto PreauthCreds = (PCPREAUTH_INIT_CREDS)PackageData;
     PKERB_AS_REP_CREDENTIAL KerbAsRepCred;
     ULONG cbKerbAsRepCred;
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+               L"RetrievePreauthInitCreds: LogonID %08x.%08x Flags %04x",
+               LogonID.LowPart, LogonID.HighPart,
+               dwFlags);
 
     if (PreauthCreds == nullptr)
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
@@ -147,17 +114,6 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
         RETURN_NTSTATUS(STATUS_LOGON_TYPE_NOT_GRANTED);
     }
 }
-
-static NTSTATUS
-CanonicalizeSurrogateLogonAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                                       _In_ PVOID ClientBufferBase,
-                                       _In_ ULONG SubmitBufferSize,
-                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
-{
-    *pAuthIdentity = nullptr;
-    RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
-}
-
 // for some reason this is not getting imported with the SYSTEM partition
 extern "C"
 DWORD __stdcall NetApiBufferFree(_Frees_ptr_opt_ LPVOID Buffer);
@@ -187,20 +143,27 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 
     RtlInitUnicodeString(&DomainName, wszDomainName);
 
-    if (RtlEqualUnicodeString(&SpParameters.DnsDomainName, &DomainName, TRUE) ||
-        RtlEqualUnicodeString(&SpParameters.DomainName, &DomainName, TRUE))
+    if (IsLocalHost(&DomainName))
         RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
- 
-    if (DsEnumerateDomainTrusts(NULL,
-                                DS_DOMAIN_IN_FOREST | DS_DOMAIN_NATIVE_MODE,
-                                &Domains,
-                                &DomainCount) == ERROR_SUCCESS) {
-        for (ULONG i = 0; i < DomainCount; i++) {
-            PDS_DOMAIN_TRUSTS Domain = &Domains[i];
 
-            if (_wcsicmp(wszDomainName, Domain->DnsDomainName) == 0 ||
-                _wcsicmp(wszDomainName, Domain->NetbiosDomainName) == 0)
-                RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
+    if ((APFlags & TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN) == 0) {
+        if (RtlEqualUnicodeString(&SpParameters.DnsDomainName, &DomainName, TRUE) ||
+            RtlEqualUnicodeString(&SpParameters.DomainName, &DomainName, TRUE))
+            RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
+    }
+
+    if ((APFlags & TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS) == 0) {
+        if (DsEnumerateDomainTrusts(nullptr,
+                                    DS_DOMAIN_IN_FOREST | DS_DOMAIN_NATIVE_MODE,
+                                    &Domains,
+                                    &DomainCount) == ERROR_SUCCESS) {
+            for (ULONG i = 0; i < DomainCount; i++) {
+                PDS_DOMAIN_TRUSTS Domain = &Domains[i];
+
+                if (_wcsicmp(wszDomainName, Domain->DnsDomainName) == 0 ||
+                    _wcsicmp(wszDomainName, Domain->NetbiosDomainName) == 0)
+                    RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
+            }
         }
     }
 
@@ -226,6 +189,18 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         SspiFreeAuthIdentity(AuthIdentity);
         FreePreauthInitCreds(&PreauthCreds);
                                    });
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%s PreLogonUserSurrogate Buffer Type %08x Length %u"
+               L"Surrogate Version %u Count %u LUID %08x.%08x",
+               LogonTypeMap[LogonType],
+               SubmitBufferSize > 4 ? *((PULONG)ProtocolSubmitBuffer) : (ULONG)-1,
+               SubmitBufferSize,
+               SurrogateLogon->Version,
+               SurrogateLogon->EntryCount,
+               SurrogateLogon->SurrogateLogonID.LowPart,
+               SurrogateLogon->SurrogateLogonID.HighPart);
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 
     //
     // Validate parameters: surrogate version, logon type; STATUS_INVALID_PARAMETER if invalid
@@ -321,11 +296,6 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     Entry->Data = SurrogateLogonData;
 
     SurrogateLogon->EntryCount++;
-
-    //
-    // If ticket cache enabled, derive PBKDF2 key from primary credentials and
-    // store AS-REP in ticket cache
-    //
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }

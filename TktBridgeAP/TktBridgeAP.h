@@ -87,6 +87,9 @@ extern LPWSTR APKdcHostName;
 extern LPWSTR APRestrictPackage;
 
 #define TKTBRIDGEAP_FLAG_DEBUG			0x00000001
+#define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN		0x00000002
+#define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS	0x00000004
+
 #define TKTBRIDGEAP_FLAG_USER			0x0000FFFF
 
 #define TKTBRIDGEAP_REGISTRY_KEY_W		L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
@@ -95,11 +98,21 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_PACKAGE_NAME_W		L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
 
+// authidentity.cpp
+
+NTSTATUS
+CanonicalizeSurrogateLogonAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+				       _In_ PVOID ClientBufferBase,
+				       _In_ ULONG SubmitBufferSize,
+				       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity);
+
 // credcache.cpp
 
 typedef struct _PREAUTH_INIT_CREDS {
     //
-    // Reference count, used by credentials cache
+    // Reference count, used by credentials cache. Preauth creds
+    // immutable and cannot be modified by the caller except to
+    // retain or release.
     //
     LONG RefCount;
 
@@ -126,6 +139,8 @@ typedef struct _PREAUTH_INIT_CREDS {
     LPWSTR UserName;
 } PREAUTH_INIT_CREDS, *PPREAUTH_INIT_CREDS;
 
+typedef const PREAUTH_INIT_CREDS *PCPREAUTH_INIT_CREDS;
+
 NTSTATUS
 AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 				_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
@@ -135,9 +150,18 @@ AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 			_In_opt_ PLUID pvLogonID,
-			_In_ PPREAUTH_INIT_CREDS PreauthCreds);
+			_In_ PCPREAUTH_INIT_CREDS PreauthCreds);
+
+VOID
+RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds);
+
+VOID
+FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *Creds);
 
 // helpers.cpp
+
+ULONG
+GetCallAttributes(VOID);
 
 VOID
 FreeLsaString(_Inout_ PLSA_STRING pLsaString);
@@ -151,6 +175,13 @@ RegistryGetDWordValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 PWSTR
 RegistryGetStringValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
+BOOLEAN
+IsLocalHost(_In_ PUNICODE_STRING HostName);
+
+NTSTATUS
+GetLocalHostName(_In_ BOOLEAN bLsaAlloc,
+                 _Inout_ PUNICODE_STRING HostName);
+
 NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     _Out_ PCHAR *pszUTF8String);
@@ -160,6 +191,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     _Out_ PWSTR *pwszUnicodeString);
 
 // logonapi.cpp
+
 extern "C"
 TKTBRIDGEAP_API NTSTATUS __cdecl
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
@@ -168,6 +200,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 		    _Out_ PULONG pcTables);
 
 // sspipreauth.cpp
+
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code ret);
 
@@ -183,12 +216,6 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_Out_ SECURITY_STATUS *SecStatus);
 
 // surrogate.cpp
-VOID
-RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds);
-
-VOID
-FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *Creds);
-
 extern "C" {
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
     LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;

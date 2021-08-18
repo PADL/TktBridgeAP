@@ -68,6 +68,9 @@
     <ClCompile Include="credcache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="authidentity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="TktBridgeAP-trace.rc">

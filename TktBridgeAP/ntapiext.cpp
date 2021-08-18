@@ -25,7 +25,7 @@ RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
     ULONG SidLength;
     PSID Sid;
 
-    *NewSid = NULL;
+    *NewSid = nullptr;
 
     SidLength = RtlLengthSid(OriginalSid);
 

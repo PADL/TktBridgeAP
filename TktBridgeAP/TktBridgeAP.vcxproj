@@ -254,6 +254,7 @@
     <ClInclude Include="wil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="authidentity.cpp" />
     <ClCompile Include="credcache.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="helpers.cpp" />

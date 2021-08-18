@@ -39,12 +39,11 @@ static NTSTATUS
 InitializeRegistryNotification(VOID);
 
 static NTSTATUS NTAPI
-InitializePackage(
-    IN ULONG AuthenticationPackageId,
-    IN PLSA_DISPATCH_TABLE DispatchTable,
-    IN OPTIONAL PLSA_STRING Database,
-    IN OPTIONAL PLSA_STRING Confidentiality,
-    OUT PLSA_STRING *AuthenticationPackageName)
+InitializePackage(_In_ ULONG AuthenticationPackageId,
+                  _In_ PLSA_DISPATCH_TABLE DispatchTable,
+                  _In_opt_ PLSA_STRING Database,
+                  _In_opt_ PLSA_STRING Confidentiality,
+                  _Out_ PLSA_STRING *AuthenticationPackageName)
 {
     assert(DispatchTable != nullptr);
 
@@ -57,8 +56,8 @@ InitializePackage(
     LSA_STRING APName;
     NTSTATUS Status;
 
-    APName.Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1;
     APName.MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
+    APName.Length = APName.MaximumLength - sizeof(CHAR);
     APName.Buffer = (PCHAR)TKTBRIDGEAP_PACKAGE_NAME_A;
 
     Status = DuplicateLsaString(&APName, AuthenticationPackageName);
@@ -68,12 +67,13 @@ InitializePackage(
 }
 
 static NTSTATUS NTAPI
-SpInitialize(
-    IN ULONG_PTR PackageId,
-    IN PSECPKG_PARAMETERS Parameters,
-    IN PLSA_SECPKG_FUNCTION_TABLE FunctionTable)
+SpInitialize(_In_ ULONG_PTR PackageId,
+             _In_ PSECPKG_PARAMETERS Parameters,
+             _In_ PLSA_SECPKG_FUNCTION_TABLE FunctionTable)
 {
     NTSTATUS Status;
+
+    DebugTrace(WINEVENT_LEVEL_INFO, L"Initializing TktBridgeAP with package ID %lu", PackageId);
 
     assert(Parameters != nullptr);
     assert(FunctionTable != nullptr);
@@ -82,6 +82,7 @@ SpInitialize(
 
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
 
+#if 0
     if ((Parameters->MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
                                      SECPKG_STATE_WORKSTATION)) == 0 ||
         Parameters->DnsDomainName.Length == 0) {
@@ -90,28 +91,34 @@ SpInitialize(
                    Parameters->MachineState);
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
     }
+#endif
 
-    SpParameters.Version        = Parameters->Version;
-    SpParameters.MachineState   = Parameters->MachineState;
-    SpParameters.SetupMode      = Parameters->SetupMode;
+    SpParameters.Version      = Parameters->Version;
+    SpParameters.MachineState = Parameters->MachineState;
+    SpParameters.SetupMode    = Parameters->SetupMode;
 
     if (Parameters->DomainSid != nullptr) {
         Status = RtlDuplicateSid(&SpParameters.DomainSid, Parameters->DomainSid);
         NT_RETURN_IF_NTSTATUS_FAILED(Status);
     }
 
-    Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-                                       &Parameters->DomainName,
-                                       &SpParameters.DomainName);
-    NT_RETURN_IF_NTSTATUS_FAILED(Status);
+    if (Parameters->DomainName.Buffer != nullptr) {
+        Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
+                                           &Parameters->DomainName,
+                                           &SpParameters.DomainName);
+        NT_RETURN_IF_NTSTATUS_FAILED(Status);
+    }
 
-    Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-                                       &Parameters->DnsDomainName,
-                                       &SpParameters.DnsDomainName);
-    NT_RETURN_IF_NTSTATUS_FAILED(Status);
+    if (Parameters->DnsDomainName.Buffer != nullptr) {
+        Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
+                                           &Parameters->DnsDomainName,
+                                           &SpParameters.DnsDomainName);
+        NT_RETURN_IF_NTSTATUS_FAILED(Status);
 
-    // always uppercase the domain so it can be used as a Kerberos realm
-    _wcsupr_s(SpParameters.DnsDomainName.Buffer, SpParameters.DnsDomainName.Length / sizeof(WCHAR));
+        // always uppercase the domain so it can be used as a Kerberos realm
+        _wcsupr_s(SpParameters.DnsDomainName.Buffer,
+                  SpParameters.DnsDomainName.Length / sizeof(WCHAR));
+    }
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
 
@@ -121,6 +128,8 @@ SpInitialize(
 static NTSTATUS NTAPI
 SpShutdown(VOID)
 {
+    DebugTrace(WINEVENT_LEVEL_INFO, L"TktBridgeAP shutting down");
+
     RtlFreeSid(SpParameters.DomainSid);
     RtlFreeUnicodeString(&SpParameters.DomainName);
     RtlFreeUnicodeString(&SpParameters.DnsDomainName);
@@ -129,15 +138,11 @@ SpShutdown(VOID)
     APFlags = 0;
     APLogLevel = 0;
 
-    if (APKdcHostName != nullptr) {
-        WIL_FreeMemory(APKdcHostName);
-        APKdcHostName = nullptr;
-    }
+    WIL_FreeMemory(APKdcHostName);
+    APKdcHostName = nullptr;
 
-    if (APRestrictPackage != nullptr) {
-        WIL_FreeMemory(APRestrictPackage);
-        APRestrictPackage = nullptr;
-    }
+    WIL_FreeMemory(APRestrictPackage);
+    APRestrictPackage = nullptr;
 
     LsaAuthenticationPackageId = 0;
     LsaDispatchTable = nullptr;
@@ -154,6 +159,8 @@ TktBridgeAPFunctionTable = {
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
+    .PreLogonUserSurrogate = PreLogonUserSurrogate,
+    .PostLogonUserSurrogate = PostLogonUserSurrogate
 };
 
 extern "C"
@@ -182,7 +189,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 }
 
 static NTSTATUS NTAPI
-SpGetInfo(OUT PSecPkgInfo PackageInfo)
+SpGetInfo(_Out_ PSecPkgInfo PackageInfo)
 {
     RtlZeroMemory(PackageInfo, sizeof(*PackageInfo));
 
