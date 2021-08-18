@@ -67,8 +67,7 @@ RtlCopySid(
 );
 
 NTSYSAPI
-NTSTATUS
-NTAPI
+NTSTATUS NTAPI
 RtlUnicodeToUTF8N(
     __out_bcount_part(UTF8StringMaxByteCount, *UTF8StringActualByteCount) PCHAR  UTF8StringDestination,
     __in                                ULONG  UTF8StringMaxByteCount,
@@ -78,14 +77,21 @@ RtlUnicodeToUTF8N(
 );
 
 NTSYSAPI
-NTSTATUS
-NTAPI
+NTSTATUS NTAPI
 RtlUTF8ToUnicodeN(
     __out_bcount_part(UnicodeStringMaxByteCount, *UnicodeStringActualByteCount) PWSTR  UnicodeStringDestination,
     __in                             ULONG  UnicodeStringMaxByteCount,
     __out                            PULONG UnicodeStringActualByteCount,
     __in_bcount(UTF8StringByteCount) PCCH   UTF8StringSource,
     __in                             ULONG  UTF8StringByteCount
+);
+
+NTSYSAPI
+NTSTATUS NTAPI
+RtlUpcaseUnicodeString(
+    _Inout_ PUNICODE_STRING  DestinationString,
+    _In_ PCUNICODE_STRING SourceString,
+    _In_ BOOLEAN          AllocateDestinationString
 );
 
 }

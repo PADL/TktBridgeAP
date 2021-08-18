@@ -1,3 +1,21 @@
+/*++
+
+Copyright (c) PADL Software Pty Ltd, All rights reserved.
+
+Module Name:
+
+    testing.cpp
+
+Abstract:
+
+    Testing functions
+
+Environment:
+
+    Local Security Authority (LSA)
+
+--*/
+
 #include "TktBridgeAP.h"
 
 // remove this file when complete
@@ -34,9 +52,9 @@ TktBridgeAPTestFunction1()
 				       nullptr,
 				       AuthIdentity,
 				       &ClientName,
-				       &SecStatus,
 				       &AsRep,
-				       &AsReplyKey);
+				       &AsReplyKey,
+				       &SecStatus);
 
     DebugTrace(WINEVENT_LEVEL_INFO, L"Get init creds: KrbError %d SecStatus %08x", KrbError, SecStatus);
 }

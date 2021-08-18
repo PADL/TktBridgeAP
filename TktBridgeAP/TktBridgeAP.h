@@ -48,6 +48,7 @@ Environment:
 #include <winternl.h>
 #include <winreg.h>
 #include <wincred.h>
+#include <LM.h>
 #include <Tracelogging.h>
 #include <evntprov.h>
 #include <sspi.h>
@@ -56,6 +57,7 @@ Environment:
 #undef _NTDEF_
 #include <NTSecPkg.h>
 #include <security.h>
+#include <DsGetDC.h>
 
 #include <strsafe.h>
 #include <crtdbg.h>
@@ -92,6 +94,23 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_PACKAGE_NAME_A		 "TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_NAME_W		L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
+
+// credcache.cpp
+
+typedef struct _PREAUTH_INIT_CREDS {
+    PWSTR ClientName;
+    krb5_data AsRep;
+    krb5_keyblock AsReplyKey;
+} PREAUTH_INIT_CREDS, *PPREAUTH_INIT_CREDS;
+
+NTSTATUS
+AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
+				_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+				_Out_ PPREAUTH_INIT_CREDS *PreauthCreds);
+
+NTSTATUS
+CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+			_In_ PPREAUTH_INIT_CREDS PreauthCreds);
 
 // helpers.cpp
 
@@ -134,11 +153,14 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_In_opt_ PLUID pvLogonID,
 			_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 			_Out_ PWSTR *pClientName,
-			_Out_ SECURITY_STATUS *SecStatus,
 			_Inout_ krb5_data *AsRep,
-			_Inout_ krb5_keyblock *AsReplyKey);
+			_Inout_ krb5_keyblock *AsReplyKey,
+			_Out_ SECURITY_STATUS *SecStatus);
 
 // surrogate.cpp
+VOID
+FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds);
+
 extern "C" {
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
     LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;

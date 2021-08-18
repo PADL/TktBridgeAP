@@ -78,7 +78,18 @@ SpInitialize(
     assert(Parameters != nullptr);
     assert(FunctionTable != nullptr);
 
+    LsaSpFunctionTable = FunctionTable;
+
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
+
+    if ((Parameters->MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
+                                     SECPKG_STATE_WORKSTATION)) == 0 ||
+        Parameters->DnsDomainName.Length == 0) {
+        DebugTrace(WINEVENT_LEVEL_INFO,
+                   L"TktBridgeAP requires a domain joined machine (0x%08x)",
+                   Parameters->MachineState);
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+    }
 
     SpParameters.Version        = Parameters->Version;
     SpParameters.MachineState   = Parameters->MachineState;
@@ -98,6 +109,9 @@ SpInitialize(
                                        &Parameters->DnsDomainName,
                                        &SpParameters.DnsDomainName);
     NT_RETURN_IF_NTSTATUS_FAILED(Status);
+
+    // always uppercase the domain so it can be used as a Kerberos realm
+    _wcsupr_s(SpParameters.DnsDomainName.Buffer, SpParameters.DnsDomainName.Length / sizeof(WCHAR));
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
 

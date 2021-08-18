@@ -112,7 +112,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -150,7 +150,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -184,7 +184,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -222,7 +222,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -254,6 +254,7 @@
     <ClInclude Include="wil.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="credcache.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="helpers.cpp" />
     <ClCompile Include="surrogate.cpp" />

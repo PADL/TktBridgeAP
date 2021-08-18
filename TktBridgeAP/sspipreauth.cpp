@@ -78,14 +78,14 @@ SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus)
     }
 }
 
-static krb5_error_code
+static _Success_(return == 0) krb5_error_code
 RFC4401PRF(_In_ krb5_context KrbContext,
            _In_ PCtxtHandle phContext,
            _In_ krb5_enctype EncryptionType,
            _In_reads_bytes_(cbPrfInput) const PBYTE pbPrfInput,
            _In_ ULONG cbPrfInput,
            _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
-           _Out_ SIZE_T *pcbPrfOutput)
+           _Out_ size_t *pcbPrfOutput)
 {
     krb5_error_code KrbError;
     SIZE_T cbDesiredOutput;
@@ -96,7 +96,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     };
     krb5_data Input;
     krb5_crypto KrbCrypto = nullptr;
-    SIZE_T KeySize;
+    size_t KeySize;
 
     krb5_data_zero(&Input);
 
@@ -165,7 +165,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     *pcbPrfOutput = KeySize;
 
     Input.length = (SIZE_T)cbPrfInput + 4;
-    Input.data = WIL_AllocateMemory(Input.length);
+    Input.data = WIL_AllocateMemory((SIZE_T)cbPrfInput + 4);
     if (Input.data == nullptr) {
         KrbError = krb5_enomem(KrbContext);
         return KrbError;
@@ -224,8 +224,7 @@ SspiPreauthDeriveKey(_In_ krb5_context KrbContext,
     *ppKeyblock = nullptr;
 
     *((PLONG)&SaltData[8]) = AsReqNonce;
-    
-
+ 
     keyblock.keytype = EncryptionType;
 
     KrbError = RFC4401PRF(KrbContext, phContext, EncryptionType,
@@ -628,9 +627,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                         _In_opt_ PLUID pvLogonID,
                         _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                         _Out_ PWSTR *pClientName,
-                        _Out_ SECURITY_STATUS *pSecStatus,
                         _Inout_ krb5_data *AsRep,
-                        _Inout_ krb5_keyblock *AsReplyKey)
+                        _Inout_ krb5_keyblock *AsReplyKey,
+                        _Out_ SECURITY_STATUS *pSecStatus)
 {
     krb5_error_code KrbError;
     krb5_context KrbContext;
@@ -646,7 +645,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE NegoAuthIdentity = nullptr;
 
     ZeroMemory(&GssCredHandle, sizeof(GssCredHandle));
-    GssCredHandle.LastStatus = SEC_E_NO_CREDENTIALS;
+    GssCredHandle.LastStatus = SEC_E_NO_CONTEXT;
 
     krb5_data_zero(&AsReq);
 
@@ -661,6 +660,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
         PackageName = NEGOSSP_NAME_W;
 
     auto cleanup = wil::scope_exit([&] {
+        // validate we never set *pSecStatus to SEC_E_OK if there was a Kerb error
+        assert((KrbError == 0) == (*pSecStatus == SEC_E_OK));
+
         if (KrbError == 0) {
            EventWriteTKTBRIDGEAP_EVENT_AS_REQ_SUCCESS(RealmName, PackageName, KdcHostName,
                                                       *pClientName, *pSecStatus, KrbError, "");
@@ -718,6 +720,22 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                                          nullptr,
                                          &GssCredHandle.Handle,
                                          &tsExpiry);
+
+    PCWSTR wszDomainName = nullptr;
+    PCWSTR wszUserName = nullptr;
+
+    SspiEncodeAuthIdentityAsStrings(AuthIdentity, &wszUserName, &wszDomainName, nullptr);
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+               L"AcquireCredentialsHandle(%s, <%08x.%08x>, %s@%s): %08x",
+               PackageName,
+               pvLogonID == nullptr ? 0 : pvLogonID->LowPart,
+               pvLogonID == nullptr ? 0 : pvLogonID->HighPart,
+               wszUserName, wszDomainName, SecStatus);
+
+    SspiLocalFree((PVOID)wszUserName);
+    SspiLocalFree((PVOID)wszDomainName);
+
     if (SecStatus != SEC_E_OK) {
         *pSecStatus = SecStatus;
 
@@ -765,7 +783,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
         KrbError = krb5_init_creds_step(KrbContext, InitCredsContext,
                                         AsRep, &AsReq, nullptr, &Flags);
-        if (KrbError != 0 && GssCredHandle.LastStatus != SEC_E_OK)
+        if (KrbError != 0)
             *pSecStatus = GssCredHandle.LastStatus;
         RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to advance PA conversation");
 
