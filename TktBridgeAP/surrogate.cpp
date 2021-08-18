@@ -19,17 +19,46 @@ Environment:
 #include "TktBridgeAP.h"
 
 VOID
-FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds)
+RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds)
 {
     if (Creds == nullptr)
         return;
+
+    if (Creds->RefCount == LONG_MAX)
+        return;
+
+    InterlockedDecrement(&Creds->RefCount);
+}
+
+VOID
+FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *pCreds)
+{
+    PPREAUTH_INIT_CREDS Creds = *pCreds;
+
+    if (Creds == nullptr)
+        return;
+
+    if (Creds->RefCount == LONG_MAX)
+        return;
+
+    auto Old = InterlockedDecrement(&Creds->RefCount) + 1;
+    if (Old > 1)
+        return;
+
+    assert(Old == 1);
 
     WIL_FreeMemory(Creds->ClientName);
     krb5_data_free(&Creds->AsRep);
     SecureZeroMemory(Creds->AsReplyKey.keyvalue.data, Creds->AsReplyKey.keyvalue.length);
     krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
+
+    WIL_FreeMemory(Creds->DomainName);
+    WIL_FreeMemory(Creds->UserName);
+
     ZeroMemory(Creds, sizeof(*Creds));
     WIL_FreeMemory(Creds);
+
+    *pCreds = nullptr;
 }
 
 extern "C"
@@ -39,17 +68,16 @@ RetrievePreauthInitCreds(LUID LogonID,
                          ULONG dwFlags,
                          PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
-    NTSTATUS Status;
     PPREAUTH_INIT_CREDS PreauthCreds = (PPREAUTH_INIT_CREDS)PackageData;
     PKERB_AS_REP_CREDENTIAL KerbAsRepCred;
-    SIZE_T cbKerbAsRepCred;
+    ULONG cbKerbAsRepCred;
 
     if (PreauthCreds == nullptr)
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
     cbKerbAsRepCred = sizeof(*KerbAsRepCred) +
-        PreauthCreds->AsRep.length +
-        PreauthCreds->AsReplyKey.keyvalue.length;
+        (ULONG)PreauthCreds->AsRep.length +
+        (ULONG)PreauthCreds->AsReplyKey.keyvalue.length;
 
     KerbAsRepCred = (PKERB_AS_REP_CREDENTIAL)LsaSpFunctionTable->AllocateLsaHeap(cbKerbAsRepCred);
     RETURN_NTSTATUS_IF_NULL_ALLOC(KerbAsRepCred);
@@ -137,6 +165,7 @@ DWORD __stdcall NetApiBufferFree(_Frees_ptr_opt_ LPVOID Buffer);
 static NTSTATUS
 ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 {
+    PCWSTR wszUserName = nullptr;
     PCWSTR wszDomainName = nullptr;
     UNICODE_STRING DomainName;
     SECURITY_STATUS SecStatus;
@@ -145,12 +174,16 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 
     auto cleanup = wil::scope_exit([&]() {
         NetApiBufferFree(Domains);
+        SspiLocalFree((PVOID)wszUserName);
         SspiLocalFree((PVOID)wszDomainName);
                                    });
 
-    SecStatus = SspiEncodeAuthIdentityAsStrings(AuthIdentity, nullptr,
+    SecStatus = SspiEncodeAuthIdentityAsStrings(AuthIdentity, &wszUserName,
                                                 &wszDomainName, nullptr);
     RETURN_IF_FAILED(SecStatus);
+
+    if (wszDomainName == nullptr)
+        RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
 
     RtlInitUnicodeString(&DomainName, wszDomainName);
 
@@ -187,9 +220,11 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
     PPREAUTH_INIT_CREDS PreauthCreds = nullptr;
 
+    *SubStatus = STATUS_SUCCESS;
+
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
-        FreePreauthInitCreds(PreauthCreds);
+        FreePreauthInitCreds(&PreauthCreds);
                                    });
 
     //
@@ -228,7 +263,9 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     // matches the auth identity and can be decrypted using the primary credentials
     // and has not expired
     //
-    Status = AcquireCachedPreauthCredentials(LogonType, AuthIdentity, &PreauthCreds);
+    Status = AcquireCachedPreauthCredentials(LogonType, AuthIdentity,
+                                             &SurrogateLogon->SurrogateLogonID,
+                                             &PreauthCreds);
     if (!NT_SUCCESS(Status)) {
         //
         // Call SspiPreauthGetInitCreds() with the machine's primary domain and the
@@ -253,9 +290,9 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         RETURN_IF_NTSTATUS_FAILED(Status);
 
         LsaSpFunctionTable->LsaProtectMemory(PreauthCreds->AsReplyKey.keyvalue.data,
-                                             PreauthCreds->AsReplyKey.keyvalue.length);
+                                             (ULONG)PreauthCreds->AsReplyKey.keyvalue.length);
 
-        CachePreauthCredentials(AuthIdentity, PreauthCreds);
+        CachePreauthCredentials(AuthIdentity, &SurrogateLogon->SurrogateLogonID, PreauthCreds);
     }
 
     //
@@ -292,8 +329,6 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
-
-
 
 NTSTATUS
 PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
@@ -332,8 +367,8 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         if (SurrogateLogonData->RetrieveAsRepCredential != &RetrievePreauthInitCreds)
             continue; // not ours
 
-        FreePreauthInitCreds((PPREAUTH_INIT_CREDS)SurrogateLogonData->PackageData);
-        SurrogateLogonData->PackageData = nullptr;
+        FreePreauthInitCreds((PPREAUTH_INIT_CREDS *)&SurrogateLogonData->PackageData);
+
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

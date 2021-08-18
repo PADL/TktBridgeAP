@@ -98,18 +98,43 @@ extern LPWSTR APRestrictPackage;
 // credcache.cpp
 
 typedef struct _PREAUTH_INIT_CREDS {
+    //
+    // Reference count, used by credentials cache
+    //
+    LONG RefCount;
+
+    //
+    // Client name, as returned by QueryContextAttributes
+    //
     PWSTR ClientName;
+
+    //
+    // AS-REP received from bridge KDC
+    //
     krb5_data AsRep;
+
+    //
+    // Reply-key derived from GSS-API pre-authentication
+    //
     krb5_keyblock AsReplyKey;
+
+    //
+    // For cached credentials, the user and domain name of
+    // the original logon request.
+    //
+    LPWSTR DomainName;
+    LPWSTR UserName;
 } PREAUTH_INIT_CREDS, *PPREAUTH_INIT_CREDS;
 
 NTSTATUS
 AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 				_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+				_In_opt_ PLUID pvLogonID,
 				_Out_ PPREAUTH_INIT_CREDS *PreauthCreds);
 
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+			_In_opt_ PLUID pvLogonID,
 			_In_ PPREAUTH_INIT_CREDS PreauthCreds);
 
 // helpers.cpp
@@ -159,7 +184,10 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
 // surrogate.cpp
 VOID
-FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds);
+RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds);
+
+VOID
+FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *Creds);
 
 extern "C" {
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
