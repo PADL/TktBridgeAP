@@ -5,7 +5,7 @@
 #ifndef NDEBUG
 
 static void
-TktBridgeAPTestFunction()
+TktBridgeAPTestFunction1()
 {
     krb5_error_code KrbError;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
@@ -43,7 +43,7 @@ TktBridgeAPTestFunction()
 
 extern "C"
 TKTBRIDGEAP_API
-VOID __cdecl EntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdShow)
+VOID __cdecl TestEntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdShow)
 {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF);
 
@@ -54,19 +54,8 @@ VOID __cdecl EntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdS
 
     DebugTrace(WINEVENT_LEVEL_INFO, L"Starting TktBridgeAP test harness...");
 
-    //TktBridgeAPTestFunction();
-    _CrtDumpMemoryLeaks();
-
-    DebugTrace(WINEVENT_LEVEL_INFO, L"Finished TktBridgeAP test harness, press any key to exit.");
-
-    auto hIn = GetStdHandle(STD_INPUT_HANDLE);
-    TCHAR buffer[2];
-    DWORD dwLength = 1;
-    DWORD dwRead = 0;
-
-    ReadConsole(hIn, buffer, dwLength, &dwRead, NULL);
-    CloseHandle(hIn);
-
+    TktBridgeAPTestFunction1();
+ 
     FreeConsole();
 }
 #endif

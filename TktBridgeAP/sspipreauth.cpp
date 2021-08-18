@@ -84,7 +84,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
            _In_ krb5_enctype EncryptionType,
            _In_reads_bytes_(cbPrfInput) const PBYTE pbPrfInput,
            _In_ ULONG cbPrfInput,
-           _Out_ krb5_data *pPrfOutput)
+           _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
+           _Out_ SIZE_T *pcbPrfOutput)
 {
     krb5_error_code KrbError;
     SIZE_T cbDesiredOutput;
@@ -95,27 +96,30 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     };
     krb5_data Input;
     krb5_crypto KrbCrypto = nullptr;
+    SIZE_T KeySize;
 
-    krb5_data_zero(pPrfOutput);
     krb5_data_zero(&Input);
+
+    *pbPrfOutput = nullptr;
+    *pcbPrfOutput = 0;
 
     auto cleanup = wil::scope_exit([&]() {
         if (SessionKey.SessionKey != nullptr) {
+            SecureZeroMemory(SessionKey.SessionKey, SessionKey.SessionKeyLength);
             FreeContextBuffer(SessionKey.SessionKey);
         }
-        if (KrbError != 0 && pPrfOutput->data) {
-            SecureZeroMemory(pPrfOutput->data, pPrfOutput->length);
-            krb5_data_free(pPrfOutput);
+        if (KrbError != 0 && *pbPrfOutput != nullptr) {
+            SecureZeroMemory(*pbPrfOutput, *pcbPrfOutput);
+            WIL_FreeMemory(*pbPrfOutput);
+            *pbPrfOutput = nullptr;
         }
         if (Input.data) {
-            SecureZeroMemory(Input.data, Input.length);
             WIL_FreeMemory(Input.data);
         }
         if (KrbCrypto != nullptr) {
             krb5_crypto_destroy(KrbContext, KrbCrypto);
         }
-        krb5_data_free(&Input);
-                                 });
+    });
 
     SecStatus = QueryContextAttributes(phContext, SECPKG_ATTR_SESSION_KEY, &SessionKey);
     if (SecStatus != SEC_E_OK) {
@@ -123,19 +127,44 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         return KrbError;
     }
 
+    DebugSessionKey(L"PRF input", pbPrfInput, cbPrfInput);
+    DebugSessionKey(L"SSPI session key", SessionKey.SessionKey, SessionKey.SessionKeyLength);
+
+    //
+    // Unfortunately SSPI doesn't tell use the encryption type the package
+    // used, and indeed it may not even use RFC3961 encryption types. So
+    // we need to take an educated guess. This will break for mechanisms
+    // that don't use these encryption types, but it will work for EAP.
+    //
     krb5_keyblock key;
 
-    key.keytype = EncryptionType;
     key.keyvalue.data = SessionKey.SessionKey;
-    key.keyvalue.length = SessionKey.SessionKeyLength;
+    if (SessionKey.SessionKeyLength >= 32) {
+        key.keytype = KRB5_ENCTYPE_AES256_CTS_HMAC_SHA1_96;
+        key.keyvalue.length = 32;
+    } else if (SessionKey.SessionKeyLength >= 16) {
+        key.keytype = KRB5_ENCTYPE_AES128_CTS_HMAC_SHA1_96;
+        key.keyvalue.length = 16;
+    } else {
+        KrbError = KRB5_BAD_KEYSIZE;
+        RETURN_IF_KRB_FAILED_MSG(KrbError, "Could not map session key type");
+    }
 
-    KrbError = krb5_crypto_init(KrbContext, &key, EncryptionType, &KrbCrypto);
+    KrbError = krb5_crypto_init(KrbContext, &key, KRB5_ENCTYPE_NULL, &KrbCrypto);
     RETURN_IF_KRB_FAILED(KrbError);
 
-    KrbError = krb5_data_alloc(pPrfOutput, SessionKey.SessionKeyLength);
+    KrbError = krb5_enctype_keysize(KrbContext, EncryptionType, &KeySize);
     RETURN_IF_KRB_FAILED(KrbError);
 
-    Input.length = cbPrfInput + 4;
+    *pbPrfOutput = (PBYTE)WIL_AllocateMemory(KeySize);
+    if (*pbPrfOutput == nullptr) {
+        KrbError = krb5_enomem(KrbContext);
+        return KrbError;
+    }
+
+    *pcbPrfOutput = KeySize;
+
+    Input.length = (SIZE_T)cbPrfInput + 4;
     Input.data = WIL_AllocateMemory(Input.length);
     if (Input.data == nullptr) {
         KrbError = krb5_enomem(KrbContext);
@@ -145,9 +174,9 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     memcpy(&((PBYTE)Input.data)[4], pbPrfInput, cbPrfInput);
 
     ULONG iPrf = 0;
-    PBYTE pbPrf = (PBYTE)pPrfOutput->data;
+    PBYTE pbPrf = (PBYTE)*pbPrfOutput;
 
-    cbDesiredOutput = pPrfOutput->length;
+    cbDesiredOutput = *pcbPrfOutput;
 
     while (cbDesiredOutput > 0) {
         SIZE_T cbPrf;
@@ -155,7 +184,10 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
         krb5_data_zero(&Output);
 
-        *((PULONG)Input.data) = iPrf;
+        ((PBYTE)Input.data)[0] = (iPrf >> 24) & 0xFF;
+        ((PBYTE)Input.data)[1] = (iPrf >> 16) & 0xFF;
+        ((PBYTE)Input.data)[2] = (iPrf >>  8) & 0xFF;
+        ((PBYTE)Input.data)[3] = (iPrf      ) & 0xFF;
 
         KrbError = krb5_crypto_prf(KrbContext, KrbCrypto, &Input, &Output);
         RETURN_IF_KRB_FAILED(KrbError);
@@ -171,6 +203,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         iPrf++;
     }
 
+    DebugSessionKey(L"PRF output", *pbPrfOutput, *pcbPrfOutput);
+
     return 0;
 }
 
@@ -185,18 +219,25 @@ SspiPreauthDeriveKey(_In_ krb5_context KrbContext,
     krb5_keyblock keyblock;
     BYTE SaltData[12] = "KRB-GSS";
 
+    ZeroMemory(&keyblock, sizeof(keyblock));
+
     *ppKeyblock = nullptr;
 
     *((PLONG)&SaltData[8]) = AsReqNonce;
+    
 
     keyblock.keytype = EncryptionType;
 
     KrbError = RFC4401PRF(KrbContext, phContext, EncryptionType,
-                          SaltData, sizeof(SaltData), &keyblock.keyvalue);
+                          SaltData, sizeof(SaltData),
+                          (PBYTE *)&keyblock.keyvalue.data, &keyblock.keyvalue.length);
     if (KrbError == 0) {
         KrbError = krb5_copy_keyblock(KrbContext, &keyblock, ppKeyblock);
+    }
+
+    if (keyblock.keyvalue.data != nullptr) {
         SecureZeroMemory(keyblock.keyvalue.data, keyblock.keyvalue.length);
-        krb5_data_free(&keyblock.keyvalue);
+        WIL_FreeMemory(keyblock.keyvalue.data);
     }
 
     return KrbError;
@@ -308,8 +349,7 @@ SspiPreauthStep(krb5_context KrbContext,
 
     krb5_data_zero(OutputToken);
 
-    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA starting with package %s context %08x.%08x token length %u",
-               Mech->Package,
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA stepping context %08x.%08x token length %u",
                *GssContextHandle == nullptr ? 0 : (*GssContextHandle)->Handle.dwLower,
                *GssContextHandle == nullptr ? 0 : (*GssContextHandle)->Handle.dwUpper,
                InputToken == nullptr ? 0 : InputToken->length);
@@ -351,13 +391,13 @@ SspiPreauthStep(krb5_context KrbContext,
     KrbError = SspiPreauthUnparseName(KrbContext, TgsName, &TargetName);
     RETURN_IF_KRB_FAILED(KrbError);
 
-    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA KDC target name is %s", TargetName);
-
     InputBufferDesc.ulVersion = SECBUFFER_VERSION;
     InputBufferDesc.cBuffers = 0;
     InputBufferDesc.pBuffers = InputBuffers;
 
     if (InputToken != nullptr && InputToken->length != 0) {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA for package %s, using target %s", Mech->Package, TargetName);
+
         PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
 
         pSecBuffer->BufferType = SECBUFFER_TOKEN;
@@ -427,9 +467,10 @@ SspiPreauthStep(krb5_context KrbContext,
     else
         KrbError = SspiStatusToKrbError(SecStatus);
 
-    if (KrbError != 0) {
+    if (KrbError != 0 && KrbError != HEIM_ERR_PA_CONTINUE_NEEDED) {
         auto szError = krb5_get_error_message(KrbContext, KrbError);
-        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA InitializeSecurityContext returned SecStatus 0x%08x / KrbError %d (%S)",
+        DebugTrace(WINEVENT_LEVEL_VERBOSE,
+                   L"PA InitializeSecurityContext returned SecStatus 0x%08x / KrbError %d (%S)",
                    SecStatus, KrbError, szError);
         krb5_free_error_message(KrbContext, szError);
     }
@@ -474,14 +515,14 @@ SspiPreauthFinish(
     KrbError = SspiPreauthParseName(KrbContext,
                                     NativeNames.sClientName,
                                     pClientPrincipal);
-    RETURN_IF_KRB_FAILED(KrbError);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to parse initiator name");
 
     KrbError = SspiPreauthDeriveKey(KrbContext,
                                     &GssContextHandle->Handle,
                                     AsReqNonce,
                                     KrbEncType,
                                     ppReplyKey);
-    RETURN_IF_KRB_FAILED(KrbError);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to derive reply key");
 
     return 0;
 }
@@ -696,7 +737,6 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     KrbError = krb5_get_init_creds_opt_alloc(KrbContext, &InitCredsOpt);
     RETURN_IF_KRB_FAILED(KrbError);
 
-    krb5_get_init_creds_opt_set_pac_request(KrbContext, InitCredsOpt, FALSE);
     krb5_get_init_creds_opt_set_canonicalize(KrbContext, InitCredsOpt, TRUE);
 
     KrbError = krb5_init_creds_init(KrbContext, FederatedPrinc, nullptr, nullptr, 0,
@@ -747,6 +787,8 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
     KrbError = krb5_init_creds_get_as_reply_key(KrbContext, InitCredsContext, AsReplyKey);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to retrieve reply key");
+
+    *pSecStatus = SEC_E_OK;
 
     return 0;
 }

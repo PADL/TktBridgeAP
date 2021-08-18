@@ -70,15 +70,9 @@ Environment:
 #define NEGOSSP_NAME_W  L"Negotiate"
 #endif
 
-#ifdef __cplusplus
 extern "C" {
-#endif
-
 #include <krb5.h>
-
-#ifdef __cplusplus
 }
-#endif
 
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
 extern PLSA_DISPATCH_TABLE LsaDispatchTable;
@@ -122,6 +116,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     _Out_ PWSTR *pwszUnicodeString);
 
 // logonapi.cpp
+extern "C"
 TKTBRIDGEAP_API NTSTATUS __cdecl
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
 		    _Out_ PULONG PackageVersion,
@@ -132,7 +127,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code ret);
 
-TKTBRIDGEAP_API krb5_error_code
+krb5_error_code
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_In_opt_z_ PCWSTR PackageName,
 			_In_opt_z_ PCWSTR KdcHostName,
@@ -144,8 +139,10 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 			_Inout_ krb5_keyblock *AsReplyKey);
 
 // surrogate.cpp
-LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
-LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
+extern "C" {
+    LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
+    LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
+}
 
 // tracing.cpp
 krb5_error_code
@@ -153,6 +150,11 @@ HeimTracingInit(_In_ krb5_context KrbContext);
 
 VOID
 __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
+
+void
+DebugSessionKey(_In_z_ PCWSTR Tag,
+		_In_bytecount_(cbKey) PBYTE pbKey,
+		_In_ SIZE_T cbKey);
 
 namespace wil {
 #define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)

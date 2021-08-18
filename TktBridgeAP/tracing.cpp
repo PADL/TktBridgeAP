@@ -108,3 +108,25 @@ HeimTracingInit(_In_ krb5_context KrbContext)
 
     return KrbError;
 }
+
+void
+DebugSessionKey(_In_z_ PCWSTR Tag,
+                _In_bytecount_(cbKey) PBYTE pbKey,
+                _In_ SIZE_T cbKey)
+{
+#ifndef NDEBUG
+    char *sKey = (char *)WIL_AllocateMemory((2 * cbKey) + 1);
+    if (sKey == nullptr)
+        return;
+
+    memset(sKey, 'X', 2 * cbKey);
+    sKey[2 * cbKey] = '\0';
+
+    for (ULONG i = 0; i < cbKey; i++)
+        snprintf(&sKey[2 * i], 3, "%02X", pbKey[i] & 0xFF);
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%s[%zu]: %S", Tag, cbKey, sKey);
+
+    WIL_FreeMemory(sKey);
+#endif
+}

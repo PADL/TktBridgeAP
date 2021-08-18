@@ -28,10 +28,12 @@ ULONG APLogLevel = 0;
 LPWSTR APKdcHostName = nullptr;
 LPWSTR APRestrictPackage = nullptr;
 
-static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
-static SpInitializeFn SpInitialize;
-static SpShutdownFn SpShutdown;
-static SpGetInfoFn SpGetInfo;
+extern "C" {
+    static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
+    static SpInitializeFn SpInitialize;
+    static SpShutdownFn SpShutdown;
+    static SpGetInfoFn SpGetInfo;
+}
 
 static NTSTATUS
 InitializeRegistryNotification(VOID);
@@ -140,6 +142,7 @@ TktBridgeAPFunctionTable = {
     .GetInfo = SpGetInfo,
 };
 
+extern "C"
 TKTBRIDGEAP_API NTSTATUS __cdecl
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PULONG PackageVersion,

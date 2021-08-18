@@ -112,7 +112,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -125,7 +125,7 @@
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=0.1.0.0</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -150,7 +150,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -163,7 +163,7 @@
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=0.1.0.0</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -184,7 +184,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -197,7 +197,7 @@
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=0.1.0.0</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -222,7 +222,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;libcom_err.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -235,7 +235,7 @@
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=0.1.0.0</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
