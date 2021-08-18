@@ -91,7 +91,7 @@ LogonTypeMap[] = {
     L"CachedUnlock"
 };
 
-static NTSTATUS
+NTSTATUS _Success_(Return == STATUS_SUCCESS)
 ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
 {
     if (LogonType < UndefinedLogonType || LogonType > CachedUnlock)
@@ -118,7 +118,7 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
 extern "C"
 DWORD __stdcall NetApiBufferFree(_Frees_ptr_opt_ LPVOID Buffer);
 
-static NTSTATUS
+NTSTATUS _Success_(Return == STATUS_SUCCESS)
 ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 {
     PCWSTR wszUserName = nullptr;
@@ -169,7 +169,45 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
-NTSTATUS
+
+NTSTATUS _Success_(Return == STATUS_SUCCESS)
+GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+                    _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                    _In_ PLUID LogonID,
+                    _Out_ PPREAUTH_INIT_CREDS *pPreauthCreds)
+{
+    NTSTATUS Status;
+    PPREAUTH_INIT_CREDS PreauthCreds;
+    SECURITY_STATUS SecStatus;
+
+    PreauthCreds = (PPREAUTH_INIT_CREDS)WIL_AllocateMemory(sizeof(*PreauthCreds));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(PreauthCreds);
+
+    Status = KrbErrorToNtStatus(SspiPreauthGetInitCreds(SpParameters.DnsDomainName.Buffer,
+                                                        APRestrictPackage,
+                                                        APKdcHostName,
+                                                        LogonID,
+                                                        AuthIdentity,
+                                                        &PreauthCreds->ClientName,
+                                                        &PreauthCreds->AsRep,
+                                                        &PreauthCreds->AsReplyKey,
+                                                        &SecStatus));
+    if (NT_SUCCESS(Status)) {
+        LsaSpFunctionTable->LsaProtectMemory(PreauthCreds->AsReplyKey.keyvalue.data,
+                                             (ULONG)PreauthCreds->AsReplyKey.keyvalue.length);
+
+        *pPreauthCreds = PreauthCreds;
+    } else {
+        if (SecStatus != SEC_E_NO_CONTEXT)
+            Status = SecStatus; // FIXME is this safe to return
+
+        FreePreauthInitCreds(&PreauthCreds);
+    }
+
+    RETURN_NTSTATUS(Status);
+}
+
+NTSTATUS _Success_(Return == STATUS_SUCCESS)
 PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                       _In_ SECURITY_LOGON_TYPE LogonType,
                       _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
@@ -247,25 +285,10 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         // auth identity. (The primary domain is uppercased to a Kerberos realm name
         // at initialization.)
         //
-        PreauthCreds = (PPREAUTH_INIT_CREDS)WIL_AllocateMemory(sizeof(*PreauthCreds));
-        RETURN_NTSTATUS_IF_NULL_ALLOC(PreauthCreds);
-
-        Status = KrbErrorToNtStatus(SspiPreauthGetInitCreds(SpParameters.DnsDomainName.Buffer,
-                                                            APRestrictPackage,
-                                                            APKdcHostName,
-                                                            &SurrogateLogon->SurrogateLogonID,
-                                                            AuthIdentity,
-                                                            &PreauthCreds->ClientName,
-                                                            &PreauthCreds->AsRep,
-                                                            &PreauthCreds->AsReplyKey,
-                                                            &SecStatus));
-        if (!NT_SUCCESS(Status) && SecStatus != SEC_E_NO_CONTEXT) {
-            Status = SecStatus; // FIXME do we need to map this to a NTSTATUS
-        }
+        Status = GetPreauthInitCreds(LogonType, AuthIdentity,
+                                     &SurrogateLogon->SurrogateLogonID,
+                                     &PreauthCreds);
         RETURN_IF_NTSTATUS_FAILED(Status);
-
-        LsaSpFunctionTable->LsaProtectMemory(PreauthCreds->AsReplyKey.keyvalue.data,
-                                             (ULONG)PreauthCreds->AsReplyKey.keyvalue.length);
 
         CachePreauthCredentials(AuthIdentity, &SurrogateLogon->SurrogateLogonID, PreauthCreds);
     }

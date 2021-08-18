@@ -7,3 +7,5 @@ release/
 *.user
 .vs/
 *.aps
+/TktBridgeAP/.TktBridgeAP.vcxproj.swp
+/TktBridgeAP/.TktBridgeAP.vcxproj.swo
