@@ -20,7 +20,7 @@ Environment:
 
 //
 // Looks in the credentials cache for a credential that matches the supplied
-// auth identity, returned PreauthCreds with +1 reference count.
+// auth identity, returned TktBridgeCreds with +1 reference count.
 //
 // Note TGT key is protected using LsaProtectMemory(), will be unprotected
 // by callback
@@ -30,7 +30,7 @@ NTSTATUS
 LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
                                _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                                _In_opt_ PLUID pvLogonID,
-                               _Out_ PTKTBRIDGEAP_CREDS *PreauthCreds,
+                               _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
                                _Out_ PNTSTATUS SubStatus)
 {
     //
@@ -64,7 +64,7 @@ LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                         _In_opt_ PLUID pvLogonID,
-                        _In_ PCTKTBRIDGEAP_CREDS PreauthCreds)
+                        _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     //
     // Unpack auth identity into username, domain name and password

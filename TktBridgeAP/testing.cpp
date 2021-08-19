@@ -67,6 +67,8 @@ TktBridgeAPTestFunction2()
     RtlInitUnicodeString(&foo, nullptr);
     RtlFreeUnicodeString(&foo);
 
+    SspiFreeAuthIdentity(nullptr);
+
     PSID sid = nullptr;
     RtlFreeSid(sid);
 }

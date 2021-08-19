@@ -88,25 +88,26 @@ extern ULONG APLogLevel;
 extern LPWSTR APKdcHostName;
 extern LPWSTR APRestrictPackage;
 
-#define TKTBRIDGEAP_FLAG_DEBUG			0x00000001
-#define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN		0x00000002
-#define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS	0x00000004
+#define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001
+#define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
+#define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
 
-#define TKTBRIDGEAP_FLAG_USER			0x0000FFFF
+#define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF
 
-#define TKTBRIDGEAP_REGISTRY_KEY_W		L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
-#define TKTBRIDGEAP_PACKAGE_VERSION		1
-#define TKTBRIDGEAP_PACKAGE_NAME_A		 "TktBridgeAP"
-#define TKTBRIDGEAP_PACKAGE_NAME_W		L"TktBridgeAP"
-#define TKTBRIDGEAP_PACKAGE_COMMENT_W	L"TktBridge Authentication Package"
+#define TKTBRIDGEAP_REGISTRY_KEY_W              L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
+#define TKTBRIDGEAP_PACKAGE_VERSION             1
+#define TKTBRIDGEAP_PACKAGE_NAME_A               "TktBridgeAP"
+#define TKTBRIDGEAP_PACKAGE_NAME_W              L"TktBridgeAP"
+#define TKTBRIDGEAP_PACKAGE_COMMENT_W   L"TktBridge Authentication Package"
 
 // authidentity.cpp
 
-NTSTATUS
-CanonicalizeSurrogateLogonAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-				       _In_ PVOID ClientBufferBase,
-				       _In_ ULONG SubmitBufferSize,
-				       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity);
+NTSTATUS _Success_(return == STATUS_SUCCESS)
+ConvertKerbLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                               _In_ PVOID ClientBufferBase,
+                               _In_ ULONG SubmitBufferSize,
+                               _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
+                               _Out_ PLUID pUnlockLogonID);
 
 // credcache.cpp
 
@@ -145,15 +146,15 @@ typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
 
 NTSTATUS
 LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-			       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-			       _In_opt_ PLUID pvLogonID,
-			       _Out_ PTKTBRIDGEAP_CREDS *PreauthCreds,
-			       _Out_ PNTSTATUS SubStatus);
+                               _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                               _In_opt_ PLUID pvLogonID,
+                               _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
+                               _Out_ PNTSTATUS SubStatus);
 
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-			_In_opt_ PLUID pvLogonID,
-			_In_ PCTKTBRIDGEAP_CREDS PreauthCreds);
+                        _In_opt_ PLUID pvLogonID,
+                        _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
 
 VOID
 RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
@@ -164,7 +165,7 @@ FreePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS *Creds);
 // errors.cpp
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code ret,
-		   _Out_ PNTSTATUS Substatus);
+                   _Out_ PNTSTATUS Substatus);
 
 // helpers.cpp
 
@@ -203,22 +204,22 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
 extern "C"
 TKTBRIDGEAP_API NTSTATUS __cdecl
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
-		    _Out_ PULONG PackageVersion,
-		    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
-		    _Out_ PULONG pcTables);
+                    _Out_ PULONG PackageVersion,
+                    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
+                    _Out_ PULONG pcTables);
 
 // sspipreauth.cpp
 
-krb5_error_code
+krb5_error_code _Success_(return == 0)
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
-			_In_opt_z_ PCWSTR PackageName,
-			_In_opt_z_ PCWSTR KdcHostName,
-			_In_opt_ PLUID pvLogonID,
-			_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-			_Out_ PWSTR *pClientName,
-			_Inout_ krb5_data *AsRep,
-			_Inout_ krb5_keyblock *AsReplyKey,
-			_Out_ SECURITY_STATUS *SecStatus);
+                        _In_opt_z_ PCWSTR PackageName,
+                        _In_opt_z_ PCWSTR KdcHostName,
+                        _In_opt_ PLUID pvLogonID,
+                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                        _Out_ PWSTR *pClientName,
+                        _Inout_ krb5_data *AsRep,
+                        _Inout_ krb5_keyblock *AsReplyKey,
+                        _Out_ SECURITY_STATUS *SecStatus);
 
 // surrogate.cpp
 extern "C" {
@@ -235,8 +236,8 @@ __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
 
 void
 DebugSessionKey(_In_z_ PCWSTR Tag,
-		_In_bytecount_(cbKey) PBYTE pbKey,
-		_In_ SIZE_T cbKey);
+                _In_bytecount_(cbKey) PBYTE pbKey,
+                _In_ SIZE_T cbKey);
 
 namespace wil {
 #define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
