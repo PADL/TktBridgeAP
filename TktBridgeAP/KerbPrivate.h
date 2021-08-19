@@ -4,11 +4,11 @@ Copyright (c) PADL Software Pty Ltd, All rights reserved.
 
 Module Name:
 
-    KerbSurrogate.h
+    KerbPrivate.h
 
 Abstract:
 
-    Interface between SPM surrogate API and Kerberos package.
+    Private Kerberos package APIs.
 
 Environment:
 
@@ -23,6 +23,32 @@ Environment:
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+//
+// Smartcard logon
+//
+
+#pragma pack(push, 1)
+typedef struct _KERB_SMARTCARD_CSP_INFO {
+    DWORD dwCspInfoLen;
+    DWORD MessageType;
+    union {
+        PVOID   ContextInformation;
+        ULONG64 SpaceHolderForWow64;
+    };
+    DWORD flags;
+    DWORD KeySpec;
+    ULONG nCardNameOffset;
+    ULONG nReaderNameOffset;
+    ULONG nContainerNameOffset;
+    ULONG nCSPNameOffset;
+    TCHAR bBuffer;
+} KERB_SMARTCARD_CSP_INFO, *PKERB_SMARTCARD_CSP_INFO;
+#pragma pack(pop)
+
+//
+// Surrogate AS-REP logon
+//
 
 typedef struct _KERB_AS_REP_CREDENTIAL {
     ULONG Version;

@@ -27,7 +27,7 @@
     <ClInclude Include="ntapiext.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="KerbSurrogate.h">
+    <ClInclude Include="KerbPrivate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="wil.h">

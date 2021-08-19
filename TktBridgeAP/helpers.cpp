@@ -75,32 +75,32 @@ GetLocalHostName(_In_ BOOLEAN bLsaAlloc,
 
 NTSTATUS
 DuplicateLsaString(_In_ PLSA_STRING SourceString,
-                   _Out_ PLSA_STRING *pDestString)
+                   _Out_ PLSA_STRING *pDestinationString)
 {
-    PLSA_STRING DestString = nullptr;
+    PLSA_STRING DestinationString = nullptr;
 
-    *pDestString = nullptr;
+    *pDestinationString = nullptr;
     
     assert(LsaDispatchTable != nullptr);
 
     auto cleanup = wil::scope_exit([&]
         {
-            FreeLsaString(DestString);
+            FreeLsaString(DestinationString);
         });
 
-    DestString = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(DestString);
+    DestinationString = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString);
 
-    DestString->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(DestString->Buffer);
+    DestinationString->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString->Buffer);
 
-    RtlCopyMemory(DestString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
+    RtlCopyMemory(DestinationString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
 
-    DestString->Length = SourceString->Length;
-    DestString->MaximumLength = SourceString->MaximumLength;
+    DestinationString->Length = SourceString->Length;
+    DestinationString->MaximumLength = SourceString->MaximumLength;
 
-    *pDestString = DestString;
-    DestString = nullptr; // don't free in cleanup
+    *pDestinationString = DestinationString;
+    DestinationString = nullptr; // don't free in cleanup
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }

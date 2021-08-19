@@ -8,7 +8,7 @@ Module Name:
 
 Abstract:
 
-    Interface between SPM surrogate API and Kerberos package.
+    Interface between surrogate API and Kerberos package.
 
 Environment:
 
@@ -51,13 +51,13 @@ RetrievePreauthInitCreds(LUID LogonID,
 
     ZeroMemory(KerbAsRepCred, sizeof(*KerbAsRepCred));
 
-    KerbAsRepCred->Version = KERB_AS_REP_CREDENTIAL_VERSION_1;
-    KerbAsRepCred->Flags = 0;
-    KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
-    KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
-    KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-    KerbAsRepCred->TgtClientKeySize = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
-    KerbAsRepCred->TgtKeyType = TktBridgeCreds->AsReplyKey.keytype;
+    KerbAsRepCred->Version              = KERB_AS_REP_CREDENTIAL_VERSION_1;
+    KerbAsRepCred->Flags                = 0;
+    KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
+    KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
+    KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
+    KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+    KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
     memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
            TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
@@ -114,6 +114,7 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
         RETURN_NTSTATUS(STATUS_LOGON_TYPE_NOT_GRANTED);
     }
 }
+
 // for some reason this is not getting imported with the SYSTEM partition
 extern "C"
 DWORD __stdcall NetApiBufferFree(_Frees_ptr_opt_ LPVOID Buffer);
@@ -205,10 +206,45 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
         if (SecStatus != SEC_E_NO_CONTEXT)
             Status = SecStatus; // FIXME is this safe to return
 
-        FreePreauthInitCreds(&TktBridgeCreds);
+        ReleasePreauthInitCreds(TktBridgeCreds);
     }
 
     RETURN_NTSTATUS(Status);
+}
+
+NTSTATUS _Success_(return == STATUS_SUCCESS)
+AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+                       _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
+{
+    auto Entries = (PSECPKG_SURROGATE_LOGON_ENTRY)
+        LsaSpFunctionTable->AllocateLsaHeap((SurrogateLogon->EntryCount + 1) *
+                                            sizeof(SECPKG_SURROGATE_LOGON_ENTRY));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(Entries);
+
+    if (SurrogateLogon->Entries != nullptr) {
+        memcpy(Entries, SurrogateLogon->Entries,
+               SurrogateLogon->EntryCount * sizeof(SECPKG_SURROGATE_LOGON_ENTRY));
+        LsaSpFunctionTable->FreeLsaHeap(SurrogateLogon->Entries);
+    }
+    SurrogateLogon->Entries = Entries;
+
+    auto Entry = &SurrogateLogon->Entries[SurrogateLogon->EntryCount];
+
+    auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)
+        LsaSpFunctionTable->AllocateLsaHeap(sizeof(KERB_SURROGATE_LOGON_DATA));
+    ZeroMemory(SurrogateLogonData, sizeof(*SurrogateLogonData));
+
+    RetainPreauthInitCreds(TktBridgeCreds);
+
+    SurrogateLogonData->RetrieveAsRepCredential = RetrievePreauthInitCreds;
+    SurrogateLogonData->PackageData = TktBridgeCreds;
+
+    Entry->Type = KERB_SURROGATE_LOGON_TYPE;
+    Entry->Data = SurrogateLogonData;
+
+    SurrogateLogon->EntryCount++;
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 NTSTATUS
@@ -230,7 +266,7 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
-        FreePreauthInitCreds(&TktBridgeCreds);
+        ReleasePreauthInitCreds(TktBridgeCreds);
                                    });
 
     if (ProtocolSubmitBuffer == nullptr || SubmitBufferSize == 0 ||
@@ -240,30 +276,18 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (SurrogateLogon->Version != SECPKG_SURROGATE_LOGON_VERSION_1)
         RETURN_NTSTATUS(STATUS_UNKNOWN_REVISION);
 
-    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%s PreLogonUserSurrogate Buffer Type %08x Length %u"
-               L"Surrogate Version %u Count %u LUID %08x.%08x",
-               LogonTypeMap[LogonType],
-               SubmitBufferSize > 4 ? *((PULONG)ProtocolSubmitBuffer) : (ULONG)-1,
-               SubmitBufferSize,
-               SurrogateLogon->Version,
-               SurrogateLogon->EntryCount,
-               SurrogateLogon->SurrogateLogonID.LowPart,
-               SurrogateLogon->SurrogateLogonID.HighPart);
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-
     if ((SpParameters.MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
-                                     SECPKG_STATE_WORKSTATION)) == 0 ||
+                                      SECPKG_STATE_WORKSTATION)) == 0 ||
         SpParameters.DnsDomainName.Length == 0)
         RETURN_NTSTATUS(STATUS_INVALID_DOMAIN_ROLE);
 
     Status = ValidateSurrogateLogonType(LogonType);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = ConvertKerbLogonToAuthIdentity(ProtocolSubmitBuffer,
-                                            ClientBufferBase,
-                                            SubmitBufferSize,
-                                            &AuthIdentity,
-                                            &UnlockLogonID);
+    Status = ConvertLogonSubmitBufferToAuthIdentity(ProtocolSubmitBuffer,
+                                                    SubmitBufferSize,
+                                                    &AuthIdentity,
+                                                    &UnlockLogonID);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = ValidateSurrogateLogonDomain(AuthIdentity);
@@ -277,33 +301,10 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                      &SurrogateLogon->SurrogateLogonID,
                                      &TktBridgeCreds, SubStatus);
         RETURN_IF_NTSTATUS_FAILED(Status);
-
-        CachePreauthCredentials(AuthIdentity, &SurrogateLogon->SurrogateLogonID, TktBridgeCreds);
     }
 
-    auto Entries = (PSECPKG_SURROGATE_LOGON_ENTRY)
-        LsaSpFunctionTable->AllocateLsaHeap((SurrogateLogon->EntryCount + 1) *
-                                            sizeof(SECPKG_SURROGATE_LOGON_ENTRY));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(Entries);
-
-    if (SurrogateLogon->Entries != nullptr)
-        memcpy(Entries, SurrogateLogon->Entries, SurrogateLogon->EntryCount * sizeof(SECPKG_SURROGATE_LOGON_ENTRY));
-    SurrogateLogon->Entries = Entries;
-
-    auto Entry = &SurrogateLogon->Entries[SurrogateLogon->EntryCount];
-
-    auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)
-        LsaSpFunctionTable->AllocateLsaHeap(sizeof(KERB_SURROGATE_LOGON_DATA));
-    ZeroMemory(SurrogateLogonData, sizeof(*SurrogateLogonData));
-
-    SurrogateLogonData->RetrieveAsRepCredential = RetrievePreauthInitCreds;
-    SurrogateLogonData->PackageData = TktBridgeCreds;
-    TktBridgeCreds = nullptr; // don't free on return
-
-    Entry->Type = KERB_SURROGATE_LOGON_TYPE;
-    Entry->Data = SurrogateLogonData;
-
-    SurrogateLogon->EntryCount++;
+    Status = AddSurrogateLogonEntry(SurrogateLogon, TktBridgeCreds);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -345,8 +346,25 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         if (SurrogateLogonData->RetrieveAsRepCredential != &RetrievePreauthInitCreds)
             continue; // not ours
 
-        FreePreauthInitCreds((PTKTBRIDGEAP_CREDS *)&SurrogateLogonData->PackageData);
+        auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
 
+        if (NT_SUCCESS(Status) &&
+            (TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) == 0)
+            CacheAddPreauthCredentials(AccountName,
+                                       AuthenticatingAuthority,
+                                       PrimaryCredentials,
+                                       LogonId,
+                                       TktBridgeCreds);
+        else if (!NT_SUCCESS(Status) &&
+                 (TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED))
+            CacheRemovePreauthCredentials(AccountName,
+                                          AuthenticatingAuthority,
+                                          LogonId,
+                                          TktBridgeCreds);
+
+        ReleasePreauthInitCreds(TktBridgeCreds);
+
+        // FIXME who frees SurrogateLogonData?
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

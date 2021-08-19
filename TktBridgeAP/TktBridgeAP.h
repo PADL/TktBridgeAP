@@ -58,14 +58,15 @@ Environment:
 #include <NTSecPkg.h>
 #include <security.h>
 #include <DsGetDC.h>
-
+#include <wincrypt.h>
+#include <wincred.h>
 #include <strsafe.h>
 #include <crtdbg.h>
 #include <assert.h>
 
 #include "wil.h"
 #include "ntapiext.h"
-#include "KerbSurrogate.h"
+#include "KerbPrivate.h"
 #include "TktBridgeAP-trace.h"
 
 #include <ntstatus.h>
@@ -98,16 +99,15 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_PACKAGE_VERSION             1
 #define TKTBRIDGEAP_PACKAGE_NAME_A               "TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_NAME_W              L"TktBridgeAP"
-#define TKTBRIDGEAP_PACKAGE_COMMENT_W   L"TktBridge Authentication Package"
+#define TKTBRIDGEAP_PACKAGE_COMMENT_W           L"TktBridge Authentication Package"
 
 // authidentity.cpp
 
 NTSTATUS _Success_(return == STATUS_SUCCESS)
-ConvertKerbLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                               _In_ PVOID ClientBufferBase,
-                               _In_ ULONG SubmitBufferSize,
-                               _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                               _Out_ PLUID pUnlockLogonID);
+ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                       _In_ ULONG SubmitBufferSize,
+                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
+                                       _Out_ PLUID pUnlockLogonID);
 
 // credcache.cpp
 
@@ -138,9 +138,12 @@ typedef struct _TKTBRIDGEAP_CREDS {
     // For cached credentials, the user and domain name of
     // the original logon request.
     //
+    ULONG Flags;
     LPWSTR DomainName;
     LPWSTR UserName;
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
+
+#define TKTBRIDGEAP_CREDS_FLAG_CACHED       0x00000001
 
 typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
 
@@ -152,15 +155,23 @@ LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
                                _Out_ PNTSTATUS SubStatus);
 
 NTSTATUS
-CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                        _In_opt_ PLUID pvLogonID,
-                        _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
+CacheAddPreauthCredentials(_In_ PUNICODE_STRING AccountName,
+                           _In_ PUNICODE_STRING AuthenticatingAuthority,
+                           _In_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
+                           _In_opt_ PLUID pvLogonID,
+                           _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
+
+NTSTATUS
+CacheRemovePreauthCredentials(_In_ PUNICODE_STRING AccountName,
+                              _In_ PUNICODE_STRING AuthenticatingAuthority,
+                              _In_opt_ PLUID pvLogonID,
+                              _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
 
 VOID
 RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
-FreePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS *Creds);
+ReleasePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 // errors.cpp
 NTSTATUS

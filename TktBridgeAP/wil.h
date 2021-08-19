@@ -21,10 +21,9 @@ Environment:
 #undef _LSALOOKUP_
 #include <wil/common.h>
 #include <wil/resource.h>
+#include <wil/win32_helpers.h>
 
 namespace wil {
-
-
 #if defined(_WINREG_) && !defined(__WIL_WINREG_) && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_SYSTEM) && !defined(WIL_KERNEL_MODE)
 #define __WIL_WINREG_
     using unique_hkey = wil::unique_any<HKEY, decltype(&::RegCloseKey), ::RegCloseKey>;
