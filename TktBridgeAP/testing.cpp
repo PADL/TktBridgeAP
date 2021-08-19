@@ -56,7 +56,13 @@ TktBridgeAPTestFunction1()
 				       &AsReplyKey,
 				       &SecStatus);
 
-    DebugTrace(WINEVENT_LEVEL_INFO, L"Get init creds: KrbError %d SecStatus %08x", KrbError, SecStatus);
+    DebugTrace(WINEVENT_LEVEL_INFO, L"Get init creds: KrbError %d SecStatus %08x Length %d Key %d/%d",
+	       KrbError, SecStatus, AsRep.length,
+	       AsReplyKey.keytype, AsReplyKey.keyvalue.length);
+
+    krb5_data_free(&AsRep);
+    krb5_free_keyblock_contents(NULL, &AsReplyKey);
+    SspiFreeAuthIdentity(AuthIdentity);
 }
 
 static void

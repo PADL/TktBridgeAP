@@ -29,12 +29,13 @@ UnpackUnicodeString(_In_ PVOID ProtocolSubmitBuffer,
     DestinationString->MaximumLength = SourceString->MaximumLength;
 
     if (SourceString->Buffer != nullptr)
-        DestinationString->Buffer = (PWSTR)((PBYTE)ProtocolSubmitBuffer + (ULONG_PTR)SourceString->Buffer);
+        DestinationString->Buffer = (PWSTR)((PBYTE)ProtocolSubmitBuffer +
+                                            (ULONG_PTR)SourceString->Buffer);
     else
         DestinationString->Buffer = nullptr;
 }
 
-static NTSTATUS
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 UnpackUnicodeStringAllocZ(_In_ PVOID ProtocolSubmitBuffer,
                           _In_ PCUNICODE_STRING SourceString,
                           _Out_ PWSTR *pDestinationString)
@@ -56,18 +57,18 @@ UnpackUnicodeStringAllocZ(_In_ PVOID ProtocolSubmitBuffer,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS
-ValidateOffset(_In_ ULONG SubmitBufferSize,
-               _In_ ULONG_PTR Offset,
-               _In_ ULONG Length)
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
+ValidateOffset(_In_ ULONG cbBuffer,
+               _In_ ULONG_PTR cbOffset,
+               _In_ ULONG cbItem)
 {
-    if (Offset + Length > SubmitBufferSize)
+    if (cbOffset + cbItem > cbBuffer)
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
     else
         RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ValidateAndUnpackUnicodeStringAllocZ(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                      _In_ ULONG SubmitBufferSize,
                                      _In_ PCUNICODE_STRING RelativeString,
@@ -161,6 +162,32 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
+ValidateTStrOffset(_In_ ULONG cbBuffer,
+                   _In_ PTSTR pchBuffer,
+                   _In_ ULONG cchOffset)
+{
+    size_t i;
+    bool bNulTerminated = false;
+
+    if (cchOffset * sizeof(TCHAR) > cbBuffer)
+        RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+    auto BufferLengthCharacters = cbBuffer / sizeof(TCHAR);
+
+    for (i = cchOffset; i < BufferLengthCharacters; i++) {
+        if (pchBuffer[i] == L'\0') {
+            bNulTerminated = true;
+            break;
+        }
+    }
+
+    if (!bNulTerminated)
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspData,
                                       _In_ ULONG CspDataLength,
                                       _Out_ PWSTR *pMarshaledCredential)
@@ -175,23 +202,31 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
     auto pCspInfo = (PKERB_SMARTCARD_CSP_INFO)CspData;
 
     if (CspDataLength < pCspInfo->dwCspInfoLen ||
-        pCspInfo->dwCspInfoLen < sizeof(*pCspInfo))
+        pCspInfo->dwCspInfoLen < sizeof(*pCspInfo) ||
+        pCspInfo->MessageType != 1)
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
-    Status = ValidateOffset(pCspInfo->dwCspInfoLen, (ULONG_PTR)&pCspInfo->bBuffer, pCspInfo->nCardNameOffset);
+    Status = ValidateTStrOffset(pCspInfo->dwCspInfoLen, &pCspInfo->bBuffer, pCspInfo->nCardNameOffset);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = ValidateOffset(pCspInfo->dwCspInfoLen, (ULONG_PTR)&pCspInfo->bBuffer, pCspInfo->nReaderNameOffset);
+    Status = ValidateTStrOffset(pCspInfo->dwCspInfoLen, &pCspInfo->bBuffer, pCspInfo->nReaderNameOffset);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = ValidateOffset(pCspInfo->dwCspInfoLen, (ULONG_PTR)&pCspInfo->bBuffer, pCspInfo->nContainerNameOffset);
+    Status = ValidateTStrOffset(pCspInfo->dwCspInfoLen, &pCspInfo->bBuffer, pCspInfo->nContainerNameOffset);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = ValidateOffset(pCspInfo->dwCspInfoLen, (ULONG_PTR)&pCspInfo->bBuffer, pCspInfo->nCardNameOffset);
+    Status = ValidateTStrOffset(pCspInfo->dwCspInfoLen, &pCspInfo->bBuffer, pCspInfo->nCSPNameOffset);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
+    auto wszCardName      = &pCspInfo->bBuffer + pCspInfo->nCardNameOffset;
+    auto wszReaderName    = &pCspInfo->bBuffer + pCspInfo->nReaderNameOffset;
     auto wszContainerName = &pCspInfo->bBuffer + pCspInfo->nContainerNameOffset;
-    auto wszCspName       = &pCspInfo->bBuffer + pCspInfo->nCardNameOffset;
+    auto wszCspName       = &pCspInfo->bBuffer + pCspInfo->nCSPNameOffset;
+
+    // TODO: do we return an error if we have a non-default card/reader name
+    if (wszCardName[0] || wszReaderName[0]) {
+        RETURN_NTSTATUS(STATUS_SMARTCARD_NO_CARD);
+    }
 
     HCRYPTPROV hCryptProv = 0;
     HCRYPTKEY hUserKey = 0;

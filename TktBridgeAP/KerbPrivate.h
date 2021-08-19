@@ -26,9 +26,10 @@ extern "C" {
 
 //
 // Smartcard logon
+// https://docs.microsoft.com/en-us/windows/win32/secauthn/kerb-smartcard-csp-info
 //
 
-#pragma pack(push, 1)
+#pragma pack(push, 2)
 typedef struct _KERB_SMARTCARD_CSP_INFO {
     DWORD dwCspInfoLen;
     DWORD MessageType;
