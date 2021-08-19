@@ -30,7 +30,7 @@ RetrievePreauthInitCreds(LUID LogonID,
                          ULONG dwFlags,
                          PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
-    auto PreauthCreds = (PCPREAUTH_INIT_CREDS)PackageData;
+    auto PreauthCreds = (PCTKTBRIDGEAP_CREDS)PackageData;
     PKERB_AS_REP_CREDENTIAL KerbAsRepCred;
     ULONG cbKerbAsRepCred;
 
@@ -174,24 +174,27 @@ NTSTATUS _Success_(Return == STATUS_SUCCESS)
 GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
                     _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                     _In_ PLUID LogonID,
-                    _Out_ PPREAUTH_INIT_CREDS *pPreauthCreds)
+                    _Out_ PTKTBRIDGEAP_CREDS *pPreauthCreds,
+                    _Out_ PNTSTATUS SubStatus)
 {
-    NTSTATUS Status;
-    PPREAUTH_INIT_CREDS PreauthCreds;
     SECURITY_STATUS SecStatus;
+    PTKTBRIDGEAP_CREDS PreauthCreds;
 
-    PreauthCreds = (PPREAUTH_INIT_CREDS)WIL_AllocateMemory(sizeof(*PreauthCreds));
+    *SubStatus = STATUS_SUCCESS;
+
+    PreauthCreds = (PTKTBRIDGEAP_CREDS)WIL_AllocateMemory(sizeof(*PreauthCreds));
     RETURN_NTSTATUS_IF_NULL_ALLOC(PreauthCreds);
 
-    Status = KrbErrorToNtStatus(SspiPreauthGetInitCreds(SpParameters.DnsDomainName.Buffer,
-                                                        APRestrictPackage,
-                                                        APKdcHostName,
-                                                        LogonID,
-                                                        AuthIdentity,
-                                                        &PreauthCreds->ClientName,
-                                                        &PreauthCreds->AsRep,
-                                                        &PreauthCreds->AsReplyKey,
-                                                        &SecStatus));
+    auto KrbError = SspiPreauthGetInitCreds(SpParameters.DnsDomainName.Buffer,
+                                            APRestrictPackage,
+                                            APKdcHostName,
+                                            LogonID,
+                                            AuthIdentity,
+                                            &PreauthCreds->ClientName,
+                                            &PreauthCreds->AsRep,
+                                            &PreauthCreds->AsReplyKey,
+                                            &SecStatus);
+    auto Status = KrbErrorToNtStatus(KrbError, SubStatus);
     if (NT_SUCCESS(Status)) {
         LsaSpFunctionTable->LsaProtectMemory(PreauthCreds->AsReplyKey.keyvalue.data,
                                              (ULONG)PreauthCreds->AsReplyKey.keyvalue.length);
@@ -219,14 +222,19 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     NTSTATUS Status;
     SECURITY_STATUS SecStatus = SEC_E_NO_CONTEXT;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
-    PPREAUTH_INIT_CREDS PreauthCreds = nullptr;
-
-    *SubStatus = STATUS_SUCCESS;
+    PTKTBRIDGEAP_CREDS PreauthCreds = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
         FreePreauthInitCreds(&PreauthCreds);
                                    });
+
+    if (ProtocolSubmitBuffer == nullptr || SubmitBufferSize == 0 ||
+        SubStatus == nullptr || SurrogateLogon == nullptr)
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+
+    if (SurrogateLogon->Version != SECPKG_SURROGATE_LOGON_VERSION_1)
+        RETURN_NTSTATUS(STATUS_UNKNOWN_REVISION);
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%s PreLogonUserSurrogate Buffer Type %08x Length %u"
                L"Surrogate Version %u Count %u LUID %08x.%08x",
@@ -237,65 +245,37 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                SurrogateLogon->EntryCount,
                SurrogateLogon->SurrogateLogonID.LowPart,
                SurrogateLogon->SurrogateLogonID.HighPart);
-
     RETURN_NTSTATUS(STATUS_SUCCESS);
 
-    //
-    // Validate parameters: surrogate version, logon type; STATUS_INVALID_PARAMETER if invalid
-    //
-    if (SurrogateLogon == nullptr ||
-        SurrogateLogon->Version != SECPKG_SURROGATE_LOGON_VERSION_1)
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
-
     if ((SpParameters.MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
-                                      SECPKG_STATE_WORKSTATION)) == 0 ||
-        SpParameters.DnsDomainName.Buffer == nullptr)
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+                                     SECPKG_STATE_WORKSTATION)) == 0 ||
+        SpParameters.DnsDomainName.Length == 0)
+        RETURN_NTSTATUS(STATUS_INVALID_DOMAIN_ROLE);
 
     Status = ValidateSurrogateLogonType(LogonType);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    //
-    // Canonicalize logon identity to opaque auth identity
-    //
     Status = CanonicalizeSurrogateLogonAuthIdentity(ProtocolSubmitBuffer,
                                                     ClientBufferBase,
                                                     SubmitBufferSize,
                                                     &AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    //
-    // Check domain name from primary domain information and possibly trusted domains to
-    // ensure that we do not try to replace native Kerberos logon
-    //
     Status = ValidateSurrogateLogonDomain(AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    //
-    // If ticket cache enabled, look in local ticket cache for a partial ticket that
-    // matches the auth identity and can be decrypted using the primary credentials
-    // and has not expired
-    //
-    Status = AcquireCachedPreauthCredentials(LogonType, AuthIdentity,
-                                             &SurrogateLogon->SurrogateLogonID,
-                                             &PreauthCreds);
+    Status = LocateCachedPreauthCredentials(LogonType, AuthIdentity,
+                                            &SurrogateLogon->SurrogateLogonID,
+                                            &PreauthCreds, SubStatus);
     if (!NT_SUCCESS(Status)) {
-        //
-        // Call SspiPreauthGetInitCreds() with the machine's primary domain and the
-        // auth identity. (The primary domain is uppercased to a Kerberos realm name
-        // at initialization.)
-        //
         Status = GetPreauthInitCreds(LogonType, AuthIdentity,
                                      &SurrogateLogon->SurrogateLogonID,
-                                     &PreauthCreds);
+                                     &PreauthCreds, SubStatus);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
         CachePreauthCredentials(AuthIdentity, &SurrogateLogon->SurrogateLogonID, PreauthCreds);
     }
 
-    //
-    // Allocate a surrogate entry containing AS-REP credentials
-    //
     auto Entries = (PSECPKG_SURROGATE_LOGON_ENTRY)
         LsaSpFunctionTable->AllocateLsaHeap((SurrogateLogon->EntryCount + 1) *
                                             sizeof(SECPKG_SURROGATE_LOGON_ENTRY));
@@ -360,7 +340,7 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         if (SurrogateLogonData->RetrieveAsRepCredential != &RetrievePreauthInitCreds)
             continue; // not ours
 
-        FreePreauthInitCreds((PPREAUTH_INIT_CREDS *)&SurrogateLogonData->PackageData);
+        FreePreauthInitCreds((PTKTBRIDGEAP_CREDS *)&SurrogateLogonData->PackageData);
 
     }
 

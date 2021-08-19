@@ -59,6 +59,18 @@ TktBridgeAPTestFunction1()
     DebugTrace(WINEVENT_LEVEL_INFO, L"Get init creds: KrbError %d SecStatus %08x", KrbError, SecStatus);
 }
 
+static void
+TktBridgeAPTestFunction2()
+{
+    UNICODE_STRING foo;
+
+    RtlInitUnicodeString(&foo, nullptr);
+    RtlFreeUnicodeString(&foo);
+
+    PSID sid = nullptr;
+    RtlFreeSid(sid);
+}
+
 extern "C"
 TKTBRIDGEAP_API
 VOID __cdecl TestEntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdShow)
@@ -73,6 +85,7 @@ VOID __cdecl TestEntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int n
     DebugTrace(WINEVENT_LEVEL_INFO, L"Starting TktBridgeAP test harness...");
 
     TktBridgeAPTestFunction1();
+    TktBridgeAPTestFunction2();
  
     FreeConsole();
 }

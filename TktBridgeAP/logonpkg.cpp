@@ -82,17 +82,6 @@ SpInitialize(_In_ ULONG_PTR PackageId,
 
     RtlZeroMemory(&SpParameters, sizeof(SpParameters));
 
-#if 0
-    if ((Parameters->MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
-                                     SECPKG_STATE_WORKSTATION)) == 0 ||
-        Parameters->DnsDomainName.Length == 0) {
-        DebugTrace(WINEVENT_LEVEL_INFO,
-                   L"TktBridgeAP requires a domain joined machine (0x%08x)",
-                   Parameters->MachineState);
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
-    }
-#endif
-
     SpParameters.Version      = Parameters->Version;
     SpParameters.MachineState = Parameters->MachineState;
     SpParameters.SetupMode    = Parameters->SetupMode;
@@ -215,6 +204,9 @@ RegistryNotifyChanged(VOID)
 
     APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
     APFlags |= RegistryGetDWordValueForKey(hKey.get(), L"Flags") & TKTBRIDGEAP_FLAG_USER;
+#ifndef NDEBUG
+    APFlags |= TKTBRIDGEAP_FLAG_DEBUG;
+#endif
 
     APLogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
 

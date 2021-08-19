@@ -68,6 +68,8 @@ Environment:
 #include "KerbSurrogate.h"
 #include "TktBridgeAP-trace.h"
 
+#include <ntstatus.h>
+
 #ifndef NEGOSSP_NAME
 #define NEGOSSP_NAME_W  L"Negotiate"
 #endif
@@ -108,7 +110,7 @@ CanonicalizeSurrogateLogonAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
 
 // credcache.cpp
 
-typedef struct _PREAUTH_INIT_CREDS {
+typedef struct _TKTBRIDGEAP_CREDS {
     //
     // Reference count, used by credentials cache. Preauth creds
     // immutable and cannot be modified by the caller except to
@@ -137,26 +139,32 @@ typedef struct _PREAUTH_INIT_CREDS {
     //
     LPWSTR DomainName;
     LPWSTR UserName;
-} PREAUTH_INIT_CREDS, *PPREAUTH_INIT_CREDS;
+} TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
-typedef const PREAUTH_INIT_CREDS *PCPREAUTH_INIT_CREDS;
+typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
 
 NTSTATUS
-AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-				_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-				_In_opt_ PLUID pvLogonID,
-				_Out_ PPREAUTH_INIT_CREDS *PreauthCreds);
+LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
+			       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+			       _In_opt_ PLUID pvLogonID,
+			       _Out_ PTKTBRIDGEAP_CREDS *PreauthCreds,
+			       _Out_ PNTSTATUS SubStatus);
 
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 			_In_opt_ PLUID pvLogonID,
-			_In_ PCPREAUTH_INIT_CREDS PreauthCreds);
+			_In_ PCTKTBRIDGEAP_CREDS PreauthCreds);
 
 VOID
-RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds);
+RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
-FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *Creds);
+FreePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS *Creds);
+
+// errors.cpp
+NTSTATUS
+KrbErrorToNtStatus(_In_ krb5_error_code ret,
+		   _Out_ PNTSTATUS Substatus);
 
 // helpers.cpp
 
@@ -200,9 +208,6 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 		    _Out_ PULONG pcTables);
 
 // sspipreauth.cpp
-
-NTSTATUS
-KrbErrorToNtStatus(_In_ krb5_error_code ret);
 
 krb5_error_code
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,

@@ -27,10 +27,11 @@ Environment:
 //
 
 NTSTATUS
-AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-                                _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                                _In_opt_ PLUID pvLogonID,
-                                _Out_ PPREAUTH_INIT_CREDS *PreauthCreds)
+LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
+                               _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                               _In_opt_ PLUID pvLogonID,
+                               _Out_ PTKTBRIDGEAP_CREDS *PreauthCreds,
+                               _Out_ PNTSTATUS SubStatus)
 {
     //
     // Unpack auth identity into username, domain name and password
@@ -63,7 +64,7 @@ AcquireCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 NTSTATUS
 CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                         _In_opt_ PLUID pvLogonID,
-                        _In_ PCPREAUTH_INIT_CREDS PreauthCreds)
+                        _In_ PCTKTBRIDGEAP_CREDS PreauthCreds)
 {
     //
     // Unpack auth identity into username, domain name and password
@@ -90,7 +91,7 @@ CachePreauthCredentials(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 }
 
 VOID
-RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds)
+RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;
@@ -102,9 +103,9 @@ RetainPreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS Creds)
 }
 
 VOID
-FreePreauthInitCreds(_Inout_ PPREAUTH_INIT_CREDS *pCreds)
+FreePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS *pCreds)
 {
-    PPREAUTH_INIT_CREDS Creds = *pCreds;
+    PTKTBRIDGEAP_CREDS Creds = *pCreds;
 
     if (Creds == nullptr)
         return;
