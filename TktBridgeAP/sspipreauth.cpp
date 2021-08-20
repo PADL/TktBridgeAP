@@ -616,7 +616,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                         _Out_ SECURITY_STATUS *pSecStatus)
 {
     krb5_error_code KrbError;
-    krb5_context KrbContext;
+    krb5_context KrbContext = nullptr;
     krb5_init_creds_context InitCredsContext;
     krb5_get_init_creds_opt *InitCredsOpt = nullptr;
     krb5_principal FederatedPrinc = nullptr;
@@ -631,6 +631,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     ZeroMemory(&GssCredHandle, sizeof(GssCredHandle));
     GssCredHandle.LastStatus = SEC_E_NO_CONTEXT;
 
+    ZeroMemory(&InitCredsContext, sizeof(InitCredsContext));
     krb5_data_zero(&AsReq);
 
     *pClientName = nullptr;

@@ -105,6 +105,7 @@ TktBridgeAPTestFunction2()
     UNICODE_STRING bar;
 
     RtlInitUnicodeString(&foo, L"Hello");
+    RtlInitUnicodeString(&bar, NULL);
 
     auto Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE, &foo, &bar);
     assert(NT_SUCCESS(Status));

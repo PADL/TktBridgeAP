@@ -139,6 +139,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
     PWSTR wszDomainName = nullptr;
     PWSTR wszUserName = nullptr;
     PWSTR wszPassword = nullptr;
+    PWSTR wszUpnSuffix = nullptr;
     PWSTR wszUnprotectedPassword = nullptr;
 
     *pAuthIdentity = nullptr;
@@ -173,6 +174,16 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
                                                   &wszUserName);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
+    if (pKIL->LogonDomainName.Length == 0) {
+        // canonicalize into user and domain components as we need to filter
+        // the domain before getting credentials
+        wszUpnSuffix = wcschr(wszUserName, L'@');
+        if (wszUpnSuffix != nullptr) {
+            *wszUpnSuffix = L'\0';
+            wszUpnSuffix++;
+        }
+    }
+
     Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
                                                   SubmitBufferSize,
                                                   &pKIL->Password,
@@ -183,7 +194,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = SspiEncodeStringsAsAuthIdentity(wszUserName,
-                                             wszDomainName,
+                                             wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
                                              wszUnprotectedPassword != nullptr ? wszUnprotectedPassword : wszPassword,
                                              pAuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
@@ -347,7 +358,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
 
     Status = UnprotectString(wszPin, &wszUnprotectedPin);
     RETURN_IF_NTSTATUS_FAILED(Status);
- 
+
     Status = ValidateOffset(SubmitBufferSize, (ULONG_PTR)pKSCL->CspData,
                             pKSCL->CspDataLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -424,7 +435,7 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
         if (SecStatus != SEC_E_OK)
             return SecStatus;
     }
-
+ 
     *pAuthIdentity = AuthIdentity;
     AuthIdentity = nullptr;
 

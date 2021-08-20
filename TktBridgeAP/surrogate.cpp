@@ -141,10 +141,9 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
                                    });
 
     SecStatus = SspiEncodeAuthIdentityAsStrings(AuthIdentity, &wszUserName,
-                                                &wszDomainName, nullptr);
-    RETURN_IF_FAILED(SecStatus);
-
-    if (wszDomainName == nullptr)
+                                                &wszDomainName, nullptr);    
+    if (SecStatus != SEC_E_OK ||
+        wszDomainName == nullptr || wszDomainName[0] == L'\0')
         return false;
 
     RtlInitUnicodeString(&DomainName, wszDomainName);
@@ -186,30 +185,35 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
     NTSTATUS Status;
     SECURITY_STATUS SecStatus;
     PTKTBRIDGEAP_CREDS TktBridgeCreds = nullptr;
-    UNICODE_STRING RealmName;
+    UNICODE_STRING RealmName, RealmNameZ;
 
     *pTktBridgeCreds = nullptr;
     *SubStatus = STATUS_SUCCESS;
 
     RtlInitUnicodeString(&RealmName, NULL);
+    RtlInitUnicodeString(&RealmNameZ, NULL);
 
     auto cleanup = wil::scope_exit([&]() {
         DereferencePreauthInitCreds(TktBridgeCreds);
         RtlFreeUnicodeString(&RealmName);
+        RtlFreeUnicodeString(&RealmNameZ);
                                    });
     TktBridgeCreds = (PTKTBRIDGEAP_CREDS)WIL_AllocateMemory(sizeof(*TktBridgeCreds));
     RETURN_NTSTATUS_IF_NULL_ALLOC(TktBridgeCreds);
 
+    ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
+
     Status = RtlUpcaseUnicodeString(&RealmName, &SpParameters.DnsDomainName, TRUE);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    assert(RealmName.MaximumLength == RealmName.Length + sizeof(WCHAR));
-    RealmName.Buffer[RealmName.Length / sizeof(WCHAR)] = L'\0';
+    Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
+                                       &RealmName, &RealmNameZ);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
-    auto KrbError = SspiPreauthGetInitCreds(RealmName.Buffer,
+    auto KrbError = SspiPreauthGetInitCreds(RealmNameZ.Buffer,
                                             APRestrictPackage,
                                             APKdcHostName,
-                                            LogonID,
+                                            nullptr,
                                             AuthIdentity,
                                             &TktBridgeCreds->ClientName,
                                             &TktBridgeCreds->AsRep,
@@ -223,8 +227,13 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
         ReferencePreauthInitCreds(TktBridgeCreds);
         *pTktBridgeCreds = TktBridgeCreds;
     } else {
-        if (SecStatus != SEC_E_NO_CONTEXT)
-            Status = SecStatus; // FIXME is this safe to return
+        if (SecStatus == SEC_E_NO_CREDENTIALS ||
+            SecStatus == SEC_E_UNKNOWN_CREDENTIALS)
+            Status = STATUS_LOGON_FAILURE;
+        else if (SecStatus == SEC_E_WRONG_CREDENTIAL_HANDLE)
+            Status = STATUS_WRONG_CREDENTIAL_HANDLE;
+        // Otherwise, don't try to return SecStatus directly as it will not
+        // surface a useful error message in the logon UI.
     }
 
     RETURN_NTSTATUS(Status);
@@ -381,7 +390,6 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           TktBridgeCreds);
 
         DereferencePreauthInitCreds(TktBridgeCreds);
-
         // FIXME who frees SurrogateLogonData?
     }
 
