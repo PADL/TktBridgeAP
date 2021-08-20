@@ -45,13 +45,9 @@ InitializePackage(_In_ ULONG AuthenticationPackageId,
                   _In_opt_ PLSA_STRING Confidentiality,
                   _Out_ PLSA_STRING *AuthenticationPackageName)
 {
-    assert(DispatchTable != nullptr);
-
     LsaAuthenticationPackageId = AuthenticationPackageId;
     LsaDispatchTable = DispatchTable;
     *AuthenticationPackageName = nullptr;
-
-    InitializeRegistryNotification();
 
     LSA_STRING APName;
     NTSTATUS Status;
@@ -103,10 +99,6 @@ SpInitialize(_In_ ULONG_PTR PackageId,
                                            &Parameters->DnsDomainName,
                                            &SpParameters.DnsDomainName);
         NT_RETURN_IF_NTSTATUS_FAILED(Status);
-
-        // always uppercase the domain so it can be used as a Kerberos realm
-        _wcsupr_s(SpParameters.DnsDomainName.Buffer,
-                  SpParameters.DnsDomainName.Length / sizeof(WCHAR));
     }
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
@@ -173,6 +165,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
         L"SpLsaModeInitialize: SPM version %08x", LsaVersion);
 
     EventRegisterPADL_TktBridgeAP();
+    InitializeRegistryNotification();
 
     return STATUS_SUCCESS;
 }

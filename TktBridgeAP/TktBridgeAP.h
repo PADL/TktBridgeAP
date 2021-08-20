@@ -40,7 +40,7 @@ Environment:
 #define SECURITY_WIN32
 #endif
 
-#ifndef _SEC_WINNT_AUTH_TYPES
+#ifndef _SEC_WINNT_AUTH_hahTYPES
 #define _SEC_WINNT_AUTH_TYPES
 #endif
 
@@ -168,10 +168,10 @@ CacheRemovePreauthCredentials(_In_ PUNICODE_STRING AccountName,
                               _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
 
 VOID
-RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
-ReleasePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+DereferencePreauthInitCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
 
 // errors.cpp
 NTSTATUS

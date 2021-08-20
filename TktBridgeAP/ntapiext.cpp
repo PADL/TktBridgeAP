@@ -19,23 +19,28 @@ Environment:
 #include "TktBridgeAP.h"
 
 NTSTATUS NTAPI
-RtlDuplicateSid(OUT PSID *NewSid, IN PSID OriginalSid)
+RtlDuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
 {
     NTSTATUS Status;
     ULONG SidLength;
     PSID Sid;
 
-    *NewSid = nullptr;
+    *DestinationSid = nullptr;
 
-    SidLength = RtlLengthSid(OriginalSid);
+    if (SourceSid == nullptr)
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+
+    SidLength = RtlLengthSid(SourceSid);
 
     Sid = RtlAllocateHeap(GetProcessHeap(), 0, SidLength);
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
-    Status = RtlCopySid(SidLength, Sid, OriginalSid);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid); // FIXME leaks
+    Status = RtlCopySid(SidLength, Sid, SourceSid);
+    if (!NT_SUCCESS(Status))
+        RtlFreeSid(Sid);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
-    *NewSid = Sid;
+    *DestinationSid = Sid;
 
     return STATUS_SUCCESS;
 }

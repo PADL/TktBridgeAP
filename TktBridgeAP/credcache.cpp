@@ -102,7 +102,7 @@ CacheRemovePreauthCredentials(_In_ PUNICODE_STRING AccountName,
 }
 
 VOID
-RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
+ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;
@@ -114,7 +114,7 @@ RetainPreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 }
 
 VOID
-ReleasePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
+DereferencePreauthInitCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;

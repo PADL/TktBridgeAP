@@ -88,6 +88,48 @@ ValidateAndUnpackUnicodeStringAllocZ(_In_reads_bytes_(SubmitBufferSize) PVOID Pr
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
+UnprotectString(_In_z_ PWSTR wszProtected,
+                _Out_ PWSTR *pwszUnprotected)
+{
+    CRED_PROTECTION_TYPE ProtectionType;
+
+    *pwszUnprotected = nullptr;
+  
+    RETURN_IF_WIN32_BOOL_FALSE(CredIsProtected(wszProtected, &ProtectionType));
+
+    if (ProtectionType == CredUnprotected)
+        RETURN_NTSTATUS(STATUS_SUCCESS);
+
+    size_t cchProtected = wcslen(wszProtected) + 1;
+    DWORD cchUnprotected = 0;
+
+    if (cchProtected > ULONG_MAX)
+        RETURN_NTSTATUS(STATUS_BUFFER_OVERFLOW);
+    
+    if (CredUnprotect(FALSE, wszProtected, (DWORD)cchProtected, nullptr, &cchUnprotected))
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+
+    DWORD dwError = GetLastError();
+    if (dwError != ERROR_INSUFFICIENT_BUFFER)
+        RETURN_NTSTATUS(dwError);
+    else if (cchUnprotected == 0)
+        RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+    *pwszUnprotected = (PWSTR)WIL_AllocateMemory(cchUnprotected * sizeof(WCHAR));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(*pwszUnprotected);
+
+    if (!CredUnprotect(FALSE, wszProtected, (DWORD)cchProtected,
+                       *pwszUnprotected, &cchUnprotected)) {
+        WIL_FreeMemory(*pwszUnprotected);
+        *pwszUnprotected = nullptr;
+
+        RETURN_NTSTATUS(GetLastError()); // XXX
+    }
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ ULONG SubmitBufferSize,
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
@@ -98,8 +140,6 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
     PWSTR wszUserName = nullptr;
     PWSTR wszPassword = nullptr;
     PWSTR wszUnprotectedPassword = nullptr;
-    DWORD cchUnprotectedPassword = 0;
-    CRED_PROTECTION_TYPE ProtectionType;
 
     *pAuthIdentity = nullptr;
 
@@ -114,7 +154,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
             WIL_FreeMemory(wszPassword);
         }
         if (wszUnprotectedPassword != nullptr) {
-            SecureZeroMemory(wszUnprotectedPassword, cchUnprotectedPassword * sizeof(WCHAR));
+            SecureZeroMemory(wszUnprotectedPassword, wcslen(wszUnprotectedPassword) * sizeof(WCHAR));
             WIL_FreeMemory(wszUnprotectedPassword);
         }
                                    });
@@ -139,18 +179,8 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
                                                   &wszPassword);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    RETURN_IF_WIN32_BOOL_FALSE(CredIsProtected(wszPassword, &ProtectionType));
-
-    if (ProtectionType != CredUnprotected) {
-        RETURN_IF_WIN32_BOOL_FALSE(CredUnprotect(FALSE, wszPassword, wcslen(wszPassword) + 1,
-                                                 nullptr, &cchUnprotectedPassword));
-
-        wszUnprotectedPassword = (PWSTR)WIL_AllocateMemory(cchUnprotectedPassword * sizeof(WCHAR));
-        RETURN_NTSTATUS_IF_NULL_ALLOC(wszUnprotectedPassword);
-
-        RETURN_IF_WIN32_BOOL_FALSE(CredUnprotect(FALSE, wszPassword, wcslen(wszPassword) + 1,
-                                                 wszUnprotectedPassword, &cchUnprotectedPassword));
-    }
+    Status = UnprotectString(wszPassword, &wszUnprotectedPassword);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = SspiEncodeStringsAsAuthIdentity(wszUserName,
                                              wszDomainName,
@@ -230,9 +260,8 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
 
     HCRYPTPROV hCryptProv = 0;
     HCRYPTKEY hUserKey = 0;
-    CRYPT_KEY_PROV_INFO KeyProvInfo;
     PBYTE pbCertificate = nullptr;
-    DWORD cbCertificate;
+    DWORD cbCertificate = 0;
     PCCERT_CONTEXT CertContext = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
@@ -297,8 +326,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
     PWSTR wszPin = nullptr;
     PWSTR wszCspData = nullptr;
     PWSTR wszUnprotectedPin = nullptr;
-    DWORD cchUnprotectedPin = 0;
-
+ 
     auto cleanup = wil::scope_exit([&]() {
         if (wszPin != nullptr) {
             SecureZeroMemory(wszPin, wcslen(wszPin) * sizeof(WCHAR));
@@ -306,7 +334,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
         }
         CredFree(wszCspData);
         if (wszUnprotectedPin != nullptr) {
-            SecureZeroMemory(wszUnprotectedPin, cchUnprotectedPin * sizeof(WCHAR));
+            SecureZeroMemory(wszUnprotectedPin, wcslen(wszUnprotectedPin) * sizeof(WCHAR));
             WIL_FreeMemory(wszUnprotectedPin);
         }
                                    });
@@ -317,19 +345,8 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
                                                   &wszPin);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    CRED_PROTECTION_TYPE ProtectionType;
-    RETURN_IF_WIN32_BOOL_FALSE(CredIsProtected(wszPin, &ProtectionType));
-
-    if (ProtectionType != CredUnprotected) {
-        RETURN_IF_WIN32_BOOL_FALSE(CredUnprotect(FALSE, wszPin, wcslen(wszPin) + 1,
-                                                 nullptr, &cchUnprotectedPin));
-
-        wszUnprotectedPin = (PWSTR)WIL_AllocateMemory(cchUnprotectedPin * sizeof(WCHAR));
-        RETURN_NTSTATUS_IF_NULL_ALLOC(wszUnprotectedPin);
-
-        RETURN_IF_WIN32_BOOL_FALSE(CredUnprotect(FALSE, wszPin, wcslen(wszPin) + 1,
-                                   wszUnprotectedPin, &cchUnprotectedPin));        
-    }
+    Status = UnprotectString(wszPin, &wszUnprotectedPin);
+    RETURN_IF_NTSTATUS_FAILED(Status);
  
     Status = ValidateOffset(SubmitBufferSize, (ULONG_PTR)pKSCL->CspData,
                             pKSCL->CspDataLength);

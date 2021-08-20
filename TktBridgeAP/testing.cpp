@@ -37,18 +37,18 @@ TktBridgeAPTestFunction1()
     krb5_data_zero(&AsRep);
     ZeroMemory(&AsReplyKey, sizeof(AsReplyKey));
 
-    SecStatus = SspiEncodeStringsAsAuthIdentity(L"lukeh",
+    SecStatus = SspiEncodeStringsAsAuthIdentity(L"moonshot",
 						L"AAA.PADL.COM",
-						L"foo",
+						L"moonshot",
 						&AuthIdentity);
     if (SecStatus != SEC_E_OK) {
 	DebugTrace(WINEVENT_LEVEL_ERROR, L"Failed to encode auth identity: %08x", SecStatus);
 	return;
     }
 
-    KrbError = SspiPreauthGetInitCreds(L"LUKKTONE.COM",
+    KrbError = SspiPreauthGetInitCreds(L"KERB.PADL.COM",
 				       nullptr,
-				       L"rand.lukktone.com:888",
+				       L"tktbridge.kerb.padl.com",
 				       nullptr,
 				       AuthIdentity,
 				       &ClientName,
@@ -75,8 +75,76 @@ TktBridgeAPTestFunction2()
 
     SspiFreeAuthIdentity(nullptr);
 
-    PSID sid = nullptr;
-    RtlFreeSid(sid);
+
+    {
+	//
+	// temporary stack-based storage for an SID
+	//
+	UCHAR sidBuffer[128];
+	PISID localSid = (PISID)sidBuffer;
+	SID_IDENTIFIER_AUTHORITY localSidAuthority =
+	    SECURITY_NT_AUTHORITY;
+
+	//
+	// build the local system SID
+	//
+	RtlZeroMemory(sidBuffer, sizeof(sidBuffer));
+
+	localSid->Revision = SID_REVISION;
+	localSid->SubAuthorityCount = 1;
+	localSid->IdentifierAuthority = localSidAuthority;
+	localSid->SubAuthority[0] = SECURITY_LOCAL_SYSTEM_RID;
+	assert(IsValidSid(localSid));
+
+	PSID sid = nullptr;
+	auto Status = RtlDuplicateSid(&sid, localSid);
+	assert(NT_SUCCESS(Status));
+
+    }
+
+    UNICODE_STRING bar;
+
+    RtlInitUnicodeString(&foo, L"Hello");
+
+    auto Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE, &foo, &bar);
+    assert(NT_SUCCESS(Status));
+
+    _wcsupr_s(bar.Buffer, bar.MaximumLength / 2);
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"uppercased string %s -> %s", foo.Buffer, bar.Buffer);
+
+    RtlFreeUnicodeString(&bar);
+
+}
+
+static DWORD
+TktBridgeAPTestFunction3()
+{
+    DWORD dwResult;
+    wil::unique_hkey hKey;
+
+    dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
+			    0, KEY_QUERY_VALUE, &hKey);
+    RETURN_IF_WIN32_ERROR_EXPECTED(dwResult);
+
+    APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
+    APFlags |= RegistryGetDWordValueForKey(hKey.get(), L"Flags") & TKTBRIDGEAP_FLAG_USER;
+#ifndef NDEBUG
+    APFlags |= TKTBRIDGEAP_FLAG_DEBUG;
+#endif
+
+    APLogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
+
+    WIL_FreeMemory(APKdcHostName);
+    APKdcHostName = RegistryGetStringValueForKey(hKey.get(), L"KdcHostName");
+
+    WIL_FreeMemory(APRestrictPackage);
+    APRestrictPackage = RegistryGetStringValueForKey(hKey.get(), L"RestrictPackage");
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Flags %08x Level %08x Kdc %s Restrict %s",
+	       APFlags, APLogLevel, APKdcHostName, APRestrictPackage);
+
+    return ERROR_SUCCESS;
 }
 
 extern "C"
@@ -94,7 +162,9 @@ VOID __cdecl TestEntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int n
 
     TktBridgeAPTestFunction1();
     TktBridgeAPTestFunction2();
+    TktBridgeAPTestFunction3();
  
     FreeConsole();
 }
-#endif
+
+#endif /* !NDEBUG */
