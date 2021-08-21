@@ -98,7 +98,12 @@ _krb5_init_creds_set_gss_mechanism(
 
 KRB5_LIB_FUNCTION krb5_principal KRB5_LIB_CALL
 _krb5_init_creds_get_cred_client(krb5_context /*context*/,
-                                 krb5_init_creds_context /*ctx*/);                            
+                                 krb5_init_creds_context /*ctx*/);    
+
+KRB5_LIB_FUNCTION krb5_timestamp KRB5_LIB_CALL
+_krb5_init_creds_get_cred_endtime(krb5_context /*context*/,
+                                  krb5_init_creds_context /*ctx*/);
+
 
 #ifdef __cplusplus
 }

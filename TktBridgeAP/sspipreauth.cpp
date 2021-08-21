@@ -68,7 +68,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
            _In_ krb5_enctype EncryptionType,
            _In_reads_bytes_(cbPrfInput) const PBYTE pbPrfInput,
            _In_ ULONG cbPrfInput,
-           _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
+           _Outptr_opt_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
            _Out_ size_t *pcbPrfOutput)
 {
     krb5_error_code KrbError;
@@ -140,6 +140,10 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     KrbError = krb5_enctype_keysize(KrbContext, EncryptionType, &KeySize);
     RETURN_IF_KRB_FAILED(KrbError);
 
+    // silence SAL
+    if (KeySize == 0)
+        return KRB5_BAD_KEYSIZE;
+
     *pbPrfOutput = (PBYTE)WIL_AllocateMemory(KeySize);
     if (*pbPrfOutput == nullptr) {
         KrbError = krb5_enomem(KrbContext);
@@ -155,7 +159,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         return KrbError;
     }
 
-    memcpy(&((PBYTE)Input.data)[4], pbPrfInput, cbPrfInput);
+    memcpy((PBYTE)Input.data + 4, pbPrfInput, cbPrfInput);
 
     ULONG iPrf = 0;
     PBYTE pbPrf = (PBYTE)*pbPrfOutput;
@@ -186,8 +190,6 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
         iPrf++;
     }
-
-    DebugSessionKey(L"PRF output", *pbPrfOutput, *pcbPrfOutput);
 
     return 0;
 }
@@ -601,18 +603,30 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
     return 0;
 }
 
+static VOID
+Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
+                         _Out_ PLARGE_INTEGER Time)
+{
+    // Don't use RtlSecondsSince1970ToTime as it's not 2038 compliant
+    ULONG64 const SecondsToStartOf1970 = 0x2b6109100;
+    ULONG64 const HundredNanoSecondsInSecond = 10000000LL;
+
+    Time->QuadPart = (ElapsedSeconds + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
+}
+
 //
 // Acquire a TGT for a given username/domain/credential/package
 //
-krb5_error_code
+krb5_error_code _Success_(return == 0)
 SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                         _In_opt_z_ PCWSTR PackageName,
                         _In_opt_z_ PCWSTR KdcHostName,
                         _In_opt_ PLUID pvLogonID,
                         _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                         _Out_ PWSTR *pClientName,
-                        _Inout_ krb5_data *AsRep,
-                        _Inout_ krb5_keyblock *AsReplyKey,
+                        _Out_ LARGE_INTEGER *pExpiryTime,
+                        _Out_ krb5_data *AsRep,
+                        _Out_ krb5_keyblock *AsReplyKey,
                         _Out_ SECURITY_STATUS *pSecStatus)
 {
     krb5_error_code KrbError;
@@ -635,10 +649,11 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     krb5_data_zero(&AsReq);
 
     *pClientName = nullptr;
-    *pSecStatus = SEC_E_NO_CONTEXT;
+    pExpiryTime->QuadPart = 0;
     krb5_data_zero(AsRep);
-    AsReplyKey->keytype = (krb5_enctype)ENCTYPE_NULL;
+    AsReplyKey->keytype = KRB5_ENCTYPE_NULL;
     krb5_data_zero(&AsReplyKey->keyvalue);
+    *pSecStatus = SEC_E_NO_CONTEXT;
 
     // pass the package name via GssMech so we can query token size later
     if (PackageName == nullptr)
@@ -787,6 +802,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     auto ClientName = _krb5_init_creds_get_cred_client(KrbContext, InitCredsContext);
     KrbError = SspiPreauthUnparseName(KrbContext, ClientName, pClientName);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to determine Kerberos client name");
+
+    auto EndTime = _krb5_init_creds_get_cred_endtime(KrbContext, InitCredsContext);
+    Seconds64Since1970ToTime(EndTime, pExpiryTime);
 
     KrbError = krb5_init_creds_get_as_reply_key(KrbContext, InitCredsContext, AsReplyKey);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to retrieve reply key");

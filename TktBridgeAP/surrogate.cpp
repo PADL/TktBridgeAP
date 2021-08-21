@@ -114,7 +114,7 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
                    L"%s surrogate logon validated", wszLogonType);
         return true;
     default:
-        DebugTrace(WINEVENT_LEVEL_INFO,
+        DebugTrace(WINEVENT_LEVEL_VERBOSE,
                    L"%s surrogate logon not supported", wszLogonType);
         return false;
     }
@@ -133,6 +133,9 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
     SECURITY_STATUS SecStatus;
     PDS_DOMAIN_TRUSTS Domains = nullptr;
     ULONG DomainCount;
+
+    if (AuthIdentity == nullptr)
+        return false;
 
     auto cleanup = wil::scope_exit([&]() {
         NetApiBufferFree(Domains);
@@ -175,7 +178,7 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
     return true;
 }
 
-NTSTATUS _Success_(return == STATUS_SUCCESS)
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
                     _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                     _In_ PLUID LogonID,
@@ -185,36 +188,38 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
     NTSTATUS Status;
     SECURITY_STATUS SecStatus;
     PTKTBRIDGEAP_CREDS TktBridgeCreds = nullptr;
-    UNICODE_STRING RealmName, RealmNameZ;
+    UNICODE_STRING RealmName;
 
     *pTktBridgeCreds = nullptr;
     *SubStatus = STATUS_SUCCESS;
 
-    RtlInitUnicodeString(&RealmNameZ, NULL);
+    RtlInitUnicodeString(&RealmName, NULL);
 
     auto cleanup = wil::scope_exit([&]() {
         DereferencePreauthInitCreds(TktBridgeCreds);
-        RtlFreeUnicodeString(&RealmNameZ);
+        RtlFreeUnicodeString(&RealmName);
                                    });
     TktBridgeCreds = (PTKTBRIDGEAP_CREDS)WIL_AllocateMemory(sizeof(*TktBridgeCreds));
     RETURN_NTSTATUS_IF_NULL_ALLOC(TktBridgeCreds);
 
     ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
+    TktBridgeCreds->RefCount = 1;
 
     // FIXME where is RtlAllocateUnicodeString
     Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-                                       &SpParameters.DnsDomainName, &RealmNameZ);
+                                       &SpParameters.DnsDomainName, &RealmName);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = RtlUpcaseUnicodeString(&RealmNameZ, &SpParameters.DnsDomainName, FALSE);
+    Status = RtlUpcaseUnicodeString(&RealmName, &SpParameters.DnsDomainName, FALSE);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    auto KrbError = SspiPreauthGetInitCreds(RealmNameZ.Buffer,
+    auto KrbError = SspiPreauthGetInitCreds(RealmName.Buffer,
                                             APRestrictPackage,
                                             APKdcHostName,
                                             nullptr,
                                             AuthIdentity,
-                                            &TktBridgeCreds->ClientName,
+                                            &TktBridgeCreds->InitiatorName,
+                                            &TktBridgeCreds->ExpiryTime,
                                             &TktBridgeCreds->AsRep,
                                             &TktBridgeCreds->AsReplyKey,
                                             &SecStatus);
@@ -245,9 +250,9 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
     RETURN_NTSTATUS(Status);
 }
 
-NTSTATUS _Success_(return == STATUS_SUCCESS)
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-                       _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
+                       _Inout_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     auto Entries = (PSECPKG_SURROGATE_LOGON_ENTRY)
         LsaSpFunctionTable->AllocateLsaHeap((SurrogateLogon->EntryCount + 1) *
@@ -366,6 +371,7 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
         PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
+        PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
 
         if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
             continue;
@@ -375,24 +381,31 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
             continue; // not ours
 
         auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
+        if (TktBridgeCreds == nullptr)
+            continue;
 
-        if (NT_SUCCESS(Status) &&
-            (TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) == 0)
-            CacheAddPreauthCredentials(AccountName,
-                                       AuthenticatingAuthority,
-                                       PrimaryCredentials,
+        if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) == 0 &&
+            NT_SUCCESS(ConvertLogonSubmitBufferToAuthIdentity(ProtocolSubmitBuffer,
+                                                              SubmitBufferSize,
+                                                              &AuthIdentity,
+                                                              nullptr))) {
+            CacheAddPreauthCredentials(LogonType,
+                                       AuthIdentity,
                                        LogonId,
                                        TktBridgeCreds);
-        else if (!NT_SUCCESS(Status) &&
-                 (TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED))
-            CacheRemovePreauthCredentials(AccountName,
-                                          AuthenticatingAuthority,
+            SspiFreeAuthIdentity(AuthIdentity);
+        } else if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) &&
+                (!NT_SUCCESS(Status) || IsPreauthCredsExpired(TktBridgeCreds))) {    
+            CacheRemovePreauthCredentials(LogonType,
                                           LogonId,
                                           TktBridgeCreds);
+        }
 
         DereferencePreauthInitCreds(TktBridgeCreds);
         SurrogateLogonData->PackageData = nullptr;
-        // FIXME who frees SurrogateLogonData?
+
+        LsaSpFunctionTable->FreeLsaHeap(SurrogateLogonData);
+        ZeroMemory(Entry, sizeof(*Entry));
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

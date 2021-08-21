@@ -111,7 +111,7 @@ UnprotectString(_In_z_ PWSTR wszProtected,
 
     DWORD dwError = GetLastError();
     if (dwError != ERROR_INSUFFICIENT_BUFFER)
-        RETURN_NTSTATUS(dwError);
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
     else if (cchUnprotected == 0)
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
@@ -123,7 +123,7 @@ UnprotectString(_In_z_ PWSTR wszProtected,
         WIL_FreeMemory(*pwszUnprotected);
         *pwszUnprotected = nullptr;
 
-        RETURN_NTSTATUS(GetLastError()); // XXX
+        RETURN_LAST_ERROR(); // XXX convert to NTSTATUS
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
@@ -445,11 +445,23 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ ULONG SubmitBufferSize,
-                                          _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE * pAuthIdentity)
+                                          _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
+                                          _Out_opt_ PLUID pUnlockLogonID)
 {
 #if 1
     KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(KERB_LOGON_SUBMIT_TYPE *)ProtocolSubmitBuffer;
     NTSTATUS Status;
+
+    if (pUnlockLogonID != nullptr) {
+        if (LogonSubmitType == KerbWorkstationUnlockLogon) {
+            *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+        } else if (LogonSubmitType == KerbSmartCardUnlockLogon) {
+            *pUnlockLogonID = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+        } else {
+            pUnlockLogonID->LowPart = 0;
+            pUnlockLogonID->HighPart = 0;
+        }
+    }
 
     if (LogonSubmitType == KerbInteractiveLogon ||
         LogonSubmitType == KerbWorkstationUnlockLogon)
@@ -533,11 +545,16 @@ NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ ULONG SubmitBufferSize,
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                       _Out_ PLUID pUnlockLogonID)
+                                       _Out_opt_ PLUID pUnlockLogonID)
 {
     NTSTATUS Status;
 
     *pAuthIdentity = nullptr;
+
+    if (pUnlockLogonID != nullptr) {
+        pUnlockLogonID->LowPart = 0;
+        pUnlockLogonID->HighPart = 0;
+    }
 
     if (SubmitBufferSize < sizeof(KERB_LOGON_SUBMIT_TYPE))
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
@@ -557,22 +574,13 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
     case KerbSmartCardUnlockLogon:
         Status = ConvertAuthenticationBufferToAuthIdentity(ProtocolSubmitBuffer,
                                                            SubmitBufferSize,
-                                                           pAuthIdentity);
+                                                           pAuthIdentity,
+                                                           pUnlockLogonID);
         break;
     default:
-        Status = STATUS_INVALID_LOGON_TYPE;
+        Status = STATUS_SUCCESS; // don't raise error, but *pAuthIdentity is null
         break;
     }
-    RETURN_IF_NTSTATUS_FAILED(Status);
 
-    if (LogonSubmitType == KerbWorkstationUnlockLogon) {
-        *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
-    } else if (LogonSubmitType == KerbSmartCardUnlockLogon) {
-        *pUnlockLogonID = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
-    } else {
-        pUnlockLogonID->LowPart = 0;
-        pUnlockLogonID->HighPart = 0;
-    }
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
+    RETURN_NTSTATUS(Status);
 }

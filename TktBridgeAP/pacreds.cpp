@@ -62,11 +62,10 @@ LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 //
 
 NTSTATUS
-CacheAddPreauthCredentials(_In_ PUNICODE_STRING AccountName,
-                            _In_ PUNICODE_STRING AuthenticatingAuthority,
-                            _In_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
-                            _In_opt_ PLUID pvLogonID,
-                            _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
+CacheAddPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
+                           _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                           _In_opt_ PLUID pvLogonID,
+                           _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     //
     // Unpack auth identity into username, domain name and password
@@ -93,8 +92,7 @@ CacheAddPreauthCredentials(_In_ PUNICODE_STRING AccountName,
 }
 
 NTSTATUS
-CacheRemovePreauthCredentials(_In_ PUNICODE_STRING AccountName,
-                              _In_ PUNICODE_STRING AuthenticatingAuthority,
+CacheRemovePreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
                               _In_opt_ PLUID pvLogonID,
                               _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
@@ -114,7 +112,7 @@ ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 }
 
 VOID
-DereferencePreauthInitCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
+DereferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;
@@ -128,14 +126,31 @@ DereferencePreauthInitCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 
     assert(Old == 1);
 
-    WIL_FreeMemory(Creds->ClientName);
+    WIL_FreeMemory(Creds->InitiatorName);
     krb5_data_free(&Creds->AsRep);
-    SecureZeroMemory(Creds->AsReplyKey.keyvalue.data, Creds->AsReplyKey.keyvalue.length);
-    krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
+
+    if (Creds->AsReplyKey.keyvalue.data != nullptr) {
+        SecureZeroMemory(Creds->AsReplyKey.keyvalue.data, Creds->AsReplyKey.keyvalue.length);
+        krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
+    }
 
     SspiLocalFree((PVOID)Creds->DomainName);
     SspiLocalFree((PVOID)Creds->UserName);
 
     ZeroMemory(Creds, sizeof(*Creds));
     WIL_FreeMemory(Creds);
+}
+
+bool
+IsPreauthCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds)
+{
+    FILETIME ftNow;
+    ULARGE_INTEGER liNow;
+
+    GetSystemTimeAsFileTime(&ftNow);
+
+    liNow.LowPart = ftNow.dwLowDateTime;
+    liNow.HighPart = ftNow.dwHighDateTime;
+
+    return Creds->ExpiryTime.QuadPart < liNow.QuadPart;
 }

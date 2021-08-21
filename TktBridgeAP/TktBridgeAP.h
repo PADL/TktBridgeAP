@@ -92,6 +92,7 @@ extern LPWSTR APRestrictPackage;
 #define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
+#define TKTBRIDGEAP_FLAG_DISABLE_CACHE          0x00000008
 
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF
 
@@ -107,7 +108,7 @@ NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ ULONG SubmitBufferSize,
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                       _Out_ PLUID pUnlockLogonID);
+                                       _Out_opt_ PLUID pUnlockLogonID);
 
 // credcache.cpp
 
@@ -122,7 +123,12 @@ typedef struct _TKTBRIDGEAP_CREDS {
     //
     // Client name, as returned by QueryContextAttributes
     //
-    PWSTR ClientName;
+    PWSTR InitiatorName;
+
+    //
+    // Ticket expiry time
+    //
+    LARGE_INTEGER ExpiryTime;
 
     //
     // AS-REP received from bridge KDC
@@ -135,12 +141,24 @@ typedef struct _TKTBRIDGEAP_CREDS {
     EncryptionKey AsReplyKey;
 
     //
-    // Cached credentials information
+    // TKTBRIDGEAP_CREDS_FLAG_XXX
     //
     ULONG Flags;
+
+    //
+    // Domain name from logon request
+    //
     PCWSTR DomainName;
+
+    //
+    // User name from logon request
+    //
     PCWSTR UserName;
-    LARGE_INTEGER ExpiryTime;
+
+    //
+    // Originating logon ID
+    //
+    LUID LogonId;
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
 #define TKTBRIDGEAP_CREDS_FLAG_CACHED       0x00000001
@@ -155,23 +173,24 @@ LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
                                _Out_ PNTSTATUS SubStatus);
 
 NTSTATUS
-CacheAddPreauthCredentials(_In_ PUNICODE_STRING AccountName,
-                           _In_ PUNICODE_STRING AuthenticatingAuthority,
-                           _In_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
+CacheAddPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
+                           _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                            _In_opt_ PLUID pvLogonID,
                            _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
 
 NTSTATUS
-CacheRemovePreauthCredentials(_In_ PUNICODE_STRING AccountName,
-                              _In_ PUNICODE_STRING AuthenticatingAuthority,
+CacheRemovePreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
                               _In_opt_ PLUID pvLogonID,
                               _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
+
+bool
+IsPreauthCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
 ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
-DereferencePreauthInitCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
+DereferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 // errors.cpp
 NTSTATUS
@@ -195,7 +214,7 @@ RegistryGetDWordValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 PWSTR
 RegistryGetStringValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
-BOOLEAN
+bool
 IsLocalHost(_In_ PUNICODE_STRING HostName);
 
 NTSTATUS
@@ -228,8 +247,9 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                         _In_opt_ PLUID pvLogonID,
                         _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                         _Out_ PWSTR *pClientName,
-                        _Inout_ krb5_data *AsRep,
-                        _Inout_ krb5_keyblock *AsReplyKey,
+                        _Out_ LARGE_INTEGER *pExpiryTime,
+                        _Out_ krb5_data *AsRep,
+                        _Out_ krb5_keyblock *AsReplyKey,
                         _Out_ SECURITY_STATUS *SecStatus);
 
 // surrogate.cpp

@@ -29,6 +29,7 @@ TktBridgeAPTestFunction1()
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
 
     PWSTR ClientName = nullptr;
+    LARGE_INTEGER ExpiryTime = { .QuadPart = 0 };
     SECURITY_STATUS SecStatus;
     krb5_data AsRep;
     krb5_keyblock AsReplyKey;
@@ -52,6 +53,7 @@ TktBridgeAPTestFunction1()
 				       nullptr,
 				       AuthIdentity,
 				       &ClientName,
+				       &ExpiryTime,
 				       &AsRep,
 				       &AsReplyKey,
 				       &SecStatus);
