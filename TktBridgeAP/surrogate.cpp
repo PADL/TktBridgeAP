@@ -190,12 +190,10 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
     *pTktBridgeCreds = nullptr;
     *SubStatus = STATUS_SUCCESS;
 
-    RtlInitUnicodeString(&RealmName, NULL);
     RtlInitUnicodeString(&RealmNameZ, NULL);
 
     auto cleanup = wil::scope_exit([&]() {
         DereferencePreauthInitCreds(TktBridgeCreds);
-        RtlFreeUnicodeString(&RealmName);
         RtlFreeUnicodeString(&RealmNameZ);
                                    });
     TktBridgeCreds = (PTKTBRIDGEAP_CREDS)WIL_AllocateMemory(sizeof(*TktBridgeCreds));
@@ -203,11 +201,12 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
 
     ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
 
-    Status = RtlUpcaseUnicodeString(&RealmName, &SpParameters.DnsDomainName, TRUE);
+    // FIXME where is RtlAllocateUnicodeString
+    Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
+                                       &SpParameters.DnsDomainName, &RealmNameZ);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-                                       &RealmName, &RealmNameZ);
+    Status = RtlUpcaseUnicodeString(&RealmNameZ, &SpParameters.DnsDomainName, FALSE);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     auto KrbError = SspiPreauthGetInitCreds(RealmNameZ.Buffer,
@@ -274,8 +273,6 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static int Flag = 0;
-
 NTSTATUS
 PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                       _In_ SECURITY_LOGON_TYPE LogonType,
@@ -305,9 +302,6 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (SurrogateLogon->Version != SECPKG_SURROGATE_LOGON_VERSION_1)
         RETURN_NTSTATUS(STATUS_UNKNOWN_REVISION);
 
-    if (Flag == 0)
-        RETURN_NTSTATUS(STATUS_SUCCESS);
-    
     if (!ValidateSurrogateLogonType(LogonType))
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
@@ -390,6 +384,7 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           TktBridgeCreds);
 
         DereferencePreauthInitCreds(TktBridgeCreds);
+        SurrogateLogonData->PackageData = nullptr;
         // FIXME who frees SurrogateLogonData?
     }
 
