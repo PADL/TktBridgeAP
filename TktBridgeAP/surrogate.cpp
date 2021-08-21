@@ -223,6 +223,13 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
         LsaSpFunctionTable->LsaProtectMemory(TktBridgeCreds->AsReplyKey.keyvalue.data,
                                              (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length);
 
+        // save user and domain name for cache
+        SecStatus = SspiEncodeAuthIdentityAsStrings(AuthIdentity,
+                                                    &TktBridgeCreds->UserName,
+                                                    &TktBridgeCreds->DomainName,
+                                                    nullptr);
+        RETURN_IF_NTSTATUS_FAILED(SecStatus);
+
         ReferencePreauthInitCreds(TktBridgeCreds);
         *pTktBridgeCreds = TktBridgeCreds;
     } else {

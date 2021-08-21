@@ -132,15 +132,15 @@ typedef struct _TKTBRIDGEAP_CREDS {
     //
     // Reply-key derived from GSS-API pre-authentication
     //
-    krb5_keyblock AsReplyKey;
+    EncryptionKey AsReplyKey;
 
     //
-    // For cached credentials, the user and domain name of
-    // the original logon request.
+    // Cached credentials information
     //
     ULONG Flags;
-    LPWSTR DomainName;
-    LPWSTR UserName;
+    PCWSTR DomainName;
+    PCWSTR UserName;
+    LARGE_INTEGER ExpiryTime;
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
 #define TKTBRIDGEAP_CREDS_FLAG_CACHED       0x00000001

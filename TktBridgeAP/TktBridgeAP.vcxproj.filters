@@ -65,7 +65,7 @@
     <ClCompile Include="testing.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="credcache.cpp">
+    <ClCompile Include="pacreds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="authidentity.cpp">

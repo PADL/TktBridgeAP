@@ -4,7 +4,7 @@ Copyright (c) PADL Software Pty Ltd, All rights reserved.
 
 Module Name:
 
-    credcache.cpp
+    pacreds.cpp
 
 Abstract:
 
@@ -42,7 +42,7 @@ LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
     //
  
     //
-    // Make PBKDF2 of password and compare protected version with TGT key
+    // Attempt to decrypt AS-REP with key
     //
 
     //
@@ -77,12 +77,12 @@ CacheAddPreauthCredentials(_In_ PUNICODE_STRING AccountName,
     //
 
     //
-    // Decrypt and re-encrypt AS-REP with PBKDF2
+    // Decrypt and re-encrypt AS-REP with
+    // KRB-FX-CF2(ReplyKey, PBKDF2(Password), "replykey", "primarycredentials")
     //
 
     //
-    // Make a new entry with PBKDF2 key and re-encrypted AS-REP, storing
-    // username and domainname alongside
+    // Make a new entry
     //
 
     //
@@ -133,8 +133,8 @@ DereferencePreauthInitCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
     SecureZeroMemory(Creds->AsReplyKey.keyvalue.data, Creds->AsReplyKey.keyvalue.length);
     krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
 
-    WIL_FreeMemory(Creds->DomainName);
-    WIL_FreeMemory(Creds->UserName);
+    SspiLocalFree((PVOID)Creds->DomainName);
+    SspiLocalFree((PVOID)Creds->UserName);
 
     ZeroMemory(Creds, sizeof(*Creds));
     WIL_FreeMemory(Creds);
