@@ -28,10 +28,6 @@ Environment:
 #define TKTBRIDGEAP_API __declspec(dllimport)
 #endif
 
-#ifndef WINAPI_FAMILY
-#define WINAPI_FAMILY WINAPI_FAMILY_SYSTEM
-#endif
-
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -40,7 +36,7 @@ Environment:
 #define SECURITY_WIN32
 #endif
 
-#ifndef _SEC_WINNT_AUTH_hahTYPES
+#ifndef _SEC_WINNT_AUTH_TYPES
 #define _SEC_WINNT_AUTH_TYPES
 #endif
 
@@ -109,6 +105,14 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
                                        _In_ ULONG SubmitBufferSize,
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                        _Out_opt_ PLUID pUnlockLogonID);
+
+#if 0
+NTSTATUS _Success_(return == STATUS_SUCCESS)
+RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                        _Out_writes_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                        _In_ PVOID ClientBufferBase,
+                        _In_ ULONG SubmitBufferSize);
+#endif
 
 // credcache.cpp
 
@@ -199,6 +203,9 @@ KrbErrorToNtStatus(_In_ krb5_error_code ret,
 
 // helpers.cpp
 
+VOID
+Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
+                         _Out_ PLARGE_INTEGER Time);
 ULONG
 GetCallAttributes(VOID);
 

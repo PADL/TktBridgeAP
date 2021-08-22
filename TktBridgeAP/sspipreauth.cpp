@@ -78,6 +78,11 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         .SessionKeyLength = 0,
         .SessionKey = nullptr
     };
+    SecPkgContext_KeyInfo KeyInfo = {
+        .sSignatureAlgorithmName = nullptr,
+        .sEncryptAlgorithmName = nullptr
+    };
+    krb5_keyblock key;
     krb5_data Input;
     krb5_crypto KrbCrypto = nullptr;
     size_t KeySize;
@@ -92,6 +97,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
             SecureZeroMemory(SessionKey.SessionKey, SessionKey.SessionKeyLength);
             FreeContextBuffer(SessionKey.SessionKey);
         }
+        FreeContextBuffer(KeyInfo.sSignatureAlgorithmName);
+        FreeContextBuffer(KeyInfo.sEncryptAlgorithmName);
         if (KrbError != 0 && *pbPrfOutput != nullptr) {
             SecureZeroMemory(*pbPrfOutput, *pcbPrfOutput);
             WIL_FreeMemory(*pbPrfOutput);
@@ -111,28 +118,15 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         return KrbError;
     }
 
-    DebugSessionKey(L"PRF input", pbPrfInput, cbPrfInput);
-    DebugSessionKey(L"SSPI session key", SessionKey.SessionKey, SessionKey.SessionKeyLength);
-
-    //
-    // Unfortunately SSPI doesn't tell use the encryption type the package
-    // used, and indeed it may not even use RFC3961 encryption types. So
-    // we need to take an educated guess. This will break for mechanisms
-    // that don't use these encryption types, but it will work for EAP.
-    //
-    krb5_keyblock key;
-
-    key.keyvalue.data = SessionKey.SessionKey;
-    if (SessionKey.SessionKeyLength >= 32) {
-        key.keytype = KRB5_ENCTYPE_AES256_CTS_HMAC_SHA1_96;
-        key.keyvalue.length = 32;
-    } else if (SessionKey.SessionKeyLength >= 16) {
-        key.keytype = KRB5_ENCTYPE_AES128_CTS_HMAC_SHA1_96;
-        key.keyvalue.length = 16;
-    } else {
-        KrbError = KRB5_BAD_KEYSIZE;
-        RETURN_IF_KRB_FAILED_MSG(KrbError, "Could not map session key type");
+    SecStatus = QueryContextAttributes(phContext, SECPKG_ATTR_KEY_INFO, &KeyInfo);
+    if (SecStatus != SEC_E_OK) {
+        KrbError = SspiStatusToKrbError(SecStatus);
+        return KrbError;
     }
+
+    key.keytype = KeyInfo.EncryptAlgorithm;
+    key.keyvalue.data = SessionKey.SessionKey;
+    key.keyvalue.length = SessionKey.SessionKeyLength;
 
     KrbError = krb5_crypto_init(KrbContext, &key, KRB5_ENCTYPE_NULL, &KrbCrypto);
     RETURN_IF_KRB_FAILED(KrbError);
@@ -601,17 +595,6 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
     *pSendToContext = SendToContext;
 
     return 0;
-}
-
-static VOID
-Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
-                         _Out_ PLARGE_INTEGER Time)
-{
-    // Don't use RtlSecondsSince1970ToTime as it's not 2038 compliant
-    ULONG64 const SecondsToStartOf1970 = 0x2b6109100;
-    ULONG64 const HundredNanoSecondsInSecond = 10000000LL;
-
-    Time->QuadPart = (ElapsedSeconds + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
 }
 
 //

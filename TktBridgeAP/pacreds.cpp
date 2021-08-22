@@ -145,7 +145,7 @@ bool
 IsPreauthCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     FILETIME ftNow;
-    ULARGE_INTEGER liNow;
+    LARGE_INTEGER liNow;
 
     GetSystemTimeAsFileTime(&ftNow);
 

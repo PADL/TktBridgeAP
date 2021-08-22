@@ -18,6 +18,17 @@ Environment:
 
 #include "TktBridgeAP.h"
 
+VOID
+Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
+                         _Out_ PLARGE_INTEGER Time)
+{
+    // Don't use RtlSecondsSince1970ToTime as it's not 2038 compliant
+    ULONG64 const SecondsToStartOf1970 = 0x2b6109100;
+    ULONG64 const HundredNanoSecondsInSecond = 10000000LL;
+
+    Time->QuadPart = (ElapsedSeconds + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
+}
+
 ULONG
 GetCallAttributes(VOID)
 {
@@ -41,7 +52,7 @@ FreeLsaString(_Inout_ PLSA_STRING pLsaString)
     }
 }
 
-BOOLEAN
+bool
 IsLocalHost(_In_ PUNICODE_STRING HostName)
 {
     WCHAR MachineName[MAX_COMPUTERNAME_LENGTH + 1];

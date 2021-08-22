@@ -120,10 +120,6 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
     }
 }
 
-// for some reason this is not getting imported with the SYSTEM partition
-extern "C"
-DWORD __stdcall NetApiBufferFree(_Frees_ptr_opt_ LPVOID Buffer);
-
 static bool
 ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 {
@@ -403,9 +399,6 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
         DereferencePreauthInitCreds(TktBridgeCreds);
         SurrogateLogonData->PackageData = nullptr;
-
-        LsaSpFunctionTable->FreeLsaHeap(SurrogateLogonData);
-        ZeroMemory(Entry, sizeof(*Entry));
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

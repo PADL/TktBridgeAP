@@ -76,6 +76,7 @@ TktBridgeAPTestFunction2()
     RtlFreeUnicodeString(&foo);
 
     SspiFreeAuthIdentity(nullptr);
+    FreeContextBuffer(nullptr);
 
 
     {
