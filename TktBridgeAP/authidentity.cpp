@@ -585,7 +585,6 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
     RETURN_NTSTATUS(Status);
 }
 
-#if 0
 //
 // Inelegant hack to force the Kerberos package to pick up the surrogate
 // AS-REP credential.
@@ -614,18 +613,10 @@ RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     FidoAuthIdentity.PackedCreds.cbStructureLength        = sizeof(FidoAuthIdentity.PackedCreds);
     FidoAuthIdentity.PackedCreds.AuthData.CredType        = SEC_WINNT_AUTH_DATA_TYPE_FIDO;
 
-    // STATUS_BUFFER_TOO_SMALL is more correct, but won't surface a good error to Winlogon
     if (SubmitBufferSize < sizeof(FidoAuthIdentity))
         RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
 
     memcpy(ProtocolSubmitBuffer, &FidoAuthIdentity, sizeof(FidoAuthIdentity));
 
-    auto Status = LsaSpFunctionTable->CopyToClientBuffer(ClientRequest,
-                                                         sizeof(FidoAuthIdentity),
-                                                         ClientBufferBase,
-                                                         &FidoAuthIdentity);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
-#endif

@@ -109,7 +109,7 @@ HeimTracingInit(_In_ krb5_context KrbContext)
     return KrbError;
 }
 
-void
+VOID
 DebugSessionKey(_In_z_ PCWSTR Tag,
                 _In_bytecount_(cbKey) PBYTE pbKey,
                 _In_ SIZE_T cbKey)

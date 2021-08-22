@@ -108,11 +108,11 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
     case Interactive:
     case Unlock:
     case RemoteInteractive:
-    case CachedInteractive:
-    case CachedRemoteInteractive:
         DebugTrace(WINEVENT_LEVEL_VERBOSE,
                    L"%s surrogate logon validated", wszLogonType);
         return true;
+    case CachedInteractive:
+    case CachedRemoteInteractive:
     default:
         DebugTrace(WINEVENT_LEVEL_VERBOSE,
                    L"%s surrogate logon not supported", wszLogonType);
@@ -338,6 +338,19 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
+static PTKTBRIDGEAP_CREDS
+FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON_ENTRY Entry)
+{
+    if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
+        return nullptr; // not surrogate logon entry
+
+    auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
+    if (SurrogateLogonData->RetrieveAsRepCredential != &RetrievePreauthInitCreds)
+        return nullptr; // not ours
+
+    return (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
+}
+
 NTSTATUS
 PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                        _In_ SECURITY_LOGON_TYPE LogonType,
@@ -366,17 +379,10 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
     for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
-        PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
         PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
+        PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
+        auto TktBridgeCreds = FindSurrogateLogonCreds(Entry);
 
-        if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
-            continue;
-
-        auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
-        if (SurrogateLogonData->RetrieveAsRepCredential != &RetrievePreauthInitCreds)
-            continue; // not ours
-
-        auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
         if (TktBridgeCreds == nullptr)
             continue;
 
@@ -398,8 +404,50 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         }
 
         DereferencePreauthInitCreds(TktBridgeCreds);
+
+        auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
         SurrogateLogonData->PackageData = nullptr;
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
+
+#if 0
+NTSTATUS
+LogonUserEx3(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+             _In_ SECURITY_LOGON_TYPE LogonType,
+             _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+             _In_ PVOID ClientBufferBase,
+             _In_ ULONG SubmitBufferSize,
+             _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+             _Outptr_result_bytebuffer_(*ProfileBufferSize) PVOID *ProfileBuffer,
+             _Out_ PULONG ProfileBufferSize,
+             _Out_ PLUID LogonId,
+             _Out_ PNTSTATUS SubStatus,
+             _Out_ PLSA_TOKEN_INFORMATION_TYPE TokenInformationType,
+             _Outptr_ PVOID  TokenInformation,
+             _Out_ PUNICODE_STRING *AccountName,
+             _Out_ PUNICODE_STRING *AuthenticatingAuthority,
+             _Out_ PUNICODE_STRING *MachineName,
+             _Out_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
+             _Outptr_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY *SupplementalCredentials)
+{
+    if (SurrogateLogon == nullptr)
+        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+
+    for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
+        PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
+        auto TktBridgeCreds = ValidateSurrogateLogonEntry(Entry);
+
+        if (TktBridgeCreds == nullptr)
+            continue;
+
+        auto Status = RetypeLogonSubmitBuffer(ClientRequest,
+                                              ProtocolSubmitBuffer,
+                                              ClientBufferBase,
+                                              SubmitBufferSize);
+    }
+
+    RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+}
+#endif

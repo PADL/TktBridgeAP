@@ -25,8 +25,8 @@ PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
 SECPKG_PARAMETERS SpParameters;
 ULONG APFlags = 0;
 ULONG APLogLevel = 0;
-LPWSTR APKdcHostName = nullptr;
-LPWSTR APRestrictPackage = nullptr;
+PWSTR APKdcHostName = nullptr;
+PWSTR APRestrictPackage = nullptr;
 
 extern "C" {
     static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
@@ -140,6 +140,7 @@ TktBridgeAPFunctionTable = {
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
+//    .LogonUserEx3 = LogonUserEx3,
     .PreLogonUserSurrogate = PreLogonUserSurrogate,
     .PostLogonUserSurrogate = PostLogonUserSurrogate
 };

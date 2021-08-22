@@ -58,8 +58,8 @@ typedef struct _KERB_AS_REP_CREDENTIAL {
     ULONG TgtMessageSize;
     ULONG TgtClientKeyOffset;
     ULONG TgtClientKeySize;
-    ULONG VsmBindingPrivateKeyOffset;
-    ULONG VsmBindingPrivateKeySize;
+    ULONG ReservedOffset;
+    ULONG ReservedSize;
     ULONG TgtKeyType;
 } KERB_AS_REP_CREDENTIAL, *PKERB_AS_REP_CREDENTIAL;
 

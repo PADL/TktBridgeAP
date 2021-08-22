@@ -311,7 +311,7 @@ SspiPreauthStep(krb5_context KrbContext,
 {
     krb5_error_code KrbError;
     ULONG fContextReq, fContextAttr = 0;
-    LPWSTR TargetName = nullptr;
+    PWSTR TargetName = nullptr;
     krb5_principal TgsName = nullptr;
     PSEC_CHANNEL_BINDINGS ChannelBindings = nullptr;
     SecBuffer InputBuffers[2];
@@ -695,7 +695,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     // acquire credentials handle, only use explicitly passed credentials
     TimeStamp tsExpiry;
     SecStatus = AcquireCredentialsHandle(nullptr, // pszPrincipal
-                                         const_cast<LPWSTR>(PackageName),
+                                         const_cast<PWSTR>(PackageName),
                                          SECPKG_CRED_AUTOLOGON_RESTRICTED | SECPKG_CRED_OUTBOUND,
                                          pvLogonID,
                                          AuthIdentity,

@@ -82,8 +82,8 @@ extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
 extern SECPKG_PARAMETERS SpParameters;
 extern ULONG APFlags;
 extern ULONG APLogLevel;
-extern LPWSTR APKdcHostName;
-extern LPWSTR APRestrictPackage;
+extern PWSTR APKdcHostName;
+extern PWSTR APRestrictPackage;
 
 #define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
@@ -106,13 +106,11 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                        _Out_opt_ PLUID pUnlockLogonID);
 
-#if 0
 NTSTATUS _Success_(return == STATUS_SUCCESS)
 RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                         _Out_writes_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                         _In_ PVOID ClientBufferBase,
                         _In_ ULONG SubmitBufferSize);
-#endif
 
 // credcache.cpp
 
@@ -261,6 +259,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
 // surrogate.cpp
 extern "C" {
+//    LSA_AP_LOGON_USER_EX3 LogonUserEx3;
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
     LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
 }
@@ -272,7 +271,7 @@ HeimTracingInit(_In_ krb5_context KrbContext);
 VOID
 __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
 
-void
+VOID
 DebugSessionKey(_In_z_ PCWSTR Tag,
                 _In_bytecount_(cbKey) PBYTE pbKey,
                 _In_ SIZE_T cbKey);

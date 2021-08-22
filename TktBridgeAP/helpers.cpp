@@ -142,7 +142,7 @@ RegistryGetStringValueForKey(_In_ HKEY hKey,
 
     dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType, nullptr, &dwSize);
     if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        wszValue = (LPWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
+        wszValue = (PWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
         if (wszValue != nullptr) {
             dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
                                        (PBYTE)wszValue, &dwSize);
