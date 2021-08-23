@@ -68,23 +68,6 @@ IsLocalHost(_In_ PUNICODE_STRING HostName)
 }
 
 NTSTATUS
-GetLocalHostName(_In_ BOOLEAN bLsaAlloc,
-                 _Inout_ PUNICODE_STRING HostName)
-{
-    WCHAR MachineName[MAX_COMPUTERNAME_LENGTH + 1];
-    DWORD cchMachineName = sizeof(MachineName) / 2;
-    UNICODE_STRING Src;
-
-    if (!GetComputerName(MachineName, &cchMachineName))
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
-
-    RtlInitUnicodeString(&Src, MachineName);
-
-    return RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
-                                     &Src, HostName);
-}
-
-NTSTATUS
 DuplicateLsaString(_In_ PLSA_STRING SourceString,
                    _Out_ PLSA_STRING *pDestinationString)
 {

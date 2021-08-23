@@ -62,21 +62,17 @@ Environment:
 #include <wincrypt.h>
 #include <wincred.h>
 
-//#undef _LSALOOKUP_
+#include "ntapiext.h"
+#include "KerbPrivate.h"
+
 #include <wil/common.h>
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
 #include <wil/registry.h>
 #include <wil/nt_result_macros.h>
 
-#include "ntapiext.h"
-#include "KerbPrivate.h"
 #include "HeimPrivate.h"
 #include "TktBridgeAP-trace.h"
-
-#ifndef NEGOSSP_NAME
-#define NEGOSSP_NAME_W  L"Negotiate"
-#endif
 
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
 extern PLSA_DISPATCH_TABLE LsaDispatchTable;
@@ -225,10 +221,6 @@ RegistryGetStringValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
 bool
 IsLocalHost(_In_ PUNICODE_STRING HostName);
-
-NTSTATUS
-GetLocalHostName(_In_ BOOLEAN bLsaAlloc,
-                 _Inout_ PUNICODE_STRING HostName);
 
 NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
