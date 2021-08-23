@@ -27,31 +27,37 @@ extern "C"
 static NTSTATUS NTAPI
 RetrievePreauthInitCreds(LUID LogonID,
                          PVOID PackageData,
-                         ULONG dwFlags,
+                         ULONG Flags,
                          PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
     auto TktBridgeCreds = (PCTKTBRIDGEAP_CREDS)PackageData;
-    PKERB_AS_REP_CREDENTIAL KerbAsRepCred;
     ULONG cbKerbAsRepCred;
-
-    DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"RetrievePreauthInitCreds: LogonID %08x.%08x Flags %04x",
-               LogonID.LowPart, LogonID.HighPart,
-               dwFlags);
 
     if (TktBridgeCreds == nullptr)
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
-    cbKerbAsRepCred = sizeof(*KerbAsRepCred) +
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+               L"RetrievePreauthInitCreds: LogonID %08x.%08x Flags %08x "
+               L"AS-REP Length %u KeyLength %u KeyType %u",
+               LogonID.LowPart,
+               LogonID.HighPart,
+               Flags,
+               TktBridgeCreds->AsRep.length,
+               TktBridgeCreds->AsReplyKey.keyvalue.length,
+               TktBridgeCreds->AsReplyKey.keytype);
+
+    cbKerbAsRepCred = sizeof(KERB_AS_REP_CLOUD_CREDENTIAL) +
         (ULONG)TktBridgeCreds->AsRep.length +
         (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
 
-    KerbAsRepCred = (PKERB_AS_REP_CREDENTIAL)LsaSpFunctionTable->AllocateLsaHeap(cbKerbAsRepCred);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(KerbAsRepCred);
+    auto KerbAsRepCredU = (PKERB_AS_REP_CREDENTIAL)LsaSpFunctionTable->AllocateLsaHeap(cbKerbAsRepCred);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(KerbAsRepCredU);
 
-    ZeroMemory(KerbAsRepCred, sizeof(*KerbAsRepCred));
+    ZeroMemory(KerbAsRepCredU, sizeof(*KerbAsRepCredU));
 
-    KerbAsRepCred->Version              = KERB_AS_REP_CREDENTIAL_VERSION_1;
+    auto KerbAsRepCred = &KerbAsRepCredU->CloudCredential;
+
+    KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD;
     KerbAsRepCred->Flags                = 0;
     KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
     KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
@@ -68,7 +74,7 @@ RetrievePreauthInitCreds(LUID LogonID,
                                            KerbAsRepCred->TgtClientKeySize);
 
 
-    *pKerbAsRepCred = KerbAsRepCred;
+    *pKerbAsRepCred = KerbAsRepCredU;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
