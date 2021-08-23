@@ -130,7 +130,11 @@ RegistryGetStringValueForKey(_In_ HKEY hKey,
             dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
                                        (PBYTE)wszValue, &dwSize);
             if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-                wszValue[dwSize / sizeof(WCHAR)] = 0;
+                wszValue[dwSize / sizeof(WCHAR)] = L'\0';
+            else {
+                WIL_FreeMemory(wszValue);
+                wszValue = nullptr;
+            }
         }
     }
 
