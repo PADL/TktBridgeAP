@@ -89,8 +89,9 @@ extern PWSTR APRestrictPackage;
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
 #define TKTBRIDGEAP_FLAG_DISABLE_CACHE          0x00000008
-
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF
+
+#define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000
 
 #define TKTBRIDGEAP_REGISTRY_KEY_W              L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_VERSION             1
@@ -259,7 +260,6 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
 // surrogate.cpp
 extern "C" {
-//    LSA_AP_LOGON_USER_EX3 LogonUserEx3;
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
     LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
 }

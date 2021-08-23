@@ -140,7 +140,6 @@ TktBridgeAPFunctionTable = {
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
-//    .LogonUserEx3 = LogonUserEx3,
     .PreLogonUserSurrogate = PreLogonUserSurrogate,
     .PostLogonUserSurrogate = PostLogonUserSurrogate
 };
@@ -157,6 +156,17 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
             L"SpLsaModeInitialize: unsupported SPM interface version %08x", LsaVersion);
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
     }
+
+    RTL_OSVERSIONINFOW VersionInfo;
+
+    ZeroMemory(&VersionInfo, sizeof(VersionInfo));
+    VersionInfo.dwOSVersionInfoSize = sizeof(VersionInfo);
+
+    auto Status = RtlGetVersion(&VersionInfo);
+    NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to determine OS version");
+
+    if (VersionInfo.dwMajorVersion == 10 && VersionInfo.dwMinorVersion >= 22000)
+        APFlags |= TKTBRIDGEAP_FLAG_CLOUD_CREDS;
 
     *PackageVersion = SECPKG_INTERFACE_VERSION_10;
     *ppTables = &TktBridgeAPFunctionTable;

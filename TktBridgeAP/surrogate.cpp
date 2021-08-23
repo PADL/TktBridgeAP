@@ -46,7 +46,7 @@ RetrievePreauthInitCreds(LUID LogonID,
                TktBridgeCreds->AsReplyKey.keyvalue.length,
                TktBridgeCreds->AsReplyKey.keytype);
 
-    cbKerbAsRepCred = sizeof(KERB_AS_REP_CLOUD_CREDENTIAL) +
+    cbKerbAsRepCred = sizeof(KERB_AS_REP_CREDENTIAL) +
         (ULONG)TktBridgeCreds->AsRep.length +
         (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
 
@@ -55,24 +55,41 @@ RetrievePreauthInitCreds(LUID LogonID,
 
     ZeroMemory(KerbAsRepCredU, sizeof(*KerbAsRepCredU));
 
-    auto KerbAsRepCred = &KerbAsRepCredU->CloudCredential;
+    if (APFlags & TKTBRIDGEAP_FLAG_CLOUD_CREDS) {
+        auto KerbAsRepCred = &KerbAsRepCredU->CloudCredential;
 
-    KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD;
-    KerbAsRepCred->Flags                = 0;
-    KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
-    KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
-    KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-    KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
-    KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
+        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD;
+        KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
+        KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
+        KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
+        KerbAsRepCred->TgtClientKeySize = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        KerbAsRepCred->TgtKeyType = TktBridgeCreds->AsReplyKey.keytype;
 
-    memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
-           TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
-    memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
-           TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
-  
-    LsaSpFunctionTable->LsaUnprotectMemory((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
-                                           KerbAsRepCred->TgtClientKeySize);
+        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
+               TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
+        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+               TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
 
+        LsaSpFunctionTable->LsaUnprotectMemory((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+                                               KerbAsRepCred->TgtClientKeySize);
+    } else {
+        auto KerbAsRepCred = &KerbAsRepCredU->Credential;
+
+        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_AAD;
+        KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
+        KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
+        KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
+        KerbAsRepCred->TgtClientKeySize = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        KerbAsRepCred->TgtKeyType = TktBridgeCreds->AsReplyKey.keytype;
+
+        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
+               TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
+        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+               TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
+
+        LsaSpFunctionTable->LsaUnprotectMemory((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+                                               KerbAsRepCred->TgtClientKeySize);
+    }
 
     *pKerbAsRepCred = KerbAsRepCredU;
 
@@ -276,7 +293,7 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
 
     ReferencePreauthInitCreds(TktBridgeCreds);
 
-    SurrogateLogonData->RetrieveAsRepCredential = RetrievePreauthInitCreds;
+    SurrogateLogonData->AsRepCallback = RetrievePreauthInitCreds;
     SurrogateLogonData->PackageData = TktBridgeCreds;
 
     Entry->Type = KERB_SURROGATE_LOGON_TYPE;
@@ -351,7 +368,7 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON_ENTRY Entry)
         return nullptr; // not surrogate logon entry
 
     auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
-    if (SurrogateLogonData->RetrieveAsRepCredential != &RetrievePreauthInitCreds)
+    if (SurrogateLogonData->AsRepCallback != &RetrievePreauthInitCreds)
         return nullptr; // not ours
 
     return (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
@@ -417,43 +434,3 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
-
-#if 0
-NTSTATUS
-LogonUserEx3(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-             _In_ SECURITY_LOGON_TYPE LogonType,
-             _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-             _In_ PVOID ClientBufferBase,
-             _In_ ULONG SubmitBufferSize,
-             _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-             _Outptr_result_bytebuffer_(*ProfileBufferSize) PVOID *ProfileBuffer,
-             _Out_ PULONG ProfileBufferSize,
-             _Out_ PLUID LogonId,
-             _Out_ PNTSTATUS SubStatus,
-             _Out_ PLSA_TOKEN_INFORMATION_TYPE TokenInformationType,
-             _Outptr_ PVOID  TokenInformation,
-             _Out_ PUNICODE_STRING *AccountName,
-             _Out_ PUNICODE_STRING *AuthenticatingAuthority,
-             _Out_ PUNICODE_STRING *MachineName,
-             _Out_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
-             _Outptr_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY *SupplementalCredentials)
-{
-    if (SurrogateLogon == nullptr)
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
-
-    for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
-        PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
-        auto TktBridgeCreds = ValidateSurrogateLogonEntry(Entry);
-
-        if (TktBridgeCreds == nullptr)
-            continue;
-
-        auto Status = RetypeLogonSubmitBuffer(ClientRequest,
-                                              ProtocolSubmitBuffer,
-                                              ClientBufferBase,
-                                              SubmitBufferSize);
-    }
-
-    RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
-}
-#endif
