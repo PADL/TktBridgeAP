@@ -74,16 +74,6 @@ Environment:
 #include "HeimPrivate.h"
 #include "TktBridgeAP-trace.h"
 
-extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
-extern PLSA_DISPATCH_TABLE LsaDispatchTable;
-extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
-
-extern SECPKG_PARAMETERS SpParameters;
-extern ULONG APFlags;
-extern ULONG APLogLevel;
-extern PWSTR APKdcHostName;
-extern PWSTR APRestrictPackage;
-
 #define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
@@ -230,7 +220,19 @@ NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     _Out_ PWSTR *pwszUnicodeString);
 
-// logonapi.cpp
+// logonpkg.cpp
+
+extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
+extern PLSA_DISPATCH_TABLE LsaDispatchTable;
+extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
+
+extern PSECPKG_FUNCTION_TABLE KerbFunctionTable;
+
+extern SECPKG_PARAMETERS SpParameters;
+extern ULONG APFlags;
+extern ULONG APLogLevel;
+extern PWSTR APKdcHostName;
+extern PWSTR APRestrictPackage;
 
 extern "C"
 TKTBRIDGEAP_API NTSTATUS __cdecl
@@ -255,6 +257,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
 // surrogate.cpp
 extern "C" {
+    LSA_AP_LOGON_USER_EX3 TktBridgeApLogonUserEx3;
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
     LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
 }
