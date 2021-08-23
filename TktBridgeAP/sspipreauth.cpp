@@ -17,7 +17,6 @@ Environment:
 --*/
 
 #include "TktBridgeAP.h"
-#include "HeimPrivate.h"
 
 #define RETURN_IF_KRB_FAILED(KrbError) do {                             \
     krb5_error_code _krbError = KrbError;                               \
@@ -68,7 +67,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
            _In_ krb5_enctype EncryptionType,
            _In_reads_bytes_(cbPrfInput) const PBYTE pbPrfInput,
            _In_ ULONG cbPrfInput,
-           _Outptr_opt_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
+           _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
            _Out_ size_t *pcbPrfOutput)
 {
     krb5_error_code KrbError;
@@ -582,7 +581,7 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
         if (!NT_SUCCESS(UnicodeToUTF8Alloc(KdcHostName, &KdcHostNameUTF8)))
             return krb5_enomem(KrbContext);
 
-        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA pinning KDC %s", KdcHostName);
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA will prefer KDC %s", KdcHostName);
         krb5_sendto_set_hostname(KrbContext, SendToContext, KdcHostNameUTF8);
         WIL_FreeMemory(KdcHostNameUTF8);
     }

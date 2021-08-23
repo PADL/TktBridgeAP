@@ -18,8 +18,6 @@ Environment:
 
 #include "TktBridgeAP.h"
 
-#include <ntstatus.h>
-
 static VOID
 UnpackUnicodeString(_In_ PVOID ProtocolSubmitBuffer,
                     _In_ PCUNICODE_STRING SourceString,
@@ -563,6 +561,9 @@ ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
     if (pUnlockLogonID != nullptr) {
         bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
 
+        pUnlockLogonID->LowPart = 0;
+        pUnlockLogonID->HighPart = 0;
+
         if (IsWowClient) {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
                 *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
@@ -639,8 +640,8 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
 }
 
 //
-// Inelegant hack to force the Kerberos package to pick up the surrogate
-// AS-REP credential.
+// A massive kludge to "retype" the input credential into a FIDO credential,
+// so that the Kerberos package will honor the surrogate credential.
 //
 NTSTATUS _Success_(return == STATUS_SUCCESS)
 RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
@@ -666,6 +667,8 @@ RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     FidoAuthIdentity.PackedCreds.cbStructureLength        = sizeof(FidoAuthIdentity.PackedCreds);
     FidoAuthIdentity.PackedCreds.AuthData.CredType        = SEC_WINNT_AUTH_DATA_TYPE_FIDO;
 
+    // this imposes a lower limit on user/domain name length but unlikely
+    // to be a problem in practice
     if (SubmitBufferSize < sizeof(FidoAuthIdentity))
         RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
 

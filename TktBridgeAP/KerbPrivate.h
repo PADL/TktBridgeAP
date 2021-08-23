@@ -95,16 +95,16 @@ typedef struct _KERB_AS_REP_AAD_CREDENTIAL {
     ULONG TgtMessageSize;
     ULONG TgtClientKeyOffset;
     ULONG TgtClientKeySize;
-    ULONG VsmBindingKeyOffset;
-    ULONG VsmBindingKeySize;
+    ULONG ReservedOffset;
+    ULONG ReservedSize;
     ULONG TgtKeyType;
 } KERB_AS_REP_AAD_CREDENTIAL;
 
 typedef struct _KERB_AS_REP_CLOUD_CREDENTIAL {
     ULONG Type;
     ULONG Flags;
-    ULONG VsmBindingKeyOffset;
-    ULONG VsmBindingKeySize;
+    ULONG ReservedOffset;
+    ULONG ReservedSize;
     ULONG TgtMessageOffset;
     ULONG TgtMessageSize;
     ULONG TgtClientKeyOffset;

@@ -117,15 +117,19 @@ LogonTypeMap[] = {
 static bool
 ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
 {
-    if ((SpParameters.MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
-                                      SECPKG_STATE_WORKSTATION)) == 0 ||
-        SpParameters.DnsDomainName.Length == 0)
-        return false;
-
     if (LogonType < UndefinedLogonType || LogonType > CachedUnlock)
         return false;
 
     PCWSTR wszLogonType = LogonTypeMap[LogonType];
+
+    if ((SpParameters.MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
+                                      SECPKG_STATE_WORKSTATION)) == 0 ||
+        SpParameters.DnsDomainName.Length == 0) {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE,
+                   L"%s surrogate logon unavailable on standalone workstations",
+                   wszLogonType);
+        return false;
+    }
 
     switch (LogonType) {
     case Interactive:
@@ -136,10 +140,11 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
         return true;
     case CachedInteractive:
     case CachedRemoteInteractive:
-    default:
         DebugTrace(WINEVENT_LEVEL_VERBOSE,
                    L"%s surrogate logon not supported", wszLogonType);
         return false;
+    default:
+        return false; // don't log
     }
 }
 
@@ -365,11 +370,11 @@ static PTKTBRIDGEAP_CREDS
 FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON_ENTRY Entry)
 {
     if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
-        return nullptr; // not surrogate logon entry
+        return nullptr; // not a Kerb AS-REP surrogate logon entry
 
     auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
     if (SurrogateLogonData->AsRepCallback != &RetrievePreauthInitCreds)
-        return nullptr; // not ours
+        return nullptr; // must be another package
 
     return (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
 }

@@ -40,7 +40,12 @@ Environment:
 #define _SEC_WINNT_AUTH_TYPES
 #endif
 
+#include <strsafe.h>
+#include <crtdbg.h>
+#include <assert.h>
+
 #include <windows.h>
+#include <ntstatus.h>
 #include <winternl.h>
 #include <winreg.h>
 #include <wincred.h>
@@ -56,24 +61,22 @@ Environment:
 #include <DsGetDC.h>
 #include <wincrypt.h>
 #include <wincred.h>
-#include <strsafe.h>
-#include <crtdbg.h>
-#include <assert.h>
 
-#include "wil.h"
+//#undef _LSALOOKUP_
+#include <wil/common.h>
+#include <wil/resource.h>
+#include <wil/win32_helpers.h>
+#include <wil/registry.h>
+#include <wil/nt_result_macros.h>
+
 #include "ntapiext.h"
 #include "KerbPrivate.h"
+#include "HeimPrivate.h"
 #include "TktBridgeAP-trace.h"
-
-#include <ntstatus.h>
 
 #ifndef NEGOSSP_NAME
 #define NEGOSSP_NAME_W  L"Negotiate"
 #endif
-
-extern "C" {
-#include <krb5.h>
-}
 
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
 extern PLSA_DISPATCH_TABLE LsaDispatchTable;
