@@ -367,7 +367,7 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 }
 
 static PTKTBRIDGEAP_CREDS
-FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON_ENTRY Entry)
+GetSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON_ENTRY Entry)
 {
     if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
         return nullptr; // not a Kerb AS-REP surrogate logon entry
@@ -409,8 +409,8 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
         PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
         PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
-        auto TktBridgeCreds = FindSurrogateLogonCreds(Entry);
 
+        auto TktBridgeCreds = GetSurrogateLogonCreds(Entry);
         if (TktBridgeCreds == nullptr)
             continue;
 
