@@ -324,8 +324,8 @@ DebugSessionKey(_In_z_ PCWSTR Tag,
 
 // kerbinterpose.cpp
 
-_Success_(return == STATUS_SUCCESS)
-NTSTATUS AttachKerbLogonInterposer(VOID);
+_Success_(return == ERROR_SUCCESS)
+DWORD AttachKerbLogonInterposer(VOID);
 
 VOID
 DetachKerbLogonInterposer(VOID);

@@ -165,7 +165,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
 
         wszValues[iValue] = (PWSTR)WIL_AllocateMemory(cbCurrentValue);
         if (wszValues[iValue] == nullptr)
-            return nullptr; // FIXME leaks
+            break; // FIXME
 
         memcpy(wszValues[iValue], pwCurrentMultiSzValue, cbCurrentValue);
         iValue++;

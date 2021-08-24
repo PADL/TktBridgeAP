@@ -37,7 +37,7 @@
 static PSECPKG_FUNCTION_TABLE KerbFunctionTable;
 static HMODULE hKerbPackage;
 
-static NTSTATUS
+static _Success_(return == ERROR_SUCCESS) DWORD
 LoadKerbPackage(VOID)
 {
     NTSTATUS Status;
@@ -53,28 +53,42 @@ LoadKerbPackage(VOID)
 
     hKerbPackage = LoadLibrary(L"kerberos.dll");
     if (hKerbPackage == nullptr)
-        RETURN_NTSTATUS(STATUS_DLL_NOT_FOUND);
- 
-    KerbLsaModeInitialize = (SpLsaModeInitializeFn)GetProcAddress(hKerbPackage,
-                                                                  "SpLsaModeInitialize");
+        RETURN_WIN32(ERROR_DLL_NOT_FOUND);
+
+    KerbLsaModeInitialize =
+        (SpLsaModeInitializeFn)GetProcAddress(hKerbPackage,
+                                              "SpLsaModeInitialize");
     if (KerbLsaModeInitialize == nullptr)
-        RETURN_NTSTATUS(STATUS_ENTRYPOINT_NOT_FOUND);
+        RETURN_WIN32(ERROR_BAD_DLL_ENTRYPOINT);
 
     Status = KerbLsaModeInitialize(SECPKG_INTERFACE_VERSION,
                                    &PackageVersion,
                                    &KerbFunctionTable,
                                    &cTables);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    RETURN_IF_WIN32_ERROR(RtlNtStatusToDosError(Status));
 
     if (cTables == 0 ||
         PackageVersion < SECPKG_INTERFACE_VERSION_10 ||
         KerbFunctionTable->LogonUserEx3 == nullptr) {
         KerbFunctionTable = nullptr;
-        RETURN_NTSTATUS(STATUS_UNKNOWN_REVISION);
+        RETURN_WIN32(ERROR_UNKNOWN_REVISION);
     }
 
-    RETURN_NTSTATUS(STATUS_SUCCESS);
+    RETURN_WIN32(ERROR_SUCCESS);
 }
+
+/*
+ * An extremely inelegant kludge to force the native Kerberos security
+ * package to pick up surrogate credentials containing an AS-REP, by
+ * pretending the logon was a FIDO logon. The contents of the credentials
+ * are ignored so we can leave them empty.
+ *
+ * The interposed function is transparent to the Kerberos package if
+ * TktBridgeAP-issued surrogate logon credentials cannot be found.
+ *
+ * The real fix would be for MS to document these APIs and not require
+ * FIDO credentials to honor AS-REP credentials
+ */
 
 static NTSTATUS
 KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
@@ -102,16 +116,9 @@ KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     auto SurrogateLogonCreds = FindSurrogateLogonCreds(SurrogateLogon);
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"KerbLogonUserEx3Interposer: LogonType %d SurrogateCreds %p", LogonType, SurrogateLogonCreds);
+               L"KerbLogonUserEx3Interposer: LogonType %d SurrogateCreds %p",
+               LogonType, SurrogateLogonCreds);
 
-    //
-    // Extremely inelegant hack to get the Kerberos package to pick up the
-    // surrogate credentials, by pretending the logon was a FIDO logon. The
-    // contents of the credentials are ignored so we leave them empty.
-    // 
-    // If TktBridgeAP-issued surrogate logon creds cannot be found, then
-    // the Kerberos package's LsaApLogonUserEx3 will be called transparently.
-    //
     if (SurrogateLogonCreds != nullptr) {
         ZeroMemory(&FidoAuthIdentity, sizeof(FidoAuthIdentity));
 
@@ -149,29 +156,55 @@ KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                            SupplementalCredentials);
 }
 
-NTSTATUS _Success_(return == STATUS_SUCCESS)
+DWORD _Success_(return == ERROR_SUCCESS)
 AttachKerbLogonInterposer(VOID)
 {
-    NTSTATUS Status;
+    DWORD dwError;
+    bool BegunTransaction = false;
 
-    Status = LoadKerbPackage();
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    auto cleanup = wil::scope_exit([&]() {
+        if (dwError != ERROR_SUCCESS && BegunTransaction)
+            DetourTransactionAbort();
+                                   });
 
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourAttach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Interposer);
-    DetourTransactionCommit();
+    dwError = LoadKerbPackage();
+    RETURN_IF_WIN32_ERROR(dwError);
 
-    RETURN_NTSTATUS(STATUS_SUCCESS);
+    dwError = DetourTransactionBegin();
+    RETURN_IF_WIN32_ERROR(dwError);
+
+    BegunTransaction = true;
+
+    dwError = DetourUpdateThread(GetCurrentThread());
+    RETURN_IF_WIN32_ERROR(dwError);
+
+    dwError = DetourAttach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Interposer);
+    RETURN_IF_WIN32_ERROR(dwError);
+
+    dwError = DetourTransactionCommit();
+    RETURN_IF_WIN32_ERROR(dwError);
+
+    RETURN_WIN32(ERROR_SUCCESS);
 }
 
 VOID
 DetachKerbLogonInterposer(VOID)
 {
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    DetourDetach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Interposer);
-    DetourTransactionCommit();
+    DWORD dwError;
+
+    if (hKerbPackage == nullptr)
+        return;
+
+    dwError = DetourTransactionBegin();
+    if (dwError == ERROR_SUCCESS) {
+        dwError = DetourUpdateThread(GetCurrentThread());
+        if (dwError == ERROR_SUCCESS)
+            DetourDetach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Interposer);
+        if (dwError == ERROR_SUCCESS)
+            DetourTransactionCommit();
+        else
+            DetourTransactionAbort();
+    }
 
     FreeLibrary(hKerbPackage);
     hKerbPackage = nullptr;

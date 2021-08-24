@@ -277,9 +277,11 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
         RETURN_IF_NTSTATUS_FAILED(Status);
     }
 
+    /*
+     * Canonicalize into user and domain components as we need to filter
+     * the domain name to determine whether to attempt surrogate logon.
+     */
     if (wszDomainName == nullptr || wszDomainName[0] == L'\0') {
-        // canonicalize into user and domain components as we need to filter
-        // the domain before getting credentials
         wszUpnSuffix = wcschr(wszUserName, L'@');
         if (wszUpnSuffix != nullptr) {
             *wszUpnSuffix = L'\0';
@@ -646,7 +648,7 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
                                                            pUnlockLogonID);
         break;
     default:
-        Status = STATUS_SUCCESS; // don't raise error, but *pAuthIdentity is null
+        Status = STATUS_SUCCESS;
         break;
     }
 

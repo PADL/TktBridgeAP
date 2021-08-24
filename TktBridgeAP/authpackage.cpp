@@ -51,7 +51,6 @@ extern "C" {
 static NTSTATUS
 InitializeRegistryNotification(VOID);
 
-// these don't ever seem to get set
 static ULONG LsaAuthenticationPackageId = SECPKG_ID_NONE;
 static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
 
@@ -90,7 +89,7 @@ DuplicateLsaString(_In_ PLSA_STRING SourceString,
     DestinationString->MaximumLength = SourceString->MaximumLength;
 
     *pDestinationString = DestinationString;
-    DestinationString = nullptr; // don't free in cleanup
+    DestinationString = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -210,11 +209,9 @@ SpShutdown(VOID)
 static SECPKG_FUNCTION_TABLE
 TktBridgeAPFunctionTable = {
     .InitializePackage = InitializePackage,
-    //.LogonTerminated = TktBridgeApLogonTerminated,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
-    //.LogonUserEx3 = TktBridgeApLogonUserEx3,
     .PreLogonUserSurrogate = PreLogonUserSurrogate,
     .PostLogonUserSurrogate = PostLogonUserSurrogate
 };
