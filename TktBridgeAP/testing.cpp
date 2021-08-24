@@ -145,8 +145,17 @@ TktBridgeAPTestFunction3()
     WIL_FreeMemory(APRestrictPackage);
     APRestrictPackage = RegistryGetStringValueForKey(hKey.get(), L"RestrictPackage");
 
+    APDomainSuffixes = RegistryGetStringValuesForKey(hKey.get(), L"DomainSuffixes");
+
     DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Flags %08x Level %08x Kdc %s Restrict %s",
 	       APFlags, APLogLevel, APKdcHostName, APRestrictPackage);
+
+    PWSTR *p;
+    if (APDomainSuffixes != nullptr) {
+	for (p = APDomainSuffixes; *p; p++) {
+	    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Found Domain Suffix %s", *p);
+	}
+    }
 
     return ERROR_SUCCESS;
 }
@@ -164,7 +173,7 @@ VOID __cdecl TestEntryPoint(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int n
 
     DebugTrace(WINEVENT_LEVEL_INFO, L"Starting TktBridgeAP test harness...");
 
-    TktBridgeAPTestFunction1();
+    //TktBridgeAPTestFunction1();
     TktBridgeAPTestFunction2();
     TktBridgeAPTestFunction3();
  

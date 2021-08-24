@@ -123,24 +123,85 @@ RegistryGetStringValueForKey(_In_ HKEY hKey,
     DWORD dwValue = 0, dwSize = 0;
     PWSTR wszValue = nullptr;
 
-    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType, nullptr, &dwSize);
-    if (dwResult == ERROR_SUCCESS && dwType == REG_SZ) {
-        wszValue = (PWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
-        if (wszValue != nullptr) {
-            dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
-                                       (PBYTE)wszValue, &dwSize);
-            if (dwResult == ERROR_SUCCESS && dwType == REG_SZ)
-                wszValue[dwSize / sizeof(WCHAR)] = L'\0';
-            else {
-                WIL_FreeMemory(wszValue);
-                wszValue = nullptr;
-            }
-        }
+    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
+                               nullptr, &dwSize);
+    if (dwResult != ERROR_SUCCESS || dwType != REG_SZ)
+        return nullptr;
+
+    wszValue = (PWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
+    if (wszValue == nullptr)
+        return nullptr;
+
+    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
+                               (PBYTE)wszValue, &dwSize);
+    if (dwResult != ERROR_SUCCESS || dwType != REG_SZ) {
+        WIL_FreeMemory(wszValue);
+        return nullptr;
     }
+
+    wszValue[dwSize / sizeof(WCHAR)] = L'\0';
 
     return wszValue;
 }
 
+PWSTR *
+RegistryGetStringValuesForKey(_In_ HKEY hKey,
+                              _In_z_ PCWSTR KeyName)
+{
+    DWORD dwResult, dwType = REG_SZ;
+    DWORD dwValue = 0, dwSize = 0;
+    PWSTR wMultiSzValue = nullptr;
+    DWORD cValues;
+
+    auto cleanup = wil::scope_exit([&] {
+        WIL_FreeMemory(wMultiSzValue);
+                                   });
+
+    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType, nullptr, &dwSize);
+    if (dwResult != ERROR_SUCCESS || dwType != REG_MULTI_SZ)
+        return nullptr;
+
+    wMultiSzValue = (PWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
+    if (wMultiSzValue == nullptr)
+        return nullptr;
+
+    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
+                               (PBYTE)wMultiSzValue, &dwSize);
+    if (dwResult != ERROR_SUCCESS || dwType != REG_MULTI_SZ)
+        return nullptr;
+
+    wMultiSzValue[dwSize / sizeof(WCHAR)] = L'\0';
+
+    PWSTR pwCurrentMultiSzValue;
+    DWORD iValue;
+    size_t cchCurrentValue;
+
+    for (cValues = 0, pwCurrentMultiSzValue = wMultiSzValue;
+         *pwCurrentMultiSzValue != L'\0';
+         pwCurrentMultiSzValue += wcslen(pwCurrentMultiSzValue) + 1)
+        cValues++;
+
+    auto wszValues = (PWSTR *)WIL_AllocateMemory((cValues + 1) * sizeof(PWSTR));
+    if (wszValues == nullptr)
+        return nullptr;
+
+    for (iValue = 0, pwCurrentMultiSzValue = wMultiSzValue, cchCurrentValue = wcslen(pwCurrentMultiSzValue) + 1;
+         *pwCurrentMultiSzValue != L'\0';
+         pwCurrentMultiSzValue += (cchCurrentValue = wcslen(pwCurrentMultiSzValue) + 1)) {
+        size_t cbCurrentValue = cchCurrentValue * sizeof(WCHAR);
+
+        wszValues[iValue] = (PWSTR)WIL_AllocateMemory(cbCurrentValue);
+        if (wszValues[iValue] == nullptr)
+            return nullptr; // FIXME leaks
+
+        memcpy(wszValues[iValue], pwCurrentMultiSzValue, cbCurrentValue);
+        iValue++;
+    }
+
+    wszValues[iValue] = nullptr;
+
+    return wszValues;
+}
 NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
                    _Out_ PCHAR *pszUTF8String)

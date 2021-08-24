@@ -44,9 +44,6 @@
     <ClCompile Include="logonpkg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dllmain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="helpers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -72,6 +69,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="errors.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="prf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

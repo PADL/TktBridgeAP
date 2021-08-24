@@ -256,9 +256,9 @@
   <ItemGroup>
     <ClCompile Include="authidentity.cpp" />
     <ClCompile Include="pacreds.cpp" />
-    <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="errors.cpp" />
     <ClCompile Include="helpers.cpp" />
+    <ClCompile Include="prf.cpp" />
     <ClCompile Include="surrogate.cpp" />
     <ClCompile Include="logonpkg.cpp" />
     <ClCompile Include="ntapiext.cpp" />

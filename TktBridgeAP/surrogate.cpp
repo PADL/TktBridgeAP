@@ -56,9 +56,9 @@ RetrievePreauthInitCreds(LUID LogonID,
     ZeroMemory(KerbAsRepCredU, sizeof(*KerbAsRepCredU));
 
     if (APFlags & TKTBRIDGEAP_FLAG_CLOUD_CREDS) {
-        auto KerbAsRepCred = &KerbAsRepCredU->CloudCredential;
+        auto KerbAsRepCred = &KerbAsRepCredU->CloudTgtCredential;
 
-        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD;
+        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
         KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
         KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
         KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
@@ -73,9 +73,9 @@ RetrievePreauthInitCreds(LUID LogonID,
         LsaSpFunctionTable->LsaUnprotectMemory((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
                                                KerbAsRepCred->TgtClientKeySize);
     } else {
-        auto KerbAsRepCred = &KerbAsRepCredU->Credential;
+        auto KerbAsRepCred = &KerbAsRepCredU->TgtCredential;
 
-        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_AAD;
+        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
         KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
         KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
         KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
@@ -177,6 +177,18 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 
     if (IsLocalHost(&DomainName))
         return false;
+
+    if (APDomainSuffixes != nullptr) {
+        // authoritative list of suffixes we support
+        for (PWSTR *pDomainSuffix = APDomainSuffixes;
+             *pDomainSuffix != nullptr;
+             pDomainSuffix++) {
+            if (_wcsicmp(wszDomainName, *pDomainSuffix) == 0)
+                return true;
+        }
+
+        return false;
+    }
 
     if ((APFlags & TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN) == 0) {
         if (RtlEqualUnicodeString(&SpParameters.DnsDomainName, &DomainName, TRUE) ||

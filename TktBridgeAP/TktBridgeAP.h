@@ -185,9 +185,31 @@ VOID
 DereferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 // errors.cpp
+
+#define RETURN_IF_KRB_FAILED(KrbError) do {                             \
+    krb5_error_code _krbError = KrbError;                               \
+    if (_krbError != 0) {                                               \
+        return _krbError;                                               \
+    }                                                                   \
+} while (0)
+
+#define RETURN_IF_KRB_FAILED_MSG(KrbError, Msg) do {                    \
+    krb5_error_code _krbError = KrbError;                               \
+    if (_krbError != 0) {                                               \
+        auto szError = krb5_get_error_message(KrbContext, _krbError);   \
+        DebugTrace(WINEVENT_LEVEL_ERROR, L"%s: %S (%d)",                \
+                   Msg, szError, _krbError);                            \
+        krb5_free_error_message(KrbContext, szError);                   \
+        return _krbError;                                               \
+    }                                                                   \
+} while (0)
+
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code ret,
                    _Out_ PNTSTATUS Substatus);
+
+krb5_error_code
+SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
 
 // helpers.cpp
 
@@ -208,6 +230,10 @@ RegistryGetDWordValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
 PWSTR
 RegistryGetStringValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
+
+PWSTR *
+RegistryGetStringValuesForKey(_In_ HKEY hKey,
+                              _In_z_ PCWSTR KeyName);
 
 bool
 IsLocalHost(_In_ PUNICODE_STRING HostName);
@@ -233,6 +259,7 @@ extern ULONG APFlags;
 extern ULONG APLogLevel;
 extern PWSTR APKdcHostName;
 extern PWSTR APRestrictPackage;
+extern PWSTR *APDomainSuffixes;
 
 extern "C"
 TKTBRIDGEAP_API NTSTATUS __cdecl
@@ -240,6 +267,17 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PULONG PackageVersion,
                     _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
                     _Out_ PULONG pcTables);
+
+// prf.cpp
+
+_Success_(return == 0) krb5_error_code
+RFC4401PRF(_In_ krb5_context KrbContext,
+           _In_ PCtxtHandle phContext,
+           _In_ krb5_enctype EncryptionType,
+           _In_reads_bytes_(cbPrfInput) const PBYTE pbPrfInput,
+           _In_ ULONG cbPrfInput,
+           _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE * pbPrfOutput,
+           _Out_ size_t * pcbPrfOutput);
 
 // sspipreauth.cpp
 

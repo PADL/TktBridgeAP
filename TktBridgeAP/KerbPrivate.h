@@ -88,7 +88,7 @@ typedef struct _KERB_SMARTCARD_CSP_INFO {
 // Surrogate AS-REP logon
 //
 
-typedef struct _KERB_AS_REP_AAD_CREDENTIAL {
+typedef struct _KERB_AS_REP_TGT_CREDENTIAL {
     ULONG Type;
     ULONG Flags;
     ULONG TgtMessageOffset;
@@ -98,9 +98,9 @@ typedef struct _KERB_AS_REP_AAD_CREDENTIAL {
     ULONG ReservedOffset;
     ULONG ReservedSize;
     ULONG TgtKeyType;
-} KERB_AS_REP_AAD_CREDENTIAL;
+} KERB_AS_REP_TGT_CREDENTIAL;
 
-typedef struct _KERB_AS_REP_CLOUD_CREDENTIAL {
+typedef struct _KERB_AS_REP_CLOUD_TGT_CREDENTIAL {
     ULONG Type;
     ULONG Flags;
     ULONG ReservedOffset;
@@ -119,15 +119,15 @@ typedef struct _KERB_AS_REP_CLOUD_CREDENTIAL {
     ULONG KerberosTopLevelNamesSize;
     ULONG KdcProxyNameOffset;
     ULONG KdcProxyNameSize;
-} KERB_AS_REP_CLOUD_CREDENTIAL;
+} KERB_AS_REP_CLOUD_TGT_CREDENTIAL;
 
 typedef union _KERB_AS_REP_CREDENTIAL {
-    KERB_AS_REP_AAD_CREDENTIAL Credential;
-    KERB_AS_REP_CLOUD_CREDENTIAL CloudCredential;
+    KERB_AS_REP_TGT_CREDENTIAL TgtCredential;
+    KERB_AS_REP_CLOUD_TGT_CREDENTIAL CloudTgtCredential;
 } KERB_AS_REP_CREDENTIAL, *PKERB_AS_REP_CREDENTIAL;
 
-#define KERB_AS_REP_CREDENTIAL_TYPE_AAD     1
-#define KERB_AS_REP_CREDENTIAL_TYPE_CLOUD   3
+#define KERB_AS_REP_CREDENTIAL_TYPE_TGT         1
+#define KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT   3
 
 typedef NTSTATUS
 (NTAPI KERB_AS_REP_CALLBACK)(

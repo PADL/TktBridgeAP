@@ -27,6 +27,7 @@ ULONG APFlags = 0;
 ULONG APLogLevel = 0;
 PWSTR APKdcHostName = nullptr;
 PWSTR APRestrictPackage = nullptr;
+PWSTR *APDomainSuffixes = nullptr;
 
 extern "C" {
     static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
@@ -106,6 +107,18 @@ SpInitialize(_In_ ULONG_PTR PackageId,
     return STATUS_SUCCESS;
 }
 
+static VOID
+FreeDomainSuffixes(VOID)
+{
+    if (APDomainSuffixes != nullptr) {
+        for (PWSTR *pSuffix = APDomainSuffixes; *pSuffix != nullptr; pSuffix++)
+            WIL_FreeMemory(*pSuffix);
+
+        WIL_FreeMemory(APDomainSuffixes);
+        APDomainSuffixes = nullptr;
+    }
+}
+
 static NTSTATUS NTAPI
 SpShutdown(VOID)
 {
@@ -124,6 +137,8 @@ SpShutdown(VOID)
 
     WIL_FreeMemory(APRestrictPackage);
     APRestrictPackage = nullptr;
+
+    FreeDomainSuffixes();
 
     LsaAuthenticationPackageId = 0;
     LsaDispatchTable = nullptr;
@@ -219,6 +234,9 @@ RegistryNotifyChanged(VOID)
 
     WIL_FreeMemory(APRestrictPackage);
     APRestrictPackage = RegistryGetStringValueForKey(hKey.get(), L"RestrictPackage");
+
+    FreeDomainSuffixes();
+    APDomainSuffixes = RegistryGetStringValuesForKey(hKey.get(), L"DomainSuffixes");
 
     return ERROR_SUCCESS;
 }

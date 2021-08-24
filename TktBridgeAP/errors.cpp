@@ -18,6 +18,31 @@ Environment:
 
 #include "TktBridgeAP.h"
 
+krb5_error_code
+SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus)
+{
+    switch (SecStatus) {
+    case SEC_E_OK:
+        return 0;
+    case SEC_I_CONTINUE_NEEDED:
+        return HEIM_ERR_PA_CONTINUE_NEEDED;
+    case SEC_E_LOGON_DENIED:
+        return KRB5KRB_AP_ERR_BAD_INTEGRITY;
+    case SEC_E_WRONG_PRINCIPAL:
+        return KRB5_PRINC_NOMATCH;
+    case SEC_E_NO_CREDENTIALS:
+        return KRB5_CC_NOTFOUND;
+    case SEC_E_CONTEXT_EXPIRED:
+        return KRB5KRB_AP_ERR_TKT_EXPIRED;
+    case SEC_E_NO_KERB_KEY:
+        return KRB5KRB_AP_ERR_NOKEY;
+    case SEC_E_INVALID_PARAMETER:
+        return EINVAL;
+    default:
+        return KRB5KDC_ERR_PREAUTH_FAILED;
+    }
+}
+
 NTSTATUS
 KrbErrorToNtStatus(_In_ krb5_error_code KrbError,
                    _Out_ PNTSTATUS SubStatus)
