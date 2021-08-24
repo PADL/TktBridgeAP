@@ -235,10 +235,10 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
 GetTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
-                    _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                    _In_ PLUID LogonID,
-                    _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
-                    _Out_ PNTSTATUS SubStatus)
+                  _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                  _In_ PLUID LogonID,
+                  _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
+                  _Out_ PNTSTATUS SubStatus)
 {
     NTSTATUS Status;
     SECURITY_STATUS SecStatus;
@@ -382,8 +382,8 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
     Status = LocateCachedTktBridgeCreds(LogonType, AuthIdentity,
-                                            &SurrogateLogon->SurrogateLogonID,
-                                            &TktBridgeCreds, SubStatus);
+                                        &SurrogateLogon->SurrogateLogonID,
+                                        &TktBridgeCreds, SubStatus);
     if (!NT_SUCCESS(Status)) {
         Status = GetTktBridgeCreds(LogonType, AuthIdentity,
                                      &SurrogateLogon->SurrogateLogonID,
