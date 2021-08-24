@@ -44,16 +44,16 @@ RtlGetVersion(_Inout_ PRTL_OSVERSIONINFOW lpVersionInformation);
 NTSYSAPI
 NTSTATUS NTAPI
 RtlDuplicateUnicodeString(
-	_In_ ULONG Flags,
-	_In_ PCUNICODE_STRING StringIn,
-	_Inout_ PUNICODE_STRING StringOut);
+    _In_ ULONG Flags,
+    _In_ PCUNICODE_STRING StringIn,
+    _Inout_ PUNICODE_STRING StringOut);
 
 NTSYSAPI
 BOOLEAN NTAPI
 RtlEqualUnicodeString(
-	_In_ PCUNICODE_STRING String1,
-	_In_ PCUNICODE_STRING String2,
-	_In_ BOOLEAN CaseInSensitive
+    _In_ PCUNICODE_STRING String1,
+    _In_ PCUNICODE_STRING String2,
+    _In_ BOOLEAN CaseInSensitive
 );
 
 NTSTATUS NTAPI
@@ -70,45 +70,45 @@ RtlLengthSid(_Inout_ PSID Sid);
 NTSYSAPI
 PVOID NTAPI
 RtlAllocateHeap(
-	_In_ PVOID HeapHandle,
-	_In_ ULONG Flags,
-	_In_ SIZE_T Size
+    _In_ PVOID HeapHandle,
+    _In_ ULONG Flags,
+    _In_ SIZE_T Size
 );
 
 NTSYSAPI
 BOOLEAN NTAPI
 RtlFreeHeap(
-	_In_ PVOID HeapHandle,
-	_In_ ULONG Flags,
-	_Frees_ptr_opt_ PVOID BaseAddress
+    _In_ PVOID HeapHandle,
+    _In_ ULONG Flags,
+    _Frees_ptr_opt_ PVOID BaseAddress
 );
 
 NTSYSAPI
 NTSTATUS NTAPI
 RtlCopySid(
-	_In_ ULONG DestinationSidLength,
-	_Inout_ PSID DestinationSid,
-	_In_ PSID SourceSid
+    _In_ ULONG DestinationSidLength,
+    _Inout_ PSID DestinationSid,
+    _In_ PSID SourceSid
 );
 
 NTSYSAPI
 NTSTATUS NTAPI
 RtlUnicodeToUTF8N(
-    __out_bcount_part(UTF8StringMaxByteCount, *UTF8StringActualByteCount) PCHAR  UTF8StringDestination,
-    __in                                ULONG  UTF8StringMaxByteCount,
+    __out_bcount_part(UTF8StringMaxByteCount, *UTF8StringActualByteCount) PCHAR UTF8StringDestination,
+    __in                                ULONG UTF8StringMaxByteCount,
     __out                               PULONG UTF8StringActualByteCount,
     __in_bcount(UnicodeStringByteCount) PCWCH UnicodeStringSource,
-    __in                                ULONG  UnicodeStringByteCount
+    __in                                ULONG UnicodeStringByteCount
 );
 
 NTSYSAPI
 NTSTATUS NTAPI
 RtlUTF8ToUnicodeN(
-    __out_bcount_part(UnicodeStringMaxByteCount, *UnicodeStringActualByteCount) PWSTR  UnicodeStringDestination,
-    __in                             ULONG  UnicodeStringMaxByteCount,
+    __out_bcount_part(UnicodeStringMaxByteCount, *UnicodeStringActualByteCount) PWSTR UnicodeStringDestination,
+    __in                             ULONG UnicodeStringMaxByteCount,
     __out                            PULONG UnicodeStringActualByteCount,
-    __in_bcount(UTF8StringByteCount) PCCH   UTF8StringSource,
-    __in                             ULONG  UTF8StringByteCount
+    __in_bcount(UTF8StringByteCount) PCCH  UTF8StringSource,
+    __in                             ULONG UTF8StringByteCount
 );
 
 NTSYSAPI
@@ -117,14 +117,6 @@ RtlUpcaseUnicodeString(
     _Inout_ PUNICODE_STRING  DestinationString,
     _In_ PCUNICODE_STRING SourceString,
     _In_ BOOLEAN          AllocateDestinationString
-);
-
-
-NTSYSAPI
-VOID NTAPI
-RtlSecondsSince1970ToTime(
-    _In_ ULONG ElapsedSeconds,
-    _Out_ PLARGE_INTEGER Time
 );
 
 }
