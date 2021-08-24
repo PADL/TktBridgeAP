@@ -51,18 +51,18 @@ Below follows an excerpt of the Kerberos configuration file `/etc/krb5.conf`:
     synthetic_clients_max_renew = 7d
     gss_mechanisms_allowed = eap-aes128 eap-aes256
     database = {
-    krbtgt = {
-	dbname = keytab:/var/heimdal/rodc.keytab
-	realm = KERB.PADL.COM
-    }
-	default = {
-	    dbname = /var/heimdal/heimdal.db
-	    realm = KERB.PADL.COM
-	}
+        krbtgt = {
+            dbname = keytab:/var/heimdal/rodc.keytab
+            realm = KERB.PADL.COM
+        }
+        default = {
+            dbname = /var/heimdal/heimdal.db
+            realm = KERB.PADL.COM
+        }
     }
 ```
 
-If you are using a custom GSS mechanism, be sure to configure `/etc/gss/mech` appropriately so Heimdal can find it. Make sure too that there are no library dependency conflicts between it and the version of Heimdal the KDC is built from.
+If you are using a custom GSS mechanism, be sure to configure `/etc/gss/mech` appropriately so Heimdal can find it. Make sure too that there are no library dependency conflicts between it and the version of Heimdal the KDC is built from. Configuration of the mechanism itself (e.g. RADIUS shared secret) is not discussed here. See [here](https://wiki.eduuni.fi/display/CSCHAKA/Moonshot+service+provider) for some examples pertaining to GSS EAP. You will need the very latest `mech_eap` if you are using NegoEx.
 
 AD configuration
 ----------------
@@ -92,7 +92,7 @@ This example enables all users to use GSS pre-authentication: you can restrict t
 
 You then need to read back the RODC branch ID from LDAP by performing a search for `CN=krbtgt_TktBridgeAP` and requesting the `mSDS-SecondaryKrbTgtNumber` attribute. This is an integer ID that is used to distinguish the KDC from other RODCs and the main `krbtgt` account. The ID is randomly assigned by Active Directory. On my test domain controller, it is 30382, so the sAMAccountName is `krbtgt_30382`.
 
-Use `samba-tool` to retrieve this TGS secret from the domain controller, with the following command:
+Use `samba-tool` to retrieve this TGS secret from the domain controller, with the following commands (adjusting environment variables appropriately):
 
 ```bash
 # export TKTBRIDGEAP_REALM=KERB.PADL.COM
@@ -111,15 +111,22 @@ Note that `samba-tool` is only used to provision the KDC keytab: you do not need
 TktBridgeAP configuration
 -------------------------
 
-TktBridgeAP should be added to the Security Packages key in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` and the workstation rebooted.
-
 You should set the `CloudKerberosTicketRetrievalEnabled` integer value to 1 in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters`.
+
+TktBridgeAP should be added to the Security Packages key in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` and the workstation rebooted.
 
 To configure TktBridgeAP itself, set the `KdcHostName` string value in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa\TktBridgeAP` to the hostname of the Heimdal KDC you configured above. If none is specified, then the `_kerberos-tkt-bridge` DNS SRV record will be queried for the primary DNS domain.
 
 By default TktBridgeAP will use SPNEGO/NegoEx to authenticate to the KDC. (All versions of Heimdal that support GSS pre-authentication also support NegoEx.) You can force a single package with the `RestrictPackage` key.
 
 To avoid locking out domain users, TktBridgeAP by default will not attempt GSS pre-authentication where the logging in domain matches an Active Directory domain (as opposed to UPN suffix). If you wish to positively associate a set of realms, it can be done with the `DomainSuffixes` registry key. This key is authoritative.
+
+There are a variety of additional flags which can be set on TktBridgeAP in the `flags` key:
+
+* 0x1: enable debugging on release builds
+* 0x2: allow GSS pre-authentication to be used for users in the primary domain
+* 0x4: allow GSS pre-authentication to be used for users in trusted domains
+* 0x8: do not cache users’ cleartext credentials (this will disable automatic ticket refresh)
 
 If you have a debug build of TktBridgeAP, make sure the debug Visual C++ libraries are copied to the Windows system directory, specifically:
 
