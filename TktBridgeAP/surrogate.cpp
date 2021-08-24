@@ -396,7 +396,9 @@ LsaApPreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (!ValidateSurrogateLogonType(LogonType))
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
-    Status = ConvertLogonSubmitBufferToAuthIdentity(ProtocolSubmitBuffer,
+    Status = ConvertLogonSubmitBufferToAuthIdentity(ClientRequest,
+                                                    ProtocolSubmitBuffer,
+                                                    ClientBufferBase,
                                                     SubmitBufferSize,
                                                     &AuthIdentity,
                                                     &UnlockLogonId);

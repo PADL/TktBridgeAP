@@ -42,7 +42,7 @@ UnpackUnicodeString(_In_ PVOID ProtocolSubmitBuffer,
 
     if (SourceString->Buffer != nullptr)
         DestinationString->Buffer = reinterpret_cast<PWSTR>
-            ((static_cast<PBYTE>(ProtocolSubmitBuffer) + (ULONG_PTR)SourceString->Buffer));
+            ((static_cast<PBYTE>(ProtocolSubmitBuffer) + reinterpret_cast<ULONG_PTR>(SourceString->Buffer)));
     else
         DestinationString->Buffer = nullptr;
 }
@@ -107,6 +107,62 @@ UnpackUnicodeString32AllocZ(_In_ PVOID ProtocolSubmitBuffer,
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
+UnpackClientUnicodeStringAllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                _In_ PVOID ClientBufferBase,
+                                _In_ PCUNICODE_STRING RelativeString,
+                                _Out_ PWSTR *DestinationString)
+{
+    NTSTATUS Status;
+    PWSTR StringBuffer;
+
+    StringBuffer = static_cast<PWSTR>(WIL_AllocateMemory(RelativeString->Length + sizeof(WCHAR)));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(StringBuffer);
+
+    Status = LsaSpFunctionTable->CopyFromClientBuffer(ClientRequest,
+                                                      RelativeString->Length,
+                                                      StringBuffer,
+                                                      RelativeString->Buffer);
+    if (!NT_SUCCESS(Status)) {
+        WIL_FreeMemory(StringBuffer);
+        RETURN_NTSTATUS(Status);
+    }
+
+    StringBuffer[RelativeString->Length / sizeof(WCHAR)] = L'\0';
+
+    *DestinationString = StringBuffer;
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
+UnpackClientUnicodeString32AllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                  _In_ PVOID ClientBufferBase,
+                                  _In_ PCKERB_UNICODE_STRING32 RelativeString,
+                                  _Out_ PWSTR *DestinationString)
+{
+    NTSTATUS Status;
+    PWSTR StringBuffer;
+
+    StringBuffer = static_cast<PWSTR>(WIL_AllocateMemory(RelativeString->Length + sizeof(WCHAR)));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(StringBuffer);
+
+    Status = LsaSpFunctionTable->CopyFromClientBuffer(ClientRequest,
+                                                      RelativeString->Length,
+                                                      StringBuffer,
+                                                      reinterpret_cast<PVOID>(static_cast<ULONG_PTR>(RelativeString->Buffer)));
+    if (!NT_SUCCESS(Status)) {
+        WIL_FreeMemory(StringBuffer);
+        RETURN_NTSTATUS(Status);
+    }
+
+    StringBuffer[RelativeString->Length / sizeof(WCHAR)] = L'\0';
+
+    *DestinationString = StringBuffer;
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ValidateOffset(_In_ ULONG cbBuffer,
                _In_ ULONG_PTR cbOffset,
                _In_ ULONG cbItem)
@@ -118,26 +174,40 @@ ValidateOffset(_In_ ULONG cbBuffer,
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-ValidateAndUnpackUnicodeStringAllocZ(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ValidateAndUnpackUnicodeStringAllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                     _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                     _In_ PVOID ClientBufferBase,
                                      _In_ ULONG SubmitBufferSize,
                                      _In_ PCUNICODE_STRING RelativeString,
                                      _Out_ PWSTR *DestinationString)
 {
     NTSTATUS Status;
 
-    Status = ValidateOffset(SubmitBufferSize,
-                            (ULONG_PTR)RelativeString->Buffer,
-                            RelativeString->Length);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    *DestinationString = nullptr;
 
-    Status = UnpackUnicodeStringAllocZ(ProtocolSubmitBuffer, RelativeString, DestinationString);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    Status = ValidateOffset(SubmitBufferSize,
+                            reinterpret_cast<ULONG_PTR>(RelativeString->Buffer),
+                            RelativeString->Length);
+    if (NT_SUCCESS(Status)) {
+        Status = UnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
+                                           RelativeString,
+                                           DestinationString);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    } else {
+        Status = UnpackClientUnicodeStringAllocZ(ClientRequest,
+                                                 ClientBufferBase,
+                                                 RelativeString,
+                                                 DestinationString);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-ValidateAndUnpackUnicodeString32AllocZ(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ValidateAndUnpackUnicodeString32AllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                       _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                       _In_ PVOID ClientBufferBase,
                                        _In_ ULONG SubmitBufferSize,
                                        _In_ PCKERB_UNICODE_STRING32 RelativeString,
                                        _Out_ PWSTR *DestinationString)
@@ -145,12 +215,20 @@ ValidateAndUnpackUnicodeString32AllocZ(_In_reads_bytes_(SubmitBufferSize) PVOID 
     NTSTATUS Status;
 
     Status = ValidateOffset(SubmitBufferSize,
-                            (ULONG_PTR)RelativeString->Buffer,
+                            RelativeString->Buffer,
                             RelativeString->Length);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
-    Status = UnpackUnicodeString32AllocZ(ProtocolSubmitBuffer, RelativeString, DestinationString);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    if (NT_SUCCESS(Status)) {
+        Status = UnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
+                                             RelativeString,
+                                             DestinationString);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    } else {
+        Status = UnpackClientUnicodeString32AllocZ(ClientRequest,
+                                                   ClientBufferBase,
+                                                   RelativeString,
+                                                   DestinationString);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -198,7 +276,9 @@ UnprotectString(_In_z_ PWSTR wszProtected,
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                          _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                          _In_ PVOID ClientBufferBase,
                                           _In_ ULONG SubmitBufferSize,
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
@@ -233,19 +313,25 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
 
         pKIL32 = static_cast<PKERB_INTERACTIVE_LOGON32>(ProtocolSubmitBuffer);
 
-        Status = ValidateAndUnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
                                                         SubmitBufferSize,
                                                         &pKIL32->LogonDomainName,
                                                         &wszDomainName);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ValidateAndUnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
                                                         SubmitBufferSize,
                                                         &pKIL32->UserName,
                                                         &wszUserName);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ValidateAndUnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
                                                         SubmitBufferSize,
                                                         &pKIL32->Password,
                                                         &wszPassword);
@@ -258,19 +344,25 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
 
         pKIL = static_cast<PKERB_INTERACTIVE_LOGON>(ProtocolSubmitBuffer);
 
-        Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
                                                       SubmitBufferSize,
                                                       &pKIL->LogonDomainName,
                                                       &wszDomainName);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
                                                       SubmitBufferSize,
                                                       &pKIL->UserName,
                                                       &wszUserName);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
                                                       SubmitBufferSize,
                                                       &pKIL->Password,
                                                       &wszPassword);
@@ -419,7 +511,54 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ValidateAndUnpackCspData(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                         _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                         _In_ PVOID ClientBufferBase,
+                         _In_ ULONG SubmitBufferSize,
+                         _In_reads_bytes_(CspDataLength) PUCHAR CspData,
+                         _In_ ULONG CspDataLength,
+                         _Out_ PWSTR *pMarshaledCredential)
+{
+    NTSTATUS Status;
+
+    *pMarshaledCredential = nullptr;
+
+    Status = ValidateOffset(SubmitBufferSize,
+                            reinterpret_cast<ULONG_PTR>(CspData),
+                            CspDataLength);
+    if (NT_SUCCESS(Status)) {
+        Status = ConvertCspDataToCertificateCredential(static_cast<PBYTE>(ProtocolSubmitBuffer) + reinterpret_cast<ULONG_PTR>(CspData),
+                                                       CspDataLength,
+                                                       pMarshaledCredential);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    } else {
+        PVOID ClientCspData = nullptr;
+
+        auto cleanup = wil::scope_exit([&]() {
+            WIL_FreeMemory(ClientCspData);
+                });
+
+        ClientCspData = WIL_AllocateMemory(CspDataLength);
+        RETURN_NTSTATUS_IF_NULL_ALLOC(ClientCspData);
+
+        Status = LsaSpFunctionTable->CopyFromClientBuffer(ClientRequest,
+                                                          CspDataLength,
+                                                          ClientCspData,
+                                                          CspData);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ConvertCspDataToCertificateCredential(ClientCspData, CspDataLength, pMarshaledCredential);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    }
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
+ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                        _In_ PVOID ClientBufferBase,
                                         _In_ ULONG SubmitBufferSize,
                                         _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
@@ -451,18 +590,21 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
 
         pKSCL32 = static_cast<PKERB_SMART_CARD_LOGON32>(ProtocolSubmitBuffer);
 
-        Status = ValidateAndUnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
                                                         SubmitBufferSize,
                                                         &pKSCL32->Pin,
                                                         &wszPin);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ValidateOffset(SubmitBufferSize, pKSCL32->CspData, pKSCL32->CspDataLength);
-        RETURN_IF_NTSTATUS_FAILED(Status);
-
-        Status = ConvertCspDataToCertificateCredential(reinterpret_cast<PBYTE>(pKSCL32) + pKSCL32->CspData,
-                                                       pKSCL32->CspDataLength,
-                                                       &wszCspData);
+        Status = ValidateAndUnpackCspData(ClientRequest,
+                                          ProtocolSubmitBuffer,
+                                          ClientBufferBase,
+                                          SubmitBufferSize,
+                                          reinterpret_cast<PUCHAR>(static_cast<ULONG_PTR>(pKSCL32->CspData)),
+                                          pKSCL32->CspDataLength,
+                                          &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);
     } else {
         PKERB_SMART_CARD_LOGON pKSCL;
@@ -472,19 +614,21 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
 
         pKSCL = static_cast<PKERB_SMART_CARD_LOGON>(ProtocolSubmitBuffer);
 
-        Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
                                                       SubmitBufferSize,
                                                       &pKSCL->Pin,
                                                       &wszPin);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ValidateOffset(SubmitBufferSize, (ULONG_PTR)pKSCL->CspData,
-                                pKSCL->CspDataLength);
-        RETURN_IF_NTSTATUS_FAILED(Status);
-
-        Status = ConvertCspDataToCertificateCredential(reinterpret_cast<PBYTE>(pKSCL) + (ULONG_PTR)pKSCL->CspData,
-                                                       pKSCL->CspDataLength,
-                                                       &wszCspData);
+        Status = ValidateAndUnpackCspData(ClientRequest,
+                                          ProtocolSubmitBuffer,
+                                          ClientBufferBase,
+                                          SubmitBufferSize,
+                                          pKSCL->CspData,
+                                          pKSCL->CspDataLength,
+                                          &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);
     }
 
@@ -566,7 +710,9 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ConvertAuthenticationBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                          _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                          _In_ PVOID ClientBufferBase,
                                           _In_ ULONG SubmitBufferSize,
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                           _Out_opt_ PLUID pUnlockLogonId)
@@ -595,12 +741,16 @@ ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
 
     if (LogonSubmitType == KerbInteractiveLogon ||
         LogonSubmitType == KerbWorkstationUnlockLogon)
-        Status = ConvertKerbInteractiveLogonToAuthIdentity(ProtocolSubmitBuffer,
+        Status = ConvertKerbInteractiveLogonToAuthIdentity(ClientRequest,
+                                                           ProtocolSubmitBuffer,
+                                                           ClientBufferBase,
                                                            SubmitBufferSize,
                                                            pAuthIdentity);
     else if (LogonSubmitType == KerbSmartCardLogon ||
              LogonSubmitType == KerbSmartCardUnlockLogon)
-        Status = ConvertKerbSmartCardLogonToAuthIdentity(ProtocolSubmitBuffer,
+        Status = ConvertKerbSmartCardLogonToAuthIdentity(ClientRequest,
+                                                         ProtocolSubmitBuffer,
+                                                         ClientBufferBase,
                                                          SubmitBufferSize,
                                                          pAuthIdentity);
     else
@@ -610,7 +760,9 @@ ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
 }
 
 NTSTATUS _Success_(return == STATUS_SUCCESS)
-ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                       _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                       _In_ PVOID ClientBufferBase,
                                        _In_ ULONG SubmitBufferSize,
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                        _Out_opt_ PLUID pUnlockLogonId)
@@ -642,7 +794,9 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
     case KerbWorkstationUnlockLogon:
     case KerbSmartCardLogon:
     case KerbSmartCardUnlockLogon:
-        Status = ConvertAuthenticationBufferToAuthIdentity(ProtocolSubmitBuffer,
+        Status = ConvertAuthenticationBufferToAuthIdentity(ClientRequest,
+                                                           ProtocolSubmitBuffer,
+                                                           ClientBufferBase,
                                                            SubmitBufferSize,
                                                            pAuthIdentity,
                                                            pUnlockLogonId);

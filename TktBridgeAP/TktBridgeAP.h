@@ -129,9 +129,11 @@ typedef struct _TKTBRIDGEAP_CREDS {
  */
 
 NTSTATUS _Success_(return == STATUS_SUCCESS)
-ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                       _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                       _In_ PVOID ClientBufferBase,
                                        _In_ ULONG SubmitBufferSize,
-                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE * pAuthIdentity,
+                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                        _Out_opt_ PLUID pUnlockLogonId);
 
 /*
