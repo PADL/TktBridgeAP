@@ -134,10 +134,10 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
         krb5_data_zero(&Output);
 
-        ((PBYTE)Input.data)[0] = (iPrf >> 24) & 0xFF;
-        ((PBYTE)Input.data)[1] = (iPrf >> 16) & 0xFF;
-        ((PBYTE)Input.data)[2] = (iPrf >> 8) & 0xFF;
-        ((PBYTE)Input.data)[3] = (iPrf) & 0xFF;
+        static_cast<PBYTE>(Input.data)[0] = (iPrf >> 24) & 0xFF;
+        static_cast<PBYTE>(Input.data)[1] = (iPrf >> 16) & 0xFF;
+        static_cast<PBYTE>(Input.data)[2] = (iPrf >>  8) & 0xFF;
+        static_cast<PBYTE>(Input.data)[3] = (iPrf      ) & 0xFF;
 
         KrbError = krb5_crypto_prf(KrbContext, KrbCrypto, &Input, &Output);
         RETURN_IF_KRB_FAILED(KrbError);
