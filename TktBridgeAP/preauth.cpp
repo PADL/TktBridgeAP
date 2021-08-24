@@ -4,7 +4,7 @@ Copyright (c) PADL Software Pty Ltd, All rights reserved.
 
 Module Name:
 
-    sspipreauth.cpp
+    preauth.cpp
 
 Abstract:
 
@@ -19,11 +19,11 @@ Environment:
 #include "TktBridgeAP.h"
 
 static krb5_error_code
-SspiPreauthDeriveKey(_In_ krb5_context KrbContext,
-                     _In_ PCtxtHandle phContext,
-                     _In_ LONG AsReqNonce,
-                     _In_ krb5_enctype EncryptionType,
-                     _Out_ krb5_keyblock **ppKeyblock)
+GssPreauthDeriveKey(_In_ krb5_context KrbContext,
+                    _In_ PCtxtHandle phContext,
+                    _In_ LONG AsReqNonce,
+                    _In_ krb5_enctype EncryptionType,
+                    _Out_ krb5_keyblock **ppKeyblock)
 {
     krb5_error_code KrbError;
     krb5_keyblock keyblock;
@@ -53,9 +53,9 @@ SspiPreauthDeriveKey(_In_ krb5_context KrbContext,
 }
 
 static krb5_error_code
-SspiPreauthUnparseName(_In_ krb5_context KrbContext,
-                       _In_ krb5_const_principal Principal,
-                       _Out_ PWSTR *pwszNameString)
+GssPreauthUnparseName(_In_ krb5_context KrbContext,
+                      _In_ krb5_const_principal Principal,
+                      _Out_ PWSTR *pwszNameString)
 {
     krb5_error_code KrbError;
     PCHAR szNameString;
@@ -86,9 +86,9 @@ SspiPreauthUnparseName(_In_ krb5_context KrbContext,
 }
 
 static krb5_error_code
-SspiPreauthParseName(_In_ krb5_context KrbContext,
-                     _In_z_ PCWSTR NameString,
-                     _Out_ krb5_principal *pPrincipal)
+GssPreauthParseName(_In_ krb5_context KrbContext,
+                    _In_z_ PCWSTR NameString,
+                    _Out_ krb5_principal *pPrincipal)
 {
     krb5_error_code KrbError;
     PCHAR szNameString;
@@ -130,14 +130,14 @@ MakeChannelBindings(_In_ krb5_context KrbContext,
 }
 
 static krb5_error_code KRB5_LIB_CALL
-SspiPreauthStep(krb5_context KrbContext,
-                krb5_gss_init_ctx GssICContext,
-                const krb5_creds *KrbCred,
-                gss_ctx_id_t *GssContextHandle,
-                KDCOptions KrbReqFlags,
-                krb5_data *EncAsReq,
-                krb5_data *InputToken,
-                krb5_data *OutputToken)
+GssPreauthStep(krb5_context KrbContext,
+               krb5_gss_init_ctx GssICContext,
+               const krb5_creds *KrbCred,
+               gss_ctx_id_t *GssContextHandle,
+               KDCOptions KrbReqFlags,
+               krb5_data *EncAsReq,
+               krb5_data *InputToken,
+               krb5_data *OutputToken)
 {
     krb5_error_code KrbError;
     ULONG fContextReq, fContextAttr = 0;
@@ -197,7 +197,7 @@ SspiPreauthStep(krb5_context KrbContext,
                                    nullptr);
     RETURN_IF_KRB_FAILED(KrbError);
 
-    KrbError = SspiPreauthUnparseName(KrbContext, TgsName, &TargetName);
+    KrbError = GssPreauthUnparseName(KrbContext, TgsName, &TargetName);
     RETURN_IF_KRB_FAILED(KrbError);
 
     InputBufferDesc.ulVersion = SECBUFFER_VERSION;
@@ -288,15 +288,14 @@ SspiPreauthStep(krb5_context KrbContext,
 }
   
 static krb5_error_code KRB5_LIB_CALL
-SspiPreauthFinish(
-    krb5_context KrbContext,
-    krb5_gss_init_ctx GssICContext,
-    const krb5_creds *KrbCred,
-    gss_ctx_id_t GssContextHandle,
-    krb5int32 AsReqNonce,
-    krb5_enctype KrbEncType,
-    krb5_principal *pClientPrincipal,
-    krb5_keyblock **ppReplyKey)
+GssPreauthFinish(krb5_context KrbContext,
+                 krb5_gss_init_ctx GssICContext,
+                 const krb5_creds *KrbCred,
+                 gss_ctx_id_t GssContextHandle,
+                 krb5int32 AsReqNonce,
+                 krb5_enctype KrbEncType,
+                 krb5_principal *pClientPrincipal,
+                 krb5_keyblock **ppReplyKey)
 {
     krb5_error_code KrbError;
     SECURITY_STATUS SecStatus;
@@ -321,12 +320,12 @@ SspiPreauthFinish(
     if (SecStatus != SEC_E_OK)
         return SspiStatusToKrbError(SecStatus);
 
-    KrbError = SspiPreauthParseName(KrbContext,
+    KrbError = GssPreauthParseName(KrbContext,
                                     NativeNames.sClientName,
                                     pClientPrincipal);
     RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to parse initiator name");
 
-    KrbError = SspiPreauthDeriveKey(KrbContext,
+    KrbError = GssPreauthDeriveKey(KrbContext,
                                     &GssContextHandle->Handle,
                                     AsReqNonce,
                                     KrbEncType,
@@ -337,10 +336,9 @@ SspiPreauthFinish(
 }
 
 static void KRB5_LIB_CALL
-SspiPreauthDeleteSecContext(
-    krb5_context KrbContext,
-    krb5_gss_init_ctx GssICContext,
-    gss_ctx_id_t GssContextHandle)
+GssPreauthDeleteSecContext(krb5_context KrbContext,
+                           krb5_gss_init_ctx GssICContext,
+                           gss_ctx_id_t GssContextHandle)
 {
     if (GssContextHandle != nullptr) {
         DeleteSecurityContext(&GssContextHandle->Handle);
@@ -349,10 +347,9 @@ SspiPreauthDeleteSecContext(
 }
 
 static void KRB5_LIB_CALL
-SspiPreauthReleaseCred(
-    krb5_context KrbContext,
-    krb5_gss_init_ctx GssICContext,
-    gss_cred_id_t GssCredHandle)
+GssPreauthReleaseCred(krb5_context KrbContext,
+                      krb5_gss_init_ctx GssICContext,
+                      gss_cred_id_t GssCredHandle)
 {
     if (GssCredHandle != nullptr) {
         FreeCredentialsHandle(&GssCredHandle->Handle);
@@ -381,12 +378,12 @@ MakeWKFederatedName(_In_ krb5_context KrbContext,
     if (!NT_SUCCESS(UnicodeToUTF8Alloc(RealmName, &RealmNameUTF8)))
         return krb5_enomem(KrbContext);
 
-    krb5_error_code KrbError = krb5_make_principal(KrbContext,
-                                                   pPrincipal,
-                                                   RealmNameUTF8,
-                                                   KRB5_WELLKNOWN_NAME,
-                                                   KRB5_FEDERATED_NAME,
-                                                   nullptr);
+    auto KrbError = krb5_make_principal(KrbContext,
+                                        pPrincipal,
+                                        RealmNameUTF8,
+                                        KRB5_WELLKNOWN_NAME,
+                                        KRB5_FEDERATED_NAME,
+                                        nullptr);
 
     WIL_FreeMemory(RealmNameUTF8);
 
@@ -431,16 +428,16 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
 // Acquire a TGT for a given username/domain/credential/package
 //
 krb5_error_code _Success_(return == 0)
-SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
-                        _In_opt_z_ PCWSTR PackageName,
-                        _In_opt_z_ PCWSTR KdcHostName,
-                        _In_opt_ PLUID pvLogonID,
-                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                        _Out_ PWSTR *pClientName,
-                        _Out_ LARGE_INTEGER *pExpiryTime,
-                        _Out_ krb5_data *AsRep,
-                        _Out_ krb5_keyblock *AsReplyKey,
-                        _Out_ SECURITY_STATUS *pSecStatus)
+GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
+                       _In_opt_z_ PCWSTR PackageName,
+                       _In_opt_z_ PCWSTR KdcHostName,
+                       _In_opt_ PLUID pvLogonID,
+                       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                       _Out_ PWSTR *pClientName,
+                       _Out_ LARGE_INTEGER *pExpiryTime,
+                       _Out_ krb5_data *AsRep,
+                       _Out_ krb5_keyblock *AsReplyKey,
+                       _Out_ SECURITY_STATUS *pSecStatus)
 {
     krb5_error_code KrbError;
     krb5_context KrbContext = nullptr;
@@ -579,10 +576,10 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
     KrbError = _krb5_init_creds_init_gss(KrbContext,
                                          InitCredsContext,
-                                         SspiPreauthStep,
-                                         SspiPreauthFinish,
-                                         SspiPreauthReleaseCred,
-                                         SspiPreauthDeleteSecContext,
+                                         GssPreauthStep,
+                                         GssPreauthFinish,
+                                         GssPreauthReleaseCred,
+                                         GssPreauthDeleteSecContext,
                                          &GssCredHandle,
                                          &GssMech,
                                          0); // no flags, do not free cred handle
@@ -613,7 +610,7 @@ SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     }
 
     auto ClientName = _krb5_init_creds_get_cred_client(KrbContext, InitCredsContext);
-    KrbError = SspiPreauthUnparseName(KrbContext, ClientName, pClientName);
+    KrbError = GssPreauthUnparseName(KrbContext, ClientName, pClientName);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to determine Kerberos client name");
 
     auto EndTime = _krb5_init_creds_get_cred_endtime(KrbContext, InitCredsContext);

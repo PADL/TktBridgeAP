@@ -249,16 +249,16 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
     Status = RtlUpcaseUnicodeString(&RealmName, &SpParameters.DnsDomainName, FALSE);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    auto KrbError = SspiPreauthGetInitCreds(RealmName.Buffer,
-                                            APRestrictPackage,
-                                            APKdcHostName,
-                                            nullptr,
-                                            AuthIdentity,
-                                            &TktBridgeCreds->InitiatorName,
-                                            &TktBridgeCreds->ExpiryTime,
-                                            &TktBridgeCreds->AsRep,
-                                            &TktBridgeCreds->AsReplyKey,
-                                            &SecStatus);
+    auto KrbError = GssPreauthGetInitCreds(RealmName.Buffer,
+                                           APRestrictPackage,
+                                           APKdcHostName,
+                                           nullptr,
+                                           AuthIdentity,
+                                           &TktBridgeCreds->InitiatorName,
+                                           &TktBridgeCreds->ExpiryTime,
+                                           &TktBridgeCreds->AsRep,
+                                           &TktBridgeCreds->AsReplyKey,
+                                           &SecStatus);
     Status = KrbErrorToNtStatus(KrbError, SubStatus);
     if (NT_SUCCESS(Status)) {
         LsaSpFunctionTable->LsaProtectMemory(TktBridgeCreds->AsReplyKey.keyvalue.data,

@@ -47,16 +47,16 @@ TktBridgeAPTestFunction1()
 	return;
     }
 
-    KrbError = SspiPreauthGetInitCreds(L"KERB.PADL.COM",
-				       nullptr,
-				       L"tktbridge.kerb.padl.com",
-				       nullptr,
-				       AuthIdentity,
-				       &ClientName,
-				       &ExpiryTime,
-				       &AsRep,
-				       &AsReplyKey,
-				       &SecStatus);
+    KrbError = GssPreauthGetInitCreds(L"KERB.PADL.COM",
+				      nullptr,
+				      L"tktbridge.kerb.padl.com",
+				      nullptr,
+				      AuthIdentity,
+				      &ClientName,
+				      &ExpiryTime,
+				      &AsRep,
+				      &AsReplyKey,
+				      &SecStatus);
 
     DebugTrace(WINEVENT_LEVEL_INFO, L"Get init creds: KrbError %d SecStatus %08x Length %d Key %d/%d",
 	       KrbError, SecStatus, AsRep.length,

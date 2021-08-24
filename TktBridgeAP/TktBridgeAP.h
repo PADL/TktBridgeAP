@@ -216,6 +216,7 @@ SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
 VOID
 Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
                          _Out_ PLARGE_INTEGER Time);
+
 ULONG
 GetCallAttributes(VOID);
 
@@ -268,6 +269,20 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
                     _Out_ PULONG pcTables);
 
+// preauth.cpp
+
+krb5_error_code _Success_(return == 0)
+GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
+                       _In_opt_z_ PCWSTR PackageName,
+                       _In_opt_z_ PCWSTR KdcHostName,
+                       _In_opt_ PLUID pvLogonID,
+                       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                       _Out_ PWSTR *pClientName,
+                       _Out_ LARGE_INTEGER *pExpiryTime,
+                       _Out_ krb5_data *AsRep,
+                       _Out_ krb5_keyblock *AsReplyKey,
+                       _Out_ SECURITY_STATUS *SecStatus);
+
 // prf.cpp
 
 _Success_(return == 0) krb5_error_code
@@ -279,20 +294,6 @@ RFC4401PRF(_In_ krb5_context KrbContext,
            _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE * pbPrfOutput,
            _Out_ size_t * pcbPrfOutput);
 
-// sspipreauth.cpp
-
-krb5_error_code _Success_(return == 0)
-SspiPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
-                        _In_opt_z_ PCWSTR PackageName,
-                        _In_opt_z_ PCWSTR KdcHostName,
-                        _In_opt_ PLUID pvLogonID,
-                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                        _Out_ PWSTR *pClientName,
-                        _Out_ LARGE_INTEGER *pExpiryTime,
-                        _Out_ krb5_data *AsRep,
-                        _Out_ krb5_keyblock *AsReplyKey,
-                        _Out_ SECURITY_STATUS *SecStatus);
-
 // surrogate.cpp
 extern "C" {
     LSA_AP_LOGON_USER_EX3 TktBridgeApLogonUserEx3;
@@ -301,7 +302,7 @@ extern "C" {
 }
 
 // tracing.cpp
-krb5_error_code
+_Success_(return == 0) krb5_error_code
 HeimTracingInit(_In_ krb5_context KrbContext);
 
 VOID
