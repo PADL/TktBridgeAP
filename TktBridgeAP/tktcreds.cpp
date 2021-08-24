@@ -35,7 +35,7 @@
 /*
  * Implements a simple credential cache for refreshing TGTs using cached
  * primary credentials of a user. Although the credentials are encrypted,
- * the user can disable this globally by setting the DISABLE_CRED_CACHE
+ * the user can disable this globally by setting the NO_CLEAR_CRED_CACHE
  * flag in the registry.
  */
 
@@ -44,7 +44,6 @@
 #include <iterator>
 
 namespace TktBridgeAP {
-
     static LONGLONG LuidToQuadValue(const LUID &LogonId) {
         LARGE_INTEGER Value;
 
@@ -59,27 +58,41 @@ namespace TktBridgeAP {
     };
 
     class Credentials {
-        PTKTBRIDGEAP_CREDS Value;
+    private:
+        PTKTBRIDGEAP_CREDS m_Creds;
 
     public:
+        Credentials(const Credentials &Creds) : Credentials(Creds.m_Creds) {}
+
         Credentials(PTKTBRIDGEAP_CREDS Creds) {
             ReferenceTktBridgeCreds(Creds);
-            this->Value = Creds;
+            this->m_Creds = Creds;
         }
 
         ~Credentials() {
-            DereferenceTktBridgeCreds(this->Value);
+            DereferenceTktBridgeCreds(this->m_Creds);
         }
 
         PTKTBRIDGEAP_CREDS get() const {
-            return Value;
+            return m_Creds;
+        }
+
+        Credentials &operator=(const Credentials &Creds) {
+            if (this != &Creds) {
+                DereferenceTktBridgeCreds(m_Creds);
+                this->m_Creds = Creds.m_Creds;
+                ReferenceTktBridgeCreds(m_Creds);
+            }
+
+            return *this;
         }
     };
 
     static std::map<const LUID, class Credentials, decltype(CompareLuid)> CredCache;
     static std::mutex CredCacheLock;
-
 }
+
+using namespace TktBridgeAP;
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 FindCredForLogonSession(_In_ const LUID &LogonID,
@@ -89,10 +102,10 @@ FindCredForLogonSession(_In_ const LUID &LogonID,
 
     *pTktBridgeCreds = nullptr;
 
-    TktBridgeAP::CredCacheLock.lock();
+    CredCacheLock.lock();
 
-    auto CacheEntry = TktBridgeAP::CredCache.find(LogonID);
-    if (CacheEntry != TktBridgeAP::CredCache.end()) {
+    auto CacheEntry = CredCache.find(LogonID);
+    if (CacheEntry != CredCache.end()) {
         *pTktBridgeCreds = CacheEntry->second.get();
         ReferenceTktBridgeCreds(*pTktBridgeCreds);
 
@@ -101,7 +114,7 @@ FindCredForLogonSession(_In_ const LUID &LogonID,
         assert((*pTktBridgeCreds)->RefCount > 1);
     }
 
-    TktBridgeAP::CredCacheLock.unlock();
+    CredCacheLock.unlock();
 
     RETURN_NTSTATUS(Status);
 }
@@ -110,11 +123,11 @@ _Success_(return == STATUS_SUCCESS) NTSTATUS
 SaveCredForLogonSession(_In_ const LUID &LogonID,
                         _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
-    TktBridgeAP::CredCacheLock.lock();
-    TktBridgeAP::CredCache.erase(LogonID);
-    TktBridgeAP::CredCache.emplace(LogonID, TktBridgeAP::Credentials(TktBridgeCreds));
+    CredCacheLock.lock();
+    CredCache.erase(LogonID);
+    CredCache.emplace(LogonID, Credentials(TktBridgeCreds));
     assert(TktBridgeCreds->RefCount > 1);
-    TktBridgeAP::CredCacheLock.unlock();
+    CredCacheLock.unlock();
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -122,9 +135,9 @@ SaveCredForLogonSession(_In_ const LUID &LogonID,
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 RemoveCredForLogonSession(_In_ const LUID &LogonID)
 {
-    TktBridgeAP::CredCacheLock.lock();
-    auto Count = TktBridgeAP::CredCache.erase(LogonID);
-    TktBridgeAP::CredCacheLock.unlock();
+    CredCacheLock.lock();
+    auto Count = CredCache.erase(LogonID);
+    CredCacheLock.unlock();
 
     return Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
 }
@@ -132,10 +145,10 @@ RemoveCredForLogonSession(_In_ const LUID &LogonID)
 VOID
 DebugLogonCreds(VOID)
 {
-    TktBridgeAP::CredCacheLock.lock();
+    CredCacheLock.lock();
 
-    for (auto Iterator = TktBridgeAP::CredCache.begin();
-         Iterator != TktBridgeAP::CredCache.end();
+    for (auto Iterator = CredCache.begin();
+         Iterator != CredCache.end();
          Iterator++) {
         auto TktBridgeCreds = Iterator->second.get();
 
@@ -148,7 +161,7 @@ DebugLogonCreds(VOID)
                    TktBridgeCreds->InitialCreds);
     }
 
-    TktBridgeAP::CredCacheLock.unlock();
+    CredCacheLock.unlock();
 }
 
 VOID
@@ -203,5 +216,5 @@ IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds)
     liNow.LowPart = ftNow.dwLowDateTime;
     liNow.HighPart = ftNow.dwHighDateTime;
 
-    return Creds->ExpiryTime.QuadPart < liNow.QuadPart;
+    return Creds->EndTime.QuadPart < liNow.QuadPart;
 }

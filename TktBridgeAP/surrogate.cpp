@@ -293,7 +293,7 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                                            nullptr,
                                            AuthIdentity,
                                            &TktBridgeCreds->InitiatorName,
-                                           &TktBridgeCreds->ExpiryTime,
+                                           &TktBridgeCreds->EndTime,
                                            &TktBridgeCreds->AsRep,
                                            &TktBridgeCreds->AsReplyKey,
                                            &SecStatus);

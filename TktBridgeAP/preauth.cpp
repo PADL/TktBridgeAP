@@ -453,7 +453,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,
-                       _Out_ LARGE_INTEGER *pExpiryTime,
+                       _Out_ LARGE_INTEGER *pEndTime,
                        _Out_ krb5_data *AsRep,
                        _Out_ krb5_keyblock *AsReplyKey,
                        _Out_ SECURITY_STATUS *pSecStatus)
@@ -478,7 +478,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     krb5_data_zero(&AsReq);
 
     *pClientName = nullptr;
-    pExpiryTime->QuadPart = 0;
+    pEndTime->QuadPart = 0;
     krb5_data_zero(AsRep);
     AsReplyKey->keytype = KRB5_ENCTYPE_NULL;
     krb5_data_zero(&AsReplyKey->keyvalue);
@@ -633,7 +633,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to determine Kerberos client name");
 
     auto EndTime = _krb5_init_creds_get_cred_endtime(KrbContext, InitCredsContext);
-    Seconds64Since1970ToTime(EndTime, pExpiryTime);
+    Seconds64Since1970ToTime(EndTime, pEndTime);
 
     KrbError = krb5_init_creds_get_as_reply_key(KrbContext, InitCredsContext, AsReplyKey);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to retrieve reply key");

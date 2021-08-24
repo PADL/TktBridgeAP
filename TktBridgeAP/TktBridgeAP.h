@@ -105,7 +105,7 @@
 typedef struct _TKTBRIDGEAP_CREDS {
     LONG RefCount;
     PWSTR InitiatorName;
-    LARGE_INTEGER ExpiryTime;
+    LARGE_INTEGER EndTime;
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE InitialCreds;
@@ -234,7 +234,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,
-                       _Out_ LARGE_INTEGER *pExpiryTime,
+                       _Out_ LARGE_INTEGER *pEndTime,
                        _Out_ krb5_data *AsRep,
                        _Out_ krb5_keyblock *AsReplyKey,
                        _Out_ SECURITY_STATUS *SecStatus);
