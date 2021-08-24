@@ -397,7 +397,7 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static PSECPKG_SURROGATE_LOGON_ENTRY
+PSECPKG_SURROGATE_LOGON_ENTRY
 FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon)
 {
     if (SurrogateLogon == nullptr)

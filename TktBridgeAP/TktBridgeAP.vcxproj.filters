@@ -74,6 +74,9 @@
     <ClCompile Include="prf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="kerbinterpose.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="TktBridgeAP-trace.rc">

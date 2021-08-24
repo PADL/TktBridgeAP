@@ -180,6 +180,8 @@ SpShutdown(VOID)
 {
     DebugTrace(WINEVENT_LEVEL_INFO, L"TktBridgeAP shutting down");
 
+    DetachKerbLogonInterposer();
+
     RtlFreeSid(SpParameters.DomainSid);
     RtlFreeUnicodeString(&SpParameters.DomainName);
     RtlFreeUnicodeString(&SpParameters.DnsDomainName);
@@ -208,11 +210,11 @@ SpShutdown(VOID)
 static SECPKG_FUNCTION_TABLE
 TktBridgeAPFunctionTable = {
     .InitializePackage = InitializePackage,
-    .LogonTerminated = TktBridgeApLogonTerminated,
+    //.LogonTerminated = TktBridgeApLogonTerminated,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
-    .LogonUserEx3 = TktBridgeApLogonUserEx3,
+    //.LogonUserEx3 = TktBridgeApLogonUserEx3,
     .PreLogonUserSurrogate = PreLogonUserSurrogate,
     .PostLogonUserSurrogate = PostLogonUserSurrogate
 };
@@ -238,7 +240,8 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
     auto Status = RtlGetVersion(&VersionInfo);
     NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to determine OS version");
 
-    if (VersionInfo.dwMajorVersion == 10 && VersionInfo.dwMinorVersion >= 22000)
+    if (VersionInfo.dwMajorVersion == 10 &&
+        (VersionInfo.dwMinorVersion > 0 || VersionInfo.dwBuildNumber >= 22000))
         APFlags |= TKTBRIDGEAP_FLAG_CLOUD_CREDS;
 
     *PackageVersion = SECPKG_INTERFACE_VERSION_10;
@@ -250,6 +253,9 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 
     EventRegisterPADL_TktBridgeAP();
     InitializeRegistryNotification();
+
+    Status = AttachKerbLogonInterposer();
+    NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to attach Kerberos logon interposer");
 
     return STATUS_SUCCESS;
 }

@@ -27,6 +27,9 @@
     <HeimdalSDKDir>$(MSBuildProjectDirectory)\..\..\heimdal\out\sdk</HeimdalSDKDir>
     <HeimdalSDKIncDir>$(HeimdalSDKDir)\inc</HeimdalSDKIncDir>
     <WilIncludeDir>$(MSBuildProjectDirectory)\..\wil\include</WilIncludeDir>
+    <DetoursDir>$(MSBuildProjectDirectory)\..\detours</DetoursDir>
+    <DetoursIncludeDir>$(DetoursDir)\include</DetoursIncludeDir>
+    <DetoursLibraryDir>$(DetoursDir)\lib.$(Platform)</DetoursLibraryDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -105,14 +108,14 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -149,8 +152,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -177,14 +180,14 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -213,7 +216,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -221,8 +224,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalLibraryDirectories>$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -255,6 +258,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="authidentity.cpp" />
+    <ClCompile Include="kerbinterpose.cpp" />
     <ClCompile Include="pacreds.cpp" />
     <ClCompile Include="errors.cpp" />
     <ClCompile Include="helpers.cpp" />

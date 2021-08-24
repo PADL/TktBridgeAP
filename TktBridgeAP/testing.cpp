@@ -133,6 +133,17 @@ TktBridgeAPTestFunction2()
 
     RtlFreeUnicodeString(&bar);
 
+    RTL_OSVERSIONINFOW OsVersion;
+    ZeroMemory(&OsVersion, sizeof(OsVersion));
+
+    Status = RtlGetVersion(&OsVersion);
+    if (NT_SUCCESS(Status)) {
+	DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Major = %d Minor = %d Build = %d",
+		   OsVersion.dwMajorVersion,
+		   OsVersion.dwMinorVersion,
+		   OsVersion.dwBuildNumber);
+ 
+    }
 }
 
 static DWORD

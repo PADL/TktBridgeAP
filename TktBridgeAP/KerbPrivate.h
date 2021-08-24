@@ -124,15 +124,7 @@ typedef struct _KERB_AS_REP_CLOUD_TGT_CREDENTIAL {
     ULONG TgtClientKeyOffset;
     ULONG TgtClientKeySize;
     ULONG TgtKeyType;
-    ULONG CloudTgtMessageOffset;
-    ULONG CloudTgtMessageSize;
-    ULONG CloudTgtClientKeyOffset;
-    ULONG CloudTgtClientKeySize;
-    ULONG CloudTgtKeyType;
-    ULONG KerberosTopLevelNamesOffset;
-    ULONG KerberosTopLevelNamesSize;
-    ULONG KdcProxyNameOffset;
-    ULONG KdcProxyNameSize;
+    ULONG Reserved[9];
 } KERB_AS_REP_CLOUD_TGT_CREDENTIAL;
 
 typedef union _KERB_AS_REP_CREDENTIAL {

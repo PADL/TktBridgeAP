@@ -430,8 +430,13 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
 
     // force TCP
     krb5_sendto_ctx_add_flags(SendToContext, KRB5_KRBHST_FLAGS_LARGE_MSG);
+
+#ifdef KRB5_KRBHST_TKTBRIDGEAP
     // looks for the _kerberos-tkt-bridge DNS SRV name
     krb5_sendto_ctx_set_type(SendToContext, KRB5_KRBHST_TKTBRIDGEAP);
+#else
+#warning Heimdal does not support _kerberos-tkt-bridge DNS SRV name
+#endif
 
     *pSendToContext = SendToContext;
 

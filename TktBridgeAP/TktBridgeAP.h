@@ -110,12 +110,6 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                        _Out_opt_ PLUID pUnlockLogonID);
 
-NTSTATUS _Success_(return == STATUS_SUCCESS)
-RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-                        _Out_writes_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                        _In_ PVOID ClientBufferBase,
-                        _In_ ULONG SubmitBufferSize);
-
 // credcache.cpp
 
 typedef struct _TKTBRIDGEAP_CREDS {
@@ -307,11 +301,14 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
 // surrogate.cpp
 extern "C" {
-    LSA_AP_LOGON_TERMINATED TktBridgeApLogonTerminated;
-    LSA_AP_LOGON_USER_EX3 TktBridgeApLogonUserEx3;
+    //LSA_AP_LOGON_TERMINATED TktBridgeApLogonTerminated;
+    //LSA_AP_LOGON_USER_EX3 TktBridgeApLogonUserEx3;
     LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
     LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
 }
+
+PSECPKG_SURROGATE_LOGON_ENTRY
+FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon);
 
 // tracing.cpp
 _Success_(return == 0) krb5_error_code
@@ -324,6 +321,14 @@ VOID
 DebugSessionKey(_In_z_ PCWSTR Tag,
                 _In_bytecount_(cbKey) PBYTE pbKey,
                 _In_ SIZE_T cbKey);
+
+// kerbinterpose.cpp
+
+_Success_(return == STATUS_SUCCESS)
+NTSTATUS AttachKerbLogonInterposer(VOID);
+
+VOID
+DetachKerbLogonInterposer(VOID);
 
 namespace wil {
 #define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
