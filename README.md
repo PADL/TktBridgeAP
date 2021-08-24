@@ -5,19 +5,36 @@ TktBridgeAP is a Windows Authentication Package (AP) that allows arbitrary Secur
 
 It uses undocumented Windows APIs and is in no way supported by either PADL Software Pty Ltd or Microsoft. Caveat emptor.
 
+You will require a custom GSS-API mechanism / SSP that is supported both by Heimdal and Windows, for example the EAP SSP we developed. TktBridgeAP implements [draft-perez-krb-wg-gss-preauth](https://datatracker.ietf.org/doc/html/draft-perez-krb-wg-gss-preauth) but with some simplifications to the protocol. See [here](https://github.com/heimdal/heimdal/blob/master/lib/gssapi/preauth/README.md) for more information.
+
 Architecture
 ------------
 
-You will require a custom GSS-API mechanism / SSP that is supported both by Heimdal and Windows, for example the PADL Moonshot EAP SSP. TktBridgeAP implements [draft-perez-krb-wg-gss-preauth](https://datatracker.ietf.org/doc/html/draft-perez-krb-wg-gss-preauth) but with some simplifications to the protocol. See [here](https://github.com/heimdal/heimdal/blob/master/lib/gssapi/preauth/README.md) for more information.
+TktBridgeAP uses SSPI to perform a pre-authentication exchange with a Heimdal KDC that shares a secret with Active Directory. Once the user is authenticated, Heimdal issues a ‘partial’ ticket granting ticket (TGT) which passes to the native Windows Kerberos package. In turn, Windows exchanges this with Active Directory for a ticket which can be used to perform user logon.
 
-TktBridgeAP uses SSPI to perform a pre-authentication exchange with a Heimdal KDC that shares a secret with Active Directory. Once the user is authenticated, Heimdal issues a "partial" TGT, and TktBridgeAP passes it to the native Windows Kerberos package which exchanges it for a full TGT containing user authorization data.
+TktBridgeAP is agnostic to the logon credential type and is designed to work with smartcards and custom credential providers, as well as password credentials. It has, however, only been tested with password credentials.
+
+Operation
+---------
+
+When a user logs on to a workstation on which TktBridgeAP is installed, the following happens:
+
+* The AP validates that the logon type is supported, the workstation is joined to a domain, and it has authority to authenticate users in the supplied domain
+* The credential information supplied by the credential provider is repacked into a form suitable for submitting to SSPI
+* The information is used to acquire a SSPI credential handle
+* The AP exchanges as many SSPI tokens as necessary with the bridge KDC in order to authenticate the user and acquire a partial TGT
+* The partial TGT is made available to the native Kerberos security package
+* The native Kerberos security package exchanges the partial ticket for a full one by performing a TGS-REQ to an Active Directory domain controller
+* The user is logged on
 
 KDC configuration
 -----------------
 
-Configure a recent Heimdal master with GSS-API and synthetic principal support. In this example we will use the Kerberos realm KERB.PADL.COM and the RADIUS realm AAA.PADL.COM. Note that the TGS principal is served from a keytab: this is because it needs to share a key with Active Directory, and it is not possible to set a password on a TGS account.
+Configure a recent Heimdal master with GSS-API and synthetic principal support. The Heimdal KDC does not need to contain any principals except for the default ones, and indeed its TGS (krbtgt) entry should be deleted as it will be provided from a keytab.
 
-/etc/krb5.conf:
+In this example we will use the Kerberos realm KERB.PADL.COM and the RADIUS realm AAA.PADL.COM. Note that the TGS principal is served from a keytab: this is because it needs to share a key with Active Directory, and it is not possible to set a password on a TGS account.
+
+Below follows an excerpt of the Kerberos configuration file `/etc/krb5.conf`:
 
 ```
 [libdefaults]
@@ -32,21 +49,23 @@ Configure a recent Heimdal master with GSS-API and synthetic principal support. 
     synthetic_clients_max_renew = 7d
     gss_mechanisms_allowed = eap-aes128 eap-aes256
     database = {
+    krbtgt = {
+	dbname = keytab:/var/heimdal/rodc.keytab
+	realm = KERB.PADL.COM
+    }
 	default = {
 	    dbname = /var/heimdal/heimdal.db
-	    realm = KERB.PADL.COM
-	}
-	krbtgt = {
-	    dbname = keytab:/var/heimdal/rodc.keytab
 	    realm = KERB.PADL.COM
 	}
     }
 ```
 
+If you are using a custom GSS mechanism, be sure to configure `/etc/gss/mech` appropriately so Heimdal can find it. Make sure too that there are no library dependency conflicts between it and the version of Heimdal the KDC is built from.
+
 AD configuration
 ----------------
 
-The Heimdal KDC needs to share a secret with Active Directory. It will appear to Active Directory as a Read Only Domain Controller (RODC). Create the RODC TGS and machine accounts as an administrator using the following LDIF:
+The Heimdal KDC needs to share a secret with Active Directory. It does so by appearing to Active Directory as a Read Only Domain Controller (RODC). Create the RODC TGS and machine accounts as an administrator using the following LDIF:
 
 ```
 dn: CN=krbtgt_TktBridgeAP,CN=Users,DC=kerb,DC=padl,DC=com
@@ -69,16 +88,21 @@ mSDS-RevealOnDemandGroup: CN=Users,CN=Builtin,DC=kerb,DC=padl,DC=COM
 
 Note this enables all users to use GSS pre-authentication: you can restrict this by changing the value of `mSDS-RevalOnDemandGroup` above.
 
-You then need to read back the RODC branch ID from LDAP: it is the integer suffix to the sAMAccountName for the `krbtgt_TktBridgeAP` entry you created above. It is randomly assigned by Active Directory. On my server, it is 30382, so the sAMAccountName is `krbtgt_30382`.
+You then need to read back the RODC branch ID from LDAP by performing a search for `CN=krbtgt_TktBridgeAP` and requesting the `mSDS-SecondaryKrbTgtNumber` attribute. This is an integer ID that is used to distinguish the KDC from other RODCs and the main `krbtgt` account. The ID is randomly assigned by Active Directory. On my test domain controller, it is 30382, so the sAMAccountName is `krbtgt_30382`.
 
-Use `samba-tool` to retrieve the TGS secret from the domain controller, with the following command:
+Use `samba-tool` to retrieve this TGS secret from the domain controller, with the following command:
 
 ```bash
-mkdir /tmp/tktbridgeap
-samba-tool drs clone-dc-database KERB.PADL.COM --include-secrets --targetdir=/tmp/tktbridgeap --server=dc1 -UAdministraotr@KERB.PADL.COM
-samba-tool domain export-keytab /var/heimdal/rodc.keytab --configfile=/tmp/tktbridgeap/smb.conf --principal=krbtgt_30382
-ktutil -k /var/heimdal/rodc.keytab rename krbtgt_30382 krbtgt/KERB.PADL.COM
-rm -rf /tmp/tktbridgeap
+# export TKTBRIDGEAP_REALM=KERB.PADL.COM
+# export TKTBRIDGEAP_BRANCHID=30382
+# export TKTBRIDGEAP_KRBTGT="krbtgt_$TKTBRIDGEAP_BRANCHID"
+# export TKTBRIDGEAP_DC=dc1.kerb.padl.com
+
+# mkdir /tmp/TktBridgeAP
+# samba-tool drs clone-dc-database $TKTBRIDGEAP_REALM --include-secrets --targetdir=/tmp/TktBridgeAP --server=$TKTBRIDGEAP_DC -UAdministrator@$TKTBRIDGEAP_REALM
+# samba-tool domain export-keytab /var/heimdal/rodc.keytab --configfile=/tmp/TktBridgeAP/smb.conf --principal=krbtgt_30382
+# ktutil -k /var/heimdal/rodc.keytab rename $TKTBRIDGEAP_KRBTGT krbtgt/$TKTBRIDGEAP_REALM
+# rm -rf /tmp/TktBridgeAP
 ```
 
 TktBridgeAP configuration
