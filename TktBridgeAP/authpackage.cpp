@@ -209,11 +209,12 @@ SpShutdown(VOID)
 static SECPKG_FUNCTION_TABLE
 TktBridgeAPFunctionTable = {
     .InitializePackage = InitializePackage,
+    .LogonTerminated = LsaApLogonTerminated,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
-    .PreLogonUserSurrogate = PreLogonUserSurrogate,
-    .PostLogonUserSurrogate = PostLogonUserSurrogate
+    .PreLogonUserSurrogate = LsaApPreLogonUserSurrogate,
+    .PostLogonUserSurrogate = LsaApPostLogonUserSurrogate
 };
 
 extern "C"

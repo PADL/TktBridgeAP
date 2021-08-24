@@ -91,7 +91,7 @@
 #define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
-#define TKTBRIDGEAP_FLAG_DISABLE_CACHE          0x00000008
+#define TKTBRIDGEAP_FLAG_DISABLE_CRED_CACHE     0x00000008
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF
 
 #define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000
@@ -102,98 +102,64 @@
 #define TKTBRIDGEAP_PACKAGE_NAME_W              L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W           L"TktBridge Authentication Package"
 
-// authidentity.cpp
+namespace wil {
+#define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
 
+    using unique_cred_handle = unique_struct<SecHandle, decltype(&::FreeCredentialsHandle), ::FreeCredentialsHandle>;
+    using unique_sec_winnt_auth_identity = unique_any<PSEC_WINNT_AUTH_IDENTITY_OPAQUE, decltype(&::SspiFreeAuthIdentity), ::SspiFreeAuthIdentity>;
+//    using unique_lsa_string = unique_any<PLSA_STRING, decltype(&::FreeLsaString), ::FreeLsaString>;
+    using unique_rtl_sid = unique_any<PSID, decltype(&::RtlFreeSid), ::RtlFreeSid>;
+}
+
+/*
+ * authidentity.cpp
+ */
 NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ ULONG SubmitBufferSize,
-                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                       _Out_opt_ PLUID pUnlockLogonID);
+                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE * pAuthIdentity,
+                                       _Out_opt_ PLUID pUnlockLogonId);
 
-// credcache.cpp
+/*
+ * authpackage.cpp
+ */
+extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
+extern PSECPKG_FUNCTION_TABLE KerbFunctionTable;
 
-typedef struct _TKTBRIDGEAP_CREDS {
-    //
-    // Reference count, used by credentials cache. Preauth creds
-    // immutable and cannot be modified by the caller except to
-    // retain or release.
-    //
-    LONG RefCount;
+extern SECPKG_PARAMETERS SpParameters;
+extern ULONG APFlags;
+extern ULONG APLogLevel;
+extern PWSTR APKdcHostName;
+extern PWSTR APRestrictPackage;
+extern PWSTR *APDomainSuffixes;
 
-    //
-    // Client name, as returned by QueryContextAttributes
-    //
-    PWSTR InitiatorName;
+extern "C"
+TKTBRIDGEAP_API NTSTATUS __cdecl
+SpLsaModeInitialize(_In_ ULONG LsaVersion,
+                    _Out_ PULONG PackageVersion,
+                    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
+                    _Out_ PULONG pcTables);
 
-    //
-    // Ticket expiry time
-    //
-    LARGE_INTEGER ExpiryTime;
+/*
+ * credcache.cpp
+ */
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+FindCredForLogonSession(_In_ LUID &LogonId,
+                        _Inout_ wil::unique_sec_winnt_auth_identity &AuthIdentity);
 
-    //
-    // AS-REP received from bridge KDC
-    //
-    krb5_data AsRep;
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+SaveCredForLogonSession(_In_ PLUID LogonId,
+                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity);
 
-    //
-    // Reply-key derived from GSS-API pre-authentication
-    //
-    EncryptionKey AsReplyKey;
-
-    //
-    // TKTBRIDGEAP_CREDS_FLAG_XXX
-    //
-    ULONG Flags;
-
-    //
-    // Domain name from logon request
-    //
-    PCWSTR DomainName;
-
-    //
-    // User name from logon request
-    //
-    PCWSTR UserName;
-
-    //
-    // Originating logon ID
-    //
-    LUID LogonId;
-} TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
-
-#define TKTBRIDGEAP_CREDS_FLAG_CACHED       0x00000001
-
-typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
-
-NTSTATUS
-LocateCachedTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
-                           _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                           _In_opt_ PLUID pvLogonID,
-                           _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
-                           _Out_ PNTSTATUS SubStatus);
-
-NTSTATUS
-CacheAddTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
-                       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                       _In_opt_ PLUID pvLogonID,
-                       _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
-
-NTSTATUS
-CacheRemoveTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
-                          _In_opt_ PLUID pvLogonID,
-                          _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
-
-bool
-IsPreauthCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+RemoveCredForLogonSession(_In_ PLUID LogonId);
 
 VOID
-ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+DebugLogonCreds(VOID);
 
-VOID
-DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
-
-// errors.cpp
-
+/*
+ * errors.cpp
+ */
 #define RETURN_IF_KRB_FAILED(KrbError) do {                             \
     krb5_error_code _krbError = KrbError;                               \
     if (_krbError != 0) {                                               \
@@ -219,7 +185,9 @@ KrbErrorToNtStatus(_In_ krb5_error_code ret,
 krb5_error_code
 SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
 
-// helpers.cpp
+/*
+ * helpers.cpp
+ */
 
 VOID
 Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
@@ -249,38 +217,29 @@ IsLocalHost(_In_ PUNICODE_STRING HostName);
 
 NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
-    _Out_ PCHAR *pszUTF8String);
+                   _Out_ PCHAR *pszUTF8String);
 
 NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
-    _Out_ PWSTR *pwszUnicodeString);
+                   _Out_ PWSTR *pwszUnicodeString);
 
-// authpackage.cpp
+/*
+ * kerbinterpose.cpp
+ */
+_Success_(return == ERROR_SUCCESS)
+DWORD AttachKerbLogonInterposer(VOID);
 
-extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
-extern PSECPKG_FUNCTION_TABLE KerbFunctionTable;
+VOID
+DetachKerbLogonInterposer(VOID);
 
-extern SECPKG_PARAMETERS SpParameters;
-extern ULONG APFlags;
-extern ULONG APLogLevel;
-extern PWSTR APKdcHostName;
-extern PWSTR APRestrictPackage;
-extern PWSTR *APDomainSuffixes;
-
-extern "C"
-TKTBRIDGEAP_API NTSTATUS __cdecl
-SpLsaModeInitialize(_In_ ULONG LsaVersion,
-                    _Out_ PULONG PackageVersion,
-                    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
-                    _Out_ PULONG pcTables);
-
-// preauth.cpp
-
+/*
+ * preauth.cpp
+ */
 krb5_error_code _Success_(return == 0)
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,
-                       _In_opt_ PLUID pvLogonID,
+                       _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,
                        _Out_ LARGE_INTEGER *pExpiryTime,
@@ -288,29 +247,73 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _Out_ krb5_keyblock *AsReplyKey,
                        _Out_ SECURITY_STATUS *SecStatus);
 
-// prf.cpp
-
+/*
+ * prf.cpp
+ */
 _Success_(return == 0) krb5_error_code
 RFC4401PRF(_In_ krb5_context KrbContext,
            _In_ PCtxtHandle phContext,
            _In_ krb5_enctype EncryptionType,
            _In_reads_bytes_(cbPrfInput) const PBYTE pbPrfInput,
            _In_ ULONG cbPrfInput,
-           _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE * pbPrfOutput,
-           _Out_ size_t * pcbPrfOutput);
+           _Outptr_result_bytebuffer_(*pcbPrfOutput) PBYTE *pbPrfOutput,
+           _Out_ size_t *pcbPrfOutput);
 
-// surrogate.cpp
+/*
+ * surrogate.cpp
+ */
 extern "C" {
-    //LSA_AP_LOGON_TERMINATED TktBridgeApLogonTerminated;
-    //LSA_AP_LOGON_USER_EX3 TktBridgeApLogonUserEx3;
-    LSA_AP_PRE_LOGON_USER_SURROGATE PreLogonUserSurrogate;
-    LSA_AP_POST_LOGON_USER_SURROGATE PostLogonUserSurrogate;
+    LSA_AP_LOGON_TERMINATED LsaApLogonTerminated;
+    LSA_AP_PRE_LOGON_USER_SURROGATE LsaApPreLogonUserSurrogate;
+    LSA_AP_POST_LOGON_USER_SURROGATE LsaApPostLogonUserSurrogate;
 }
 
 PSECPKG_SURROGATE_LOGON_ENTRY
 FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon);
 
-// tracing.cpp
+/*
+ * tktcreds.cpp
+ */
+typedef struct _TKTBRIDGEAP_CREDS {
+    /*
+     * Reference count, used by credentials cache. Preauth creds
+     * immutable and cannot be modified by the caller except to
+     * retain or release.
+     */
+    LONG RefCount;
+
+    /*
+     * Client name, as returned by QueryContextAttributes
+     */
+    PWSTR InitiatorName;
+
+    /*
+     * Ticket expiry time
+     */
+    LARGE_INTEGER ExpiryTime;
+
+    /*
+     * AS-REP received from bridge KDC
+     */
+    krb5_data AsRep;
+
+    /*
+     * Reply-key derived from GSS-API pre-authentication
+     */
+    EncryptionKey AsReplyKey;
+} TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
+
+typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
+
+VOID
+ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+
+VOID
+DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+
+/*
+ * tracing.cpp
+ */
 _Success_(return == 0) krb5_error_code
 HeimTracingInit(_In_ krb5_context KrbContext);
 
@@ -322,19 +325,3 @@ DebugSessionKey(_In_z_ PCWSTR Tag,
                 _In_bytecount_(cbKey) PBYTE pbKey,
                 _In_ SIZE_T cbKey);
 
-// kerbinterpose.cpp
-
-_Success_(return == ERROR_SUCCESS)
-DWORD AttachKerbLogonInterposer(VOID);
-
-VOID
-DetachKerbLogonInterposer(VOID);
-
-namespace wil {
-#define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
-
-    using unique_cred_handle = unique_struct<SecHandle, decltype(&::FreeCredentialsHandle), ::FreeCredentialsHandle>;
-
-    using unique_lsa_string = unique_any<PLSA_STRING, decltype(&::FreeLsaString), ::FreeLsaString>;
-    using unique_rtl_sid = unique_any<PSID, decltype(&::RtlFreeSid), ::RtlFreeSid>;
-}

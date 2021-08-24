@@ -124,8 +124,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
     DWORD dwResult, dwType = REG_SZ;
     DWORD dwValue = 0, dwSize = 0;
     PWSTR wMultiSzValue = nullptr;
-    DWORD cValues;
-
+ 
     auto cleanup = wil::scope_exit([&] {
         WIL_FreeMemory(wMultiSzValue);
                                    });
@@ -147,7 +146,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
 
     PWSTR pwCurrentMultiSzValue;
     DWORD iValue;
-    size_t cchCurrentValue;
+    size_t cchCurrentValue, cValues;
 
     for (cValues = 0, pwCurrentMultiSzValue = wMultiSzValue;
          *pwCurrentMultiSzValue != L'\0';

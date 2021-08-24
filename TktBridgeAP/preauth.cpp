@@ -450,7 +450,7 @@ krb5_error_code _Success_(return == 0)
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,
-                       _In_opt_ PLUID pvLogonID,
+                       _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,
                        _Out_ LARGE_INTEGER *pExpiryTime,
@@ -543,7 +543,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     SecStatus = AcquireCredentialsHandle(nullptr, // pszPrincipal
                                          const_cast<PWSTR>(PackageName),
                                          SECPKG_CRED_AUTOLOGON_RESTRICTED | SECPKG_CRED_OUTBOUND,
-                                         pvLogonID,
+                                         pvLogonId,
                                          AuthIdentity,
                                          nullptr,
                                          nullptr,
@@ -558,8 +558,8 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"AcquireCredentialsHandle(%s, <%08x.%08x>, %s@%s): %08x",
                PackageName,
-               pvLogonID == nullptr ? 0 : pvLogonID->LowPart,
-               pvLogonID == nullptr ? 0 : pvLogonID->HighPart,
+               pvLogonId == nullptr ? 0 : pvLogonId->LowPart,
+               pvLogonId == nullptr ? 0 : pvLogonId->HighPart,
                wszUserName, wszDomainName, SecStatus);
 
     SspiLocalFree((PVOID)wszUserName);

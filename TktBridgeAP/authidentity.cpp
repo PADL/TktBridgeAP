@@ -569,27 +569,27 @@ static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ ULONG SubmitBufferSize,
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                          _Out_opt_ PLUID pUnlockLogonID)
+                                          _Out_opt_ PLUID pUnlockLogonId)
 {
     KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(KERB_LOGON_SUBMIT_TYPE *)ProtocolSubmitBuffer;
     NTSTATUS Status;
 
-    if (pUnlockLogonID != nullptr) {
+    if (pUnlockLogonId != nullptr) {
         bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
 
-        pUnlockLogonID->LowPart = 0;
-        pUnlockLogonID->HighPart = 0;
+        pUnlockLogonId->LowPart = 0;
+        pUnlockLogonId->HighPart = 0;
 
         if (IsWowClient) {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_INTERACTIVE_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
             else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonID = ((PKERB_SMART_CARD_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_SMART_CARD_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
         } else {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
             else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonID = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
         }
     }
 
@@ -613,15 +613,15 @@ NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ ULONG SubmitBufferSize,
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                       _Out_opt_ PLUID pUnlockLogonID)
+                                       _Out_opt_ PLUID pUnlockLogonId)
 {
     NTSTATUS Status;
 
     *pAuthIdentity = nullptr;
 
-    if (pUnlockLogonID != nullptr) {
-        pUnlockLogonID->LowPart = 0;
-        pUnlockLogonID->HighPart = 0;
+    if (pUnlockLogonId != nullptr) {
+        pUnlockLogonId->LowPart = 0;
+        pUnlockLogonId->HighPart = 0;
     }
 
     if (SubmitBufferSize < sizeof(KERB_LOGON_SUBMIT_TYPE))
@@ -645,7 +645,7 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
         Status = ConvertAuthenticationBufferToAuthIdentity(ProtocolSubmitBuffer,
                                                            SubmitBufferSize,
                                                            pAuthIdentity,
-                                                           pUnlockLogonID);
+                                                           pUnlockLogonId);
         break;
     default:
         Status = STATUS_SUCCESS;
