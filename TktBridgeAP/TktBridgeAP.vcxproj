@@ -251,7 +251,6 @@ nmake
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="authidentity.cpp" />
-    <ClCompile Include="credcache.cpp" />
     <ClCompile Include="kerbinterpose.cpp" />
     <ClCompile Include="tktcreds.cpp" />
     <ClCompile Include="errors.cpp" />

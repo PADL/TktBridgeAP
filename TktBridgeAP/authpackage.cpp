@@ -224,13 +224,13 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
                     _Out_ PULONG pcTables)
 {
+    RTL_OSVERSIONINFOW VersionInfo;
+
     if (LsaVersion != SECPKG_INTERFACE_VERSION) {
         DebugTrace(WINEVENT_LEVEL_ERROR,
             L"SpLsaModeInitialize: unsupported SPM interface version %08x", LsaVersion);
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
     }
-
-    RTL_OSVERSIONINFOW VersionInfo;
 
     ZeroMemory(&VersionInfo, sizeof(VersionInfo));
     VersionInfo.dwOSVersionInfoSize = sizeof(VersionInfo);

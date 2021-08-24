@@ -91,7 +91,7 @@
 #define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
-#define TKTBRIDGEAP_FLAG_DISABLE_CRED_CACHE     0x00000008
+#define TKTBRIDGEAP_FLAG_NO_CLEAR_CRED_CACHE    0x00000008
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF
 
 #define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000
@@ -102,12 +102,21 @@
 #define TKTBRIDGEAP_PACKAGE_NAME_W              L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W           L"TktBridge Authentication Package"
 
+typedef struct _TKTBRIDGEAP_CREDS {
+    LONG RefCount;
+    PWSTR InitiatorName;
+    LARGE_INTEGER ExpiryTime;
+    krb5_data AsRep;
+    EncryptionKey AsReplyKey;
+    PSEC_WINNT_AUTH_IDENTITY_OPAQUE InitialCreds;
+} TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
+
+typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
 namespace wil {
 #define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
 
     using unique_cred_handle = unique_struct<SecHandle, decltype(&::FreeCredentialsHandle), ::FreeCredentialsHandle>;
     using unique_sec_winnt_auth_identity = unique_any<PSEC_WINNT_AUTH_IDENTITY_OPAQUE, decltype(&::SspiFreeAuthIdentity), ::SspiFreeAuthIdentity>;
-//    using unique_lsa_string = unique_any<PLSA_STRING, decltype(&::FreeLsaString), ::FreeLsaString>;
     using unique_rtl_sid = unique_any<PSID, decltype(&::RtlFreeSid), ::RtlFreeSid>;
 }
 
@@ -139,23 +148,6 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PULONG PackageVersion,
                     _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
                     _Out_ PULONG pcTables);
-
-/*
- * credcache.cpp
- */
-_Success_(return == STATUS_SUCCESS) NTSTATUS
-FindCredForLogonSession(_In_ LUID &LogonId,
-                        _Inout_ wil::unique_sec_winnt_auth_identity &AuthIdentity);
-
-_Success_(return == STATUS_SUCCESS) NTSTATUS
-SaveCredForLogonSession(_In_ PLUID LogonId,
-                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity);
-
-_Success_(return == STATUS_SUCCESS) NTSTATUS
-RemoveCredForLogonSession(_In_ PLUID LogonId);
-
-VOID
-DebugLogonCreds(VOID);
 
 /*
  * errors.cpp
@@ -274,42 +266,28 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon);
 /*
  * tktcreds.cpp
  */
-typedef struct _TKTBRIDGEAP_CREDS {
-    /*
-     * Reference count, used by credentials cache. Preauth creds
-     * immutable and cannot be modified by the caller except to
-     * retain or release.
-     */
-    LONG RefCount;
-
-    /*
-     * Client name, as returned by QueryContextAttributes
-     */
-    PWSTR InitiatorName;
-
-    /*
-     * Ticket expiry time
-     */
-    LARGE_INTEGER ExpiryTime;
-
-    /*
-     * AS-REP received from bridge KDC
-     */
-    krb5_data AsRep;
-
-    /*
-     * Reply-key derived from GSS-API pre-authentication
-     */
-    EncryptionKey AsReplyKey;
-} TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
-
-typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
-
 VOID
 ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
 DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+
+bool
+IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
+
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+FindCredForLogonSession(_In_ const LUID &LogonId,
+                        _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds);
+
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+SaveCredForLogonSession(_In_ const LUID &LogonId,
+                        _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds);
+
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+RemoveCredForLogonSession(_In_ const LUID &LogonId);
+
+VOID
+DebugLogonCreds(VOID);
 
 /*
  * tracing.cpp

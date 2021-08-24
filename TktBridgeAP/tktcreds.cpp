@@ -32,6 +32,120 @@
 
 #include "TktBridgeAP.h"
 
+/*
+ * Implements a simple credential cache for refreshing TGTs using cached
+ * primary credentials of a user. Although the credentials are encrypted,
+ * the user can disable this globally by setting the DISABLE_CRED_CACHE
+ * flag in the registry.
+ */
+
+#include <map>
+#include <mutex>
+#include <iterator>
+
+namespace TktBridgeAP {
+
+    static LONGLONG LuidToQuadValue(const LUID &LogonId) {
+        LARGE_INTEGER Value;
+
+        Value.HighPart = LogonId.HighPart;
+        Value.LowPart = LogonId.LowPart;
+
+        return Value.QuadPart;
+    };
+
+    static auto CompareLuid = [](const LUID &A, const LUID &B) {
+        return LuidToQuadValue(A) < LuidToQuadValue(B);
+    };
+
+    class Credentials {
+        PTKTBRIDGEAP_CREDS Value;
+
+    public:
+        Credentials(PTKTBRIDGEAP_CREDS Creds) {
+            ReferenceTktBridgeCreds(Creds);
+            this->Value = Creds;
+        }
+
+        ~Credentials() {
+            DereferenceTktBridgeCreds(this->Value);
+        }
+
+        PTKTBRIDGEAP_CREDS get() const {
+            return Value;
+        }
+    };
+
+    static std::map<const LUID, class Credentials, decltype(CompareLuid)> CredCache;
+    static std::mutex CredCacheLock;
+
+}
+
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+FindCredForLogonSession(_In_ const LUID &LogonID,
+                        _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
+{
+    NTSTATUS Status = STATUS_NO_SUCH_LOGON_SESSION;
+
+    *pTktBridgeCreds = nullptr;
+
+    TktBridgeAP::CredCacheLock.lock();
+
+    auto CacheEntry = TktBridgeAP::CredCache.find(LogonID);
+    if (CacheEntry != TktBridgeAP::CredCache.end()) {
+        *pTktBridgeCreds = CacheEntry->second.get();
+        ReferenceTktBridgeCreds(*pTktBridgeCreds);
+    }
+
+    TktBridgeAP::CredCacheLock.unlock();
+
+    RETURN_NTSTATUS(Status);
+}
+
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+SaveCredForLogonSession(_In_ const LUID &LogonID,
+                        _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
+{
+    TktBridgeAP::CredCacheLock.lock();
+    TktBridgeAP::CredCache.erase(LogonID);
+    TktBridgeAP::CredCache.emplace(LogonID, TktBridgeAP::Credentials(TktBridgeCreds));
+    TktBridgeAP::CredCacheLock.unlock();
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+_Success_(return == STATUS_SUCCESS) NTSTATUS
+RemoveCredForLogonSession(_In_ const LUID &LogonID)
+{
+    TktBridgeAP::CredCacheLock.lock();
+    auto Count = TktBridgeAP::CredCache.erase(LogonID);
+    TktBridgeAP::CredCacheLock.unlock();
+
+    return Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
+}
+
+VOID
+DebugLogonCreds(VOID)
+{
+    TktBridgeAP::CredCacheLock.lock();
+
+    for (auto Iterator = TktBridgeAP::CredCache.begin();
+         Iterator != TktBridgeAP::CredCache.end();
+         Iterator++) {
+        auto TktBridgeCreds = Iterator->second.get();
+
+        DebugTrace(WINEVENT_LEVEL_VERBOSE,
+                   L"Credential cache entry: Logon Session %08x.%08x Initiator Name %s Expired %d Initial Creds %p",
+                   Iterator->first.LowPart,
+                   Iterator->first.HighPart,
+                   TktBridgeCreds->InitiatorName,
+                   IsTktBridgeCredsExpired(TktBridgeCreds),
+                   TktBridgeCreds->InitialCreds);
+    }
+
+    TktBridgeAP::CredCacheLock.unlock();
+}
+
 VOID
 ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
@@ -67,12 +181,14 @@ DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
         krb5_free_keyblock_contents(nullptr, &Creds->AsReplyKey);
     }
 
+    SspiFreeAuthIdentity(Creds->InitialCreds);
+
     ZeroMemory(Creds, sizeof(*Creds));
     WIL_FreeMemory(Creds);
 }
 
 bool
-IsPreauthCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds)
+IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     FILETIME ftNow;
     LARGE_INTEGER liNow;

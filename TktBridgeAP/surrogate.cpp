@@ -32,11 +32,10 @@
 
 #include "TktBridgeAP.h"
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
-GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                  _In_ PLUID LogonId,
-                  _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
-                  _Out_ PNTSTATUS SubStatus);
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+MaybeRefreshTktBridgeCreds(const LUID &LogonId,
+                           PTKTBRIDGEAP_CREDS *pTktBridgeCreds);
+
 
 /*
  * Callback function called from Kerberos package that passes TktBridgeAP-
@@ -48,12 +47,11 @@ static NTSTATUS NTAPI
 RetrieveTktBridgeCreds(LUID LogonId,
                        PVOID PackageData,
                        ULONG Flags,
-                       PKERB_AS_REP_CREDENTIAL * pKerbAsRepCred)
+                       PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
-    auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)PackageData;
+    PTKTBRIDGEAP_CREDS TktBridgeCreds = (PTKTBRIDGEAP_CREDS)PackageData;
     ULONG cbKerbAsRepCred;
-    NTSTATUS Status, SubStatus;
-    wil::unique_sec_winnt_auth_identity AuthIdentity;
+    NTSTATUS Status;
 
     auto cleanup = wil::scope_exit([&]() {
         DereferenceTktBridgeCreds(TktBridgeCreds);
@@ -61,14 +59,11 @@ RetrieveTktBridgeCreds(LUID LogonId,
 
     if (TktBridgeCreds != nullptr) {
         ReferenceTktBridgeCreds(TktBridgeCreds);
-    } else if (APFlags & TKTBRIDGEAP_FLAG_DISABLE_CRED_CACHE) {
-        RETURN_NTSTATUS(STATUS_NO_SUCH_LOGON_SESSION);
     } else {
-        Status = FindCredForLogonSession(LogonId, AuthIdentity);
+        Status = FindCredForLogonSession(LogonId, &TktBridgeCreds);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = GetTktBridgeCreds(AuthIdentity.get(), &LogonId,
-                                   &TktBridgeCreds, &SubStatus);
+        Status = MaybeRefreshTktBridgeCreds(LogonId, &TktBridgeCreds);
         RETURN_IF_NTSTATUS_FAILED(Status);
     }
 
@@ -260,7 +255,7 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
 GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                  _In_ PLUID LogonId,
+                  _In_ const LUID &LogonId,
                   _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
                   _Out_ PNTSTATUS SubStatus)
 {
@@ -309,6 +304,14 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 
         ReferenceTktBridgeCreds(TktBridgeCreds);
         *pTktBridgeCreds = TktBridgeCreds;
+
+        if ((APFlags & TKTBRIDGEAP_FLAG_NO_CLEAR_CRED_CACHE) == 0) {
+            Status = SspiCopyAuthIdentity(AuthIdentity, &TktBridgeCreds->InitialCreds);
+            RETURN_IF_NTSTATUS_FAILED(Status);
+
+            Status = SspiEncryptAuthIdentity(TktBridgeCreds->InitialCreds);
+            RETURN_IF_NTSTATUS_FAILED(Status);
+        }
     } else {
         if (SecStatus == SEC_E_NO_CREDENTIALS ||
             SecStatus == SEC_E_UNKNOWN_CREDENTIALS)
@@ -401,7 +404,7 @@ LsaApPreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
     Status = GetTktBridgeCreds(AuthIdentity,
-                               &SurrogateLogon->SurrogateLogonID,
+                               SurrogateLogon->SurrogateLogonID,
                                &TktBridgeCreds,
                                SubStatus);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -437,12 +440,12 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon)
 
 NTSTATUS
 LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-                           _In_ SECURITY_LOGON_TYPE LogonType,
-                           _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                           _In_ PVOID ClientBufferBase,
-                           _In_ ULONG SubmitBufferSize,
-                           _In_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-                           _In_reads_bytes_(ProfileBufferSize) PVOID ProfileBuffer,
+                            _In_ SECURITY_LOGON_TYPE LogonType,
+                            _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                            _In_ PVOID ClientBufferBase,
+                            _In_ ULONG SubmitBufferSize,
+                            _In_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+                            _In_reads_bytes_(ProfileBufferSize) PVOID ProfileBuffer,
                             _In_ ULONG ProfileBufferSize,
                             _In_ PLUID LogonId,
                             _In_ NTSTATUS Status,
@@ -462,19 +465,8 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)SurrogateEntry->Data;
     auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
  
-    if (NT_SUCCESS(Status) && NT_SUCCESS(SubStatus)) {
-        PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
-        LUID UnlockLogonId;
-
-        if ((APFlags & TKTBRIDGEAP_FLAG_DISABLE_CRED_CACHE) == 0 &&
-             NT_SUCCESS(ConvertLogonSubmitBufferToAuthIdentity(ProtocolSubmitBuffer,
-                                                              SubmitBufferSize,
-                                                              &AuthIdentity,
-                                                              &UnlockLogonId))) {
-            SaveCredForLogonSession(LogonId, AuthIdentity);
-            SspiFreeAuthIdentity(AuthIdentity);
-        }
-    }
+    if (NT_SUCCESS(Status) && LogonId != nullptr)
+        SaveCredForLogonSession(*LogonId, TktBridgeCreds);
 
     DereferenceTktBridgeCreds(TktBridgeCreds);
     SurrogateLogonData->PackageData = nullptr;
@@ -485,9 +477,48 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 VOID
 LsaApLogonTerminated(_In_ PLUID LogonId)
 {
+    if (LogonId == nullptr)
+        return;
+
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"LsaApLogonTerminated: LUID %08x.%08x.",
                LogonId->LowPart, LogonId->HighPart);
 
-    RemoveCredForLogonSession(LogonId);
+    RemoveCredForLogonSession(*LogonId);
+}
+
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+MaybeRefreshTktBridgeCreds(const LUID & LogonId,
+                           PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
+{
+    auto TktBridgeCreds = *pTktBridgeCreds;
+    NTSTATUS Status, SubStatus;
+    PTKTBRIDGEAP_CREDS RefreshedCreds;
+    PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
+
+    auto cleanup = wil::scope_exit([&]() {
+        SspiFreeAuthIdentity(AuthIdentity);
+                                   });
+
+    if (!IsTktBridgeCredsExpired(TktBridgeCreds))
+        RETURN_NTSTATUS(STATUS_SUCCESS);
+
+    if (TktBridgeCreds->InitialCreds == nullptr)
+        RETURN_NTSTATUS(STATUS_NO_LOGON_SERVERS);
+
+    Status = SspiCopyAuthIdentity(TktBridgeCreds->InitialCreds, &AuthIdentity);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    Status = SspiDecryptAuthIdentity(AuthIdentity);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    Status = GetTktBridgeCreds(AuthIdentity, LogonId, &RefreshedCreds, &SubStatus);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    SaveCredForLogonSession(LogonId, RefreshedCreds);
+
+    DereferenceTktBridgeCreds(*pTktBridgeCreds);
+    *pTktBridgeCreds = RefreshedCreds;
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
