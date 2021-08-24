@@ -219,13 +219,13 @@ GssPreauthStep(krb5_context KrbContext,
     InputBufferDesc.pBuffers = InputBuffers;
 
     if (InputToken != nullptr && InputToken->length != 0) {
-        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA for package %s, using target %s", Mech->Package, TargetName);
-
         PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
 
         pSecBuffer->BufferType = SECBUFFER_TOKEN;
         pSecBuffer->cbBuffer = (ULONG)InputToken->length;
         pSecBuffer->pvBuffer = InputToken->data;
+    } else {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA for package %s, using target %s", Mech->Package, TargetName);
     }
 
     KrbError = MakeChannelBindings(KrbContext, EncAsReq, &ChannelBindings);
@@ -430,8 +430,13 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
 
     // force TCP
     krb5_sendto_ctx_add_flags(SendToContext, KRB5_KRBHST_FLAGS_LARGE_MSG);
+
+#ifdef KRB5_KRBHST_TKTBRIDGEAP
     // looks for the _kerberos-tkt-bridge DNS SRV name
     krb5_sendto_ctx_set_type(SendToContext, KRB5_KRBHST_TKTBRIDGEAP);
+#else
+#warning Heimdal does not support _kerberos-tkt-bridge DNS SRV name
+#endif
 
     *pSendToContext = SendToContext;
 
@@ -445,10 +450,10 @@ krb5_error_code _Success_(return == 0)
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,
-                       _In_opt_ PLUID pvLogonID,
+                       _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,
-                       _Out_ LARGE_INTEGER *pExpiryTime,
+                       _Out_ LARGE_INTEGER *pEndTime,
                        _Out_ krb5_data *AsRep,
                        _Out_ krb5_keyblock *AsReplyKey,
                        _Out_ SECURITY_STATUS *pSecStatus)
@@ -473,7 +478,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     krb5_data_zero(&AsReq);
 
     *pClientName = nullptr;
-    pExpiryTime->QuadPart = 0;
+    pEndTime->QuadPart = 0;
     krb5_data_zero(AsRep);
     AsReplyKey->keytype = KRB5_ENCTYPE_NULL;
     krb5_data_zero(&AsReplyKey->keyvalue);
@@ -538,7 +543,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     SecStatus = AcquireCredentialsHandle(nullptr, // pszPrincipal
                                          const_cast<PWSTR>(PackageName),
                                          SECPKG_CRED_AUTOLOGON_RESTRICTED | SECPKG_CRED_OUTBOUND,
-                                         pvLogonID,
+                                         pvLogonId,
                                          AuthIdentity,
                                          nullptr,
                                          nullptr,
@@ -553,8 +558,8 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"AcquireCredentialsHandle(%s, <%08x.%08x>, %s@%s): %08x",
                PackageName,
-               pvLogonID == nullptr ? 0 : pvLogonID->LowPart,
-               pvLogonID == nullptr ? 0 : pvLogonID->HighPart,
+               pvLogonId == nullptr ? 0 : pvLogonId->LowPart,
+               pvLogonId == nullptr ? 0 : pvLogonId->HighPart,
                wszUserName, wszDomainName, SecStatus);
 
     SspiLocalFree((PVOID)wszUserName);
@@ -628,7 +633,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to determine Kerberos client name");
 
     auto EndTime = _krb5_init_creds_get_cred_endtime(KrbContext, InitCredsContext);
-    Seconds64Since1970ToTime(EndTime, pExpiryTime);
+    Seconds64Since1970ToTime(EndTime, pEndTime);
 
     KrbError = krb5_init_creds_get_as_reply_key(KrbContext, InitCredsContext, AsReplyKey);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to retrieve reply key");

@@ -277,9 +277,11 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
         RETURN_IF_NTSTATUS_FAILED(Status);
     }
 
+    /*
+     * Canonicalize into user and domain components as we need to filter
+     * the domain name to determine whether to attempt surrogate logon.
+     */
     if (wszDomainName == nullptr || wszDomainName[0] == L'\0') {
-        // canonicalize into user and domain components as we need to filter
-        // the domain before getting credentials
         wszUpnSuffix = wcschr(wszUserName, L'@');
         if (wszUpnSuffix != nullptr) {
             *wszUpnSuffix = L'\0';
@@ -567,27 +569,27 @@ static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ ULONG SubmitBufferSize,
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                          _Out_opt_ PLUID pUnlockLogonID)
+                                          _Out_opt_ PLUID pUnlockLogonId)
 {
     KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(KERB_LOGON_SUBMIT_TYPE *)ProtocolSubmitBuffer;
     NTSTATUS Status;
 
-    if (pUnlockLogonID != nullptr) {
+    if (pUnlockLogonId != nullptr) {
         bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
 
-        pUnlockLogonID->LowPart = 0;
-        pUnlockLogonID->HighPart = 0;
+        pUnlockLogonId->LowPart = 0;
+        pUnlockLogonId->HighPart = 0;
 
         if (IsWowClient) {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_INTERACTIVE_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
             else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonID = ((PKERB_SMART_CARD_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_SMART_CARD_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
         } else {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonID = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
             else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonID = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
         }
     }
 
@@ -611,15 +613,15 @@ NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ ULONG SubmitBufferSize,
                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
-                                       _Out_opt_ PLUID pUnlockLogonID)
+                                       _Out_opt_ PLUID pUnlockLogonId)
 {
     NTSTATUS Status;
 
     *pAuthIdentity = nullptr;
 
-    if (pUnlockLogonID != nullptr) {
-        pUnlockLogonID->LowPart = 0;
-        pUnlockLogonID->HighPart = 0;
+    if (pUnlockLogonId != nullptr) {
+        pUnlockLogonId->LowPart = 0;
+        pUnlockLogonId->HighPart = 0;
     }
 
     if (SubmitBufferSize < sizeof(KERB_LOGON_SUBMIT_TYPE))
@@ -643,50 +645,12 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
         Status = ConvertAuthenticationBufferToAuthIdentity(ProtocolSubmitBuffer,
                                                            SubmitBufferSize,
                                                            pAuthIdentity,
-                                                           pUnlockLogonID);
+                                                           pUnlockLogonId);
         break;
     default:
-        Status = STATUS_SUCCESS; // don't raise error, but *pAuthIdentity is null
+        Status = STATUS_SUCCESS;
         break;
     }
 
     RETURN_NTSTATUS(Status);
-}
-
-//
-// A massive kludge to "retype" the input credential into a FIDO credential,
-// so that the Kerberos package will honor the surrogate credential.
-//
-NTSTATUS _Success_(return == STATUS_SUCCESS)
-RetypeLogonSubmitBuffer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-                        _Out_writes_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                        _In_ PVOID ClientBufferBase,
-                        _In_ ULONG SubmitBufferSize)
-{
-    struct _FIDO_AUTH_IDENTITY {
-        SEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentity;
-        SEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCreds;
-    } FidoAuthIdentity;
-
-    ZeroMemory(&FidoAuthIdentity, sizeof(FidoAuthIdentity));
-
-    FidoAuthIdentity.AuthIdentity.Version                 = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
-    FidoAuthIdentity.AuthIdentity.cbHeaderLength          = sizeof(FidoAuthIdentity.AuthIdentity);
-    FidoAuthIdentity.AuthIdentity.cbStructureLength       = sizeof(FidoAuthIdentity);
-    FidoAuthIdentity.AuthIdentity.PackedCredentialsOffset = offsetof(struct _FIDO_AUTH_IDENTITY, PackedCreds);
-    FidoAuthIdentity.AuthIdentity.PackedCredentialsLength = sizeof(FidoAuthIdentity.PackedCreds);
-    FidoAuthIdentity.AuthIdentity.Flags                   = SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
-
-    FidoAuthIdentity.PackedCreds.cbHeaderLength           = sizeof(FidoAuthIdentity.PackedCreds);
-    FidoAuthIdentity.PackedCreds.cbStructureLength        = sizeof(FidoAuthIdentity.PackedCreds);
-    FidoAuthIdentity.PackedCreds.AuthData.CredType        = SEC_WINNT_AUTH_DATA_TYPE_FIDO;
-
-    // this imposes a lower limit on user/domain name length but unlikely
-    // to be a problem in practice
-    if (SubmitBufferSize < sizeof(FidoAuthIdentity))
-        RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
-
-    memcpy(ProtocolSubmitBuffer, &FidoAuthIdentity, sizeof(FidoAuthIdentity));
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
