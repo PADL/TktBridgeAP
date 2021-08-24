@@ -153,7 +153,7 @@ DebugLogonCreds(VOID)
         auto TktBridgeCreds = Iterator->second.get();
 
         DebugTrace(WINEVENT_LEVEL_VERBOSE,
-                   L"Credential cache entry: Logon Session %08x.%08x Initiator Name %s Expired %d Initial Creds %p",
+                   L"Credential cache entry: Logon Session %08x.%08x InitiatorName %s IsExpired %d InitialCreds %p",
                    Iterator->first.LowPart,
                    Iterator->first.HighPart,
                    TktBridgeCreds->InitiatorName,

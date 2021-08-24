@@ -101,7 +101,7 @@ RegistryGetStringValueForKey(_In_ HKEY hKey,
     if (dwResult != ERROR_SUCCESS || dwType != REG_SZ)
         return nullptr;
 
-    wszValue = (PWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
+    wszValue = static_cast<PWSTR>(WIL_AllocateMemory(dwSize + sizeof(WCHAR)));
     if (wszValue == nullptr)
         return nullptr;
 
@@ -133,7 +133,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
     if (dwResult != ERROR_SUCCESS || dwType != REG_MULTI_SZ)
         return nullptr;
 
-    wMultiSzValue = (PWSTR)WIL_AllocateMemory(dwSize + sizeof(WCHAR));
+    wMultiSzValue = static_cast<PWSTR>(WIL_AllocateMemory(dwSize + sizeof(WCHAR)));
     if (wMultiSzValue == nullptr)
         return nullptr;
 
@@ -153,7 +153,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
          pwCurrentMultiSzValue += wcslen(pwCurrentMultiSzValue) + 1)
         cValues++;
 
-    auto wszValues = (PWSTR *)WIL_AllocateMemory((cValues + 1) * sizeof(PWSTR));
+    auto wszValues = static_cast<PWSTR *>(WIL_AllocateMemory((cValues + 1) * sizeof(PWSTR)));
     if (wszValues == nullptr)
         return nullptr;
 
@@ -162,7 +162,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
          pwCurrentMultiSzValue += (cchCurrentValue = wcslen(pwCurrentMultiSzValue) + 1)) {
         size_t cbCurrentValue = cchCurrentValue * sizeof(WCHAR);
 
-        wszValues[iValue] = (PWSTR)WIL_AllocateMemory(cbCurrentValue);
+        wszValues[iValue] = static_cast<PWSTR>(WIL_AllocateMemory(cbCurrentValue));
         if (wszValues[iValue] == nullptr)
             break; // FIXME
 
@@ -174,6 +174,7 @@ RegistryGetStringValuesForKey(_In_ HKEY hKey,
 
     return wszValues;
 }
+
 NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
                    _Out_ PCHAR *pszUTF8String)
@@ -191,7 +192,7 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     Status = RtlUnicodeToUTF8N(nullptr, 0, &cbUTF8String, wszUnicodeString, ulcbUnicodeString);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    *pszUTF8String = (PCHAR)WIL_AllocateMemory(cbUTF8String);
+    *pszUTF8String = static_cast<PCHAR>(WIL_AllocateMemory(cbUTF8String));
     RETURN_NTSTATUS_IF_NULL_ALLOC(*pszUTF8String);
 
     Status = RtlUnicodeToUTF8N(*pszUTF8String, cbUTF8String, &cbUTF8String,
@@ -218,7 +219,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     Status = RtlUTF8ToUnicodeN(nullptr, 0, &cbUnicodeString, szUTF8String, ulcbUTF8String);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    *pwszUnicodeString = (PWSTR)WIL_AllocateMemory(cbUnicodeString);
+    *pwszUnicodeString = static_cast<PWSTR>(WIL_AllocateMemory(cbUnicodeString));
     RETURN_NTSTATUS_IF_NULL_ALLOC(*pwszUnicodeString);
 
     Status = RtlUTF8ToUnicodeN(*pwszUnicodeString, cbUnicodeString, &cbUnicodeString,

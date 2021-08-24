@@ -129,7 +129,7 @@ DebugSessionKey(_In_z_ PCWSTR Tag,
                 _In_ SIZE_T cbKey)
 {
 #ifndef NDEBUG
-    char *sKey = (char *)WIL_AllocateMemory((2 * cbKey) + 1);
+    PSTR sKey = static_cast<PSTR>(WIL_AllocateMemory((2 * cbKey) + 1));
     if (sKey == nullptr)
         return;
 

@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2021, PADL Software Pty Ltd.
  * All rights reserved.
@@ -81,13 +82,14 @@ RetrieveTktBridgeCreds(LUID LogonId,
         (ULONG)TktBridgeCreds->AsRep.length +
         (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
 
-    auto KerbAsRepCredU = (PKERB_AS_REP_CREDENTIAL)LsaSpFunctionTable->AllocateLsaHeap(cbKerbAsRepCred);
+    auto KerbAsRepCredU = static_cast<PKERB_AS_REP_CREDENTIAL>(LsaSpFunctionTable->AllocateLsaHeap(cbKerbAsRepCred));
     RETURN_NTSTATUS_IF_NULL_ALLOC(KerbAsRepCredU);
 
     ZeroMemory(KerbAsRepCredU, sizeof(*KerbAsRepCredU));
 
     if (APFlags & TKTBRIDGEAP_FLAG_CLOUD_CREDS) {
         auto KerbAsRepCred = &KerbAsRepCredU->CloudTgtCredential;
+        auto KerbAsRepCredBase = reinterpret_cast<PBYTE>(KerbAsRepCred);
 
         KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
@@ -96,15 +98,16 @@ RetrieveTktBridgeCreds(LUID LogonId,
         KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
         KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
-        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
+        memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtMessageOffset,
                TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
-        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+        memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtClientKeyOffset,
                TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
 
-        LsaSpFunctionTable->LsaUnprotectMemory((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+        LsaSpFunctionTable->LsaUnprotectMemory(KerbAsRepCredBase + KerbAsRepCred->TgtClientKeyOffset,
                                                KerbAsRepCred->TgtClientKeySize);
     } else {
         auto KerbAsRepCred = &KerbAsRepCredU->TgtCredential;
+        auto KerbAsRepCredBase = reinterpret_cast<PBYTE>(KerbAsRepCred);
 
         KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
@@ -113,12 +116,12 @@ RetrieveTktBridgeCreds(LUID LogonId,
         KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
         KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
-        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
+        memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtMessageOffset,
                TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
-        memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+        memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtClientKeyOffset,
                TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
 
-        LsaSpFunctionTable->LsaUnprotectMemory((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtClientKeyOffset,
+        LsaSpFunctionTable->LsaUnprotectMemory(KerbAsRepCredBase + KerbAsRepCred->TgtClientKeyOffset,
                                                KerbAsRepCred->TgtClientKeySize);
     }
 
@@ -151,7 +154,7 @@ ValidateSurrogateLogonType(_In_ SECURITY_LOGON_TYPE LogonType)
     if (LogonType < UndefinedLogonType || LogonType > CachedUnlock)
         return false;
 
-    PCWSTR wszLogonType = LogonTypeMap[LogonType];
+    auto wszLogonType = LogonTypeMap[LogonType];
 
     if ((SpParameters.MachineState & (SECPKG_STATE_DOMAIN_CONTROLLER |
                                       SECPKG_STATE_WORKSTATION)) == 0 ||
@@ -273,7 +276,7 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
         DereferenceTktBridgeCreds(TktBridgeCreds);
         RtlFreeUnicodeString(&RealmName);
                                    });
-    TktBridgeCreds = (PTKTBRIDGEAP_CREDS)WIL_AllocateMemory(sizeof(*TktBridgeCreds));
+    TktBridgeCreds = static_cast<PTKTBRIDGEAP_CREDS>(WIL_AllocateMemory(sizeof(*TktBridgeCreds)));
     RETURN_NTSTATUS_IF_NULL_ALLOC(TktBridgeCreds);
 
     ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
@@ -331,9 +334,9 @@ static NTSTATUS _Success_(return == STATUS_SUCCESS)
 AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
                        _Inout_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
-    auto Entries = (PSECPKG_SURROGATE_LOGON_ENTRY)
-        LsaSpFunctionTable->AllocateLsaHeap((SurrogateLogon->EntryCount + 1) *
-                                            sizeof(SECPKG_SURROGATE_LOGON_ENTRY));
+    auto Entries = static_cast<PSECPKG_SURROGATE_LOGON_ENTRY>
+        (LsaSpFunctionTable->AllocateLsaHeap((SurrogateLogon->EntryCount + 1) *
+                                             sizeof(SECPKG_SURROGATE_LOGON_ENTRY)));
     RETURN_NTSTATUS_IF_NULL_ALLOC(Entries);
 
     if (SurrogateLogon->Entries != nullptr) {
@@ -345,8 +348,8 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
 
     auto Entry = &SurrogateLogon->Entries[SurrogateLogon->EntryCount];
 
-    auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)
-        LsaSpFunctionTable->AllocateLsaHeap(sizeof(KERB_SURROGATE_LOGON_DATA));
+    auto SurrogateLogonData = static_cast<PKERB_SURROGATE_LOGON_DATA>
+        (LsaSpFunctionTable->AllocateLsaHeap(sizeof(KERB_SURROGATE_LOGON_DATA)));
     ZeroMemory(SurrogateLogonData, sizeof(*SurrogateLogonData));
 
     ReferenceTktBridgeCreds(TktBridgeCreds);
@@ -477,8 +480,7 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 VOID
 LsaApLogonTerminated(_In_ PLUID LogonId)
 {
-    if (LogonId == nullptr)
-        return;
+    assert(LogonId != nullptr);
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"LsaApLogonTerminated: LUID %08x.%08x.",
@@ -488,7 +490,7 @@ LsaApLogonTerminated(_In_ PLUID LogonId)
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-MaybeRefreshTktBridgeCreds(const LUID & LogonId,
+MaybeRefreshTktBridgeCreds(const LUID &LogonId,
                            PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
 {
     auto TktBridgeCreds = *pTktBridgeCreds;

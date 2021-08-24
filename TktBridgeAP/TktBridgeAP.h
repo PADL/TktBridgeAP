@@ -102,27 +102,32 @@
 #define TKTBRIDGEAP_PACKAGE_NAME_W              L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W           L"TktBridge Authentication Package"
 
+/*
+ * Ticket Bridge credential structure: an AS-REP containing a TGT,
+ * optionally with the initial credentials used to acquire it.
+ */
+
 typedef struct _TKTBRIDGEAP_CREDS {
     LONG RefCount;
     PWSTR InitiatorName;
-    LARGE_INTEGER EndTime;
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
+    LARGE_INTEGER EndTime;
+    LARGE_INTEGER RenewTill;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE InitialCreds;
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
-typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
-namespace wil {
-#define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
+/*
+ * WIL helpers
+ */
 
-    using unique_cred_handle = unique_struct<SecHandle, decltype(&::FreeCredentialsHandle), ::FreeCredentialsHandle>;
-    using unique_sec_winnt_auth_identity = unique_any<PSEC_WINNT_AUTH_IDENTITY_OPAQUE, decltype(&::SspiFreeAuthIdentity), ::SspiFreeAuthIdentity>;
-    using unique_rtl_sid = unique_any<PSID, decltype(&::RtlFreeSid), ::RtlFreeSid>;
-}
+#define RETURN_NTSTATUS_IF_NULL_ALLOC(ptr) __WI_SUPPRESS_4127_S do \
+    { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
 
 /*
  * authidentity.cpp
  */
+
 NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ ULONG SubmitBufferSize,
@@ -132,8 +137,8 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID 
 /*
  * authpackage.cpp
  */
+
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
-extern PSECPKG_FUNCTION_TABLE KerbFunctionTable;
 
 extern SECPKG_PARAMETERS SpParameters;
 extern ULONG APFlags;
@@ -142,16 +147,10 @@ extern PWSTR APKdcHostName;
 extern PWSTR APRestrictPackage;
 extern PWSTR *APDomainSuffixes;
 
-extern "C"
-TKTBRIDGEAP_API NTSTATUS __cdecl
-SpLsaModeInitialize(_In_ ULONG LsaVersion,
-                    _Out_ PULONG PackageVersion,
-                    _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
-                    _Out_ PULONG pcTables);
-
 /*
  * errors.cpp
  */
+
 #define RETURN_IF_KRB_FAILED(KrbError) do {                             \
     krb5_error_code _krbError = KrbError;                               \
     if (_krbError != 0) {                                               \
@@ -188,12 +187,6 @@ Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
 ULONG
 GetCallAttributes(VOID);
 
-VOID
-FreeLsaString(_Inout_ PLSA_STRING pLsaString);
-
-NTSTATUS
-DuplicateLsaString(_In_ PLSA_STRING Src, _Out_ PLSA_STRING *Dst);
-
 DWORD
 RegistryGetDWordValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
 
@@ -218,6 +211,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
 /*
  * kerbinterpose.cpp
  */
+
 _Success_(return == ERROR_SUCCESS)
 DWORD AttachKerbLogonInterposer(VOID);
 
@@ -227,6 +221,7 @@ DetachKerbLogonInterposer(VOID);
 /*
  * preauth.cpp
  */
+
 krb5_error_code _Success_(return == 0)
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
@@ -242,6 +237,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 /*
  * prf.cpp
  */
+
 _Success_(return == 0) krb5_error_code
 RFC4401PRF(_In_ krb5_context KrbContext,
            _In_ PCtxtHandle phContext,
@@ -254,6 +250,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 /*
  * surrogate.cpp
  */
+
 extern "C" {
     LSA_AP_LOGON_TERMINATED LsaApLogonTerminated;
     LSA_AP_PRE_LOGON_USER_SURROGATE LsaApPreLogonUserSurrogate;
@@ -266,6 +263,7 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon);
 /*
  * tktcreds.cpp
  */
+
 VOID
 ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
@@ -292,6 +290,7 @@ DebugLogonCreds(VOID);
 /*
  * tracing.cpp
  */
+
 _Success_(return == 0) krb5_error_code
 HeimTracingInit(_In_ krb5_context KrbContext);
 

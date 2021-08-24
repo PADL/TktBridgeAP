@@ -42,7 +42,6 @@ RFC4401PRF(_In_ krb5_context KrbContext,
            _Out_ size_t *pcbPrfOutput)
 {
     krb5_error_code KrbError;
-    SIZE_T cbDesiredOutput;
     SECURITY_STATUS SecStatus;
     SecPkgContext_SessionKey SessionKey = {
         .SessionKeyLength = 0,
@@ -52,10 +51,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         .sSignatureAlgorithmName = nullptr,
         .sEncryptAlgorithmName = nullptr
     };
-    krb5_keyblock key;
     krb5_data Input;
     krb5_crypto KrbCrypto = nullptr;
-    size_t KeySize;
 
     krb5_data_zero(&Input);
 
@@ -94,11 +91,14 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         return KrbError;
     }
 
-    key.keytype         = KeyInfo.EncryptAlgorithm;
-    key.keyvalue.data   = SessionKey.SessionKey;
-    key.keyvalue.length = SessionKey.SessionKeyLength;
+    krb5_keyblock Key;
+    size_t KeySize;
 
-    KrbError = krb5_crypto_init(KrbContext, &key, KRB5_ENCTYPE_NULL, &KrbCrypto);
+    Key.keytype         = KeyInfo.EncryptAlgorithm;
+    Key.keyvalue.data   = SessionKey.SessionKey;
+    Key.keyvalue.length = SessionKey.SessionKeyLength;
+
+    KrbError = krb5_crypto_init(KrbContext, &Key, KRB5_ENCTYPE_NULL, &KrbCrypto);
     RETURN_IF_KRB_FAILED(KrbError);
 
     KrbError = krb5_enctype_keysize(KrbContext, EncryptionType, &KeySize);
@@ -107,7 +107,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     if (KeySize == 0)
         return KRB5_BAD_KEYSIZE;
 
-    *pbPrfOutput = (PBYTE)WIL_AllocateMemory(KeySize);
+    *pbPrfOutput = static_cast<PBYTE>(WIL_AllocateMemory(KeySize));
     if (*pbPrfOutput == nullptr) {
         KrbError = krb5_enomem(KrbContext);
         return KrbError;
@@ -125,9 +125,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     memcpy((PBYTE)Input.data + 4, pbPrfInput, cbPrfInput);
 
     ULONG iPrf = 0;
-    PBYTE pbPrf = (PBYTE)*pbPrfOutput;
-
-    cbDesiredOutput = *pcbPrfOutput;
+    auto pbPrf = (PBYTE)*pbPrfOutput;
+    auto cbDesiredOutput = *pcbPrfOutput;
 
     while (cbDesiredOutput > 0) {
         SIZE_T cbPrf;

@@ -38,9 +38,9 @@
 extern "C" {
 #endif
 
-//
-// WOW64 (32-bit) client support
-//
+/*
+ * WOW64 (32-bit) client support
+ */
 
 typedef struct _KERB_UNICODE_STRING32 {
     USHORT Length;
@@ -75,10 +75,10 @@ typedef struct _KERB_SMART_CARD_UNLOCK_LOGON32 {
     LUID LogonId;
 } KERB_SMART_CARD_UNLOCK_LOGON32, *PKERB_SMART_CARD_UNLOCK_LOGON32;
 
-//
-// Smartcard logon
-// https://docs.microsoft.com/en-us/windows/win32/secauthn/kerb-smartcard-csp-info
-//
+/*
+ * Smartcard logon
+ * https://docs.microsoft.com/en-us/windows/win32/secauthn/kerb-smartcard-csp-info
+ */
 
 #pragma pack(push, 2)
 typedef struct _KERB_SMARTCARD_CSP_INFO {
@@ -98,9 +98,9 @@ typedef struct _KERB_SMARTCARD_CSP_INFO {
 } KERB_SMARTCARD_CSP_INFO, *PKERB_SMARTCARD_CSP_INFO;
 #pragma pack(pop)
 
-//
-// Surrogate AS-REP logon
-//
+/*
+ * Partial ticket / AS-REP callback credentials
+ */
 
 typedef struct _KERB_AS_REP_TGT_CREDENTIAL {
     ULONG Type;

@@ -129,14 +129,15 @@ MakeChannelBindings(_In_ krb5_context KrbContext,
 
     *pChannelBindings = nullptr;
 
-    ChannelBindings = (PSEC_CHANNEL_BINDINGS)WIL_AllocateMemory(sizeof(*ChannelBindings) + EncAsReq->length);
+    ChannelBindings = static_cast<PSEC_CHANNEL_BINDINGS>
+        (WIL_AllocateMemory(sizeof(*ChannelBindings) + EncAsReq->length));
     if (ChannelBindings == nullptr) {
         return krb5_enomem(KrbContext);
     }
 
     ChannelBindings->cbApplicationDataLength = (ULONG)EncAsReq->length;
     ChannelBindings->dwApplicationDataOffset = sizeof(*ChannelBindings);
-    memcpy((PBYTE)ChannelBindings + ChannelBindings->dwApplicationDataOffset,
+    memcpy(reinterpret_cast<PBYTE>(ChannelBindings) + ChannelBindings->dwApplicationDataOffset,
            EncAsReq->data, EncAsReq->length);
 
     *pChannelBindings = ChannelBindings;
@@ -275,7 +276,7 @@ GssPreauthStep(krb5_context KrbContext,
     }
 
     if (*GssContextHandle == nullptr) {
-        *GssContextHandle = (gss_ctx_id_t)WIL_AllocateMemory(sizeof(gss_ctx_id_t_desc_struct));
+        *GssContextHandle = static_cast<gss_ctx_id_t>(WIL_AllocateMemory(sizeof(gss_ctx_id_t_desc_struct)));
         if (*GssContextHandle == nullptr) {
             DeleteSecurityContext(&OutputContextHandle); // don't orphan it
             return krb5_enomem(KrbContext);

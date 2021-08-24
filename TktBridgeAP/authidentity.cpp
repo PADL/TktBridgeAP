@@ -41,8 +41,8 @@ UnpackUnicodeString(_In_ PVOID ProtocolSubmitBuffer,
     DestinationString->MaximumLength = SourceString->MaximumLength;
 
     if (SourceString->Buffer != nullptr)
-        DestinationString->Buffer = (PWSTR)((PBYTE)ProtocolSubmitBuffer +
-                                            (ULONG_PTR)SourceString->Buffer);
+        DestinationString->Buffer = reinterpret_cast<PWSTR>
+            ((static_cast<PBYTE>(ProtocolSubmitBuffer) + (ULONG_PTR)SourceString->Buffer));
     else
         DestinationString->Buffer = nullptr;
 }
@@ -56,8 +56,8 @@ UnpackUnicodeString32(_In_ PVOID ProtocolSubmitBuffer,
     DestinationString->MaximumLength = SourceString->MaximumLength;
 
     if (SourceString->Buffer != 0)
-        DestinationString->Buffer = (PWSTR)((PBYTE)ProtocolSubmitBuffer +
-                                            SourceString->Buffer);
+        DestinationString->Buffer = reinterpret_cast<PWSTR>
+            ((static_cast<PBYTE>(ProtocolSubmitBuffer) + SourceString->Buffer));
     else
         DestinationString->Buffer = nullptr;
 }
@@ -183,7 +183,7 @@ UnprotectString(_In_z_ PWSTR wszProtected,
     else if (cchUnprotected == 0)
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-    *pwszUnprotected = (PWSTR)WIL_AllocateMemory(cchUnprotected * sizeof(WCHAR));
+    *pwszUnprotected = static_cast<PWSTR>(WIL_AllocateMemory(cchUnprotected * sizeof(WCHAR)));
     RETURN_NTSTATUS_IF_NULL_ALLOC(*pwszUnprotected);
 
     if (!CredUnprotect(FALSE, wszProtected, (DWORD)cchProtected,
@@ -392,7 +392,7 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
     RETURN_IF_WIN32_BOOL_FALSE(CryptGetKeyParam(hUserKey, KP_CERTIFICATE, nullptr,
                                                 &cbCertificate, 0));
 
-    pbCertificate = (PBYTE)WIL_AllocateMemory(cbCertificate);
+    pbCertificate = static_cast<PBYTE>(WIL_AllocateMemory(cbCertificate));
     RETURN_NTSTATUS_IF_NULL_ALLOC(pbCertificate);
 
     RETURN_IF_WIN32_BOOL_FALSE(CryptGetKeyParam(hUserKey, KP_CERTIFICATE, pbCertificate,
@@ -460,7 +460,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
         Status = ValidateOffset(SubmitBufferSize, pKSCL32->CspData, pKSCL32->CspDataLength);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ConvertCspDataToCertificateCredential((PBYTE)pKSCL32 + pKSCL32->CspData,
+        Status = ConvertCspDataToCertificateCredential(reinterpret_cast<PBYTE>(pKSCL32) + pKSCL32->CspData,
                                                        pKSCL32->CspDataLength,
                                                        &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);
@@ -482,7 +482,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
                                 pKSCL->CspDataLength);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
-        Status = ConvertCspDataToCertificateCredential((PBYTE)pKSCL + (ULONG_PTR)pKSCL->CspData,
+        Status = ConvertCspDataToCertificateCredential(reinterpret_cast<PBYTE>(pKSCL) + (ULONG_PTR)pKSCL->CspData,
                                                        pKSCL->CspDataLength,
                                                        &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);

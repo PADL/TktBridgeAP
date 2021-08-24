@@ -34,6 +34,10 @@
 
 PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
 
+/*
+ * Globals
+ */
+
 SECPKG_PARAMETERS SpParameters;
 ULONG APFlags = 0;
 ULONG APLogLevel = 0;
@@ -51,10 +55,10 @@ extern "C" {
 static NTSTATUS
 InitializeRegistryNotification(VOID);
 
-static ULONG LsaAuthenticationPackageId = SECPKG_ID_NONE;
+static ULONG_PTR LsaAuthenticationPackageId = SECPKG_ID_NONE;
 static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
 
-VOID
+static VOID
 FreeLsaString(_Inout_ PLSA_STRING pLsaString)
 {
     if (pLsaString != nullptr) {
@@ -63,7 +67,7 @@ FreeLsaString(_Inout_ PLSA_STRING pLsaString)
     }
 }
 
-NTSTATUS
+static NTSTATUS
 DuplicateLsaString(_In_ PLSA_STRING SourceString,
                    _Out_ PLSA_STRING *pDestinationString)
 {
@@ -77,10 +81,10 @@ DuplicateLsaString(_In_ PLSA_STRING SourceString,
         FreeLsaString(DestinationString);
                                    });
 
-    DestinationString = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
+    DestinationString = static_cast<PLSA_STRING>(LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING)));
     RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString);
 
-    DestinationString->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength);
+    DestinationString->Buffer = static_cast<PCHAR>(LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength));
     RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString->Buffer);
 
     RtlCopyMemory(DestinationString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
@@ -101,12 +105,12 @@ InitializePackage(_In_ ULONG AuthenticationPackageId,
                   _In_opt_ PLSA_STRING Confidentiality,
                   _Out_ PLSA_STRING *AuthenticationPackageName)
 {
+    NTSTATUS Status;
+    LSA_STRING APName;
+
     LsaAuthenticationPackageId = AuthenticationPackageId;
     LsaDispatchTable = DispatchTable;
     *AuthenticationPackageName = nullptr;
-
-    LSA_STRING APName;
-    NTSTATUS Status;
 
     APName.MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
     APName.Length = APName.MaximumLength - sizeof(CHAR);
@@ -130,9 +134,10 @@ SpInitialize(_In_ ULONG_PTR PackageId,
     assert(Parameters != nullptr);
     assert(FunctionTable != nullptr);
 
+    LsaAuthenticationPackageId = PackageId;
     LsaSpFunctionTable = FunctionTable;
 
-    RtlZeroMemory(&SpParameters, sizeof(SpParameters));
+    ZeroMemory(&SpParameters, sizeof(SpParameters));
 
     SpParameters.Version      = Parameters->Version;
     SpParameters.MachineState = Parameters->MachineState;
@@ -184,7 +189,7 @@ SpShutdown(VOID)
     RtlFreeSid(SpParameters.DomainSid);
     RtlFreeUnicodeString(&SpParameters.DomainName);
     RtlFreeUnicodeString(&SpParameters.DnsDomainName);
-    RtlZeroMemory(&SpParameters, sizeof(SpParameters));
+    ZeroMemory(&SpParameters, sizeof(SpParameters));
 
     APFlags = 0;
     APLogLevel = 0;
@@ -261,7 +266,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 static NTSTATUS NTAPI
 SpGetInfo(_Out_ PSecPkgInfo PackageInfo)
 {
-    RtlZeroMemory(PackageInfo, sizeof(*PackageInfo));
+    ZeroMemory(PackageInfo, sizeof(*PackageInfo));
 
     PackageInfo->fCapabilities  = SECPKG_FLAG_ACCEPT_WIN32_NAME | SECPKG_FLAG_LOGON;
     PackageInfo->wVersion       = TKTBRIDGEAP_PACKAGE_VERSION;
