@@ -1,38 +1,40 @@
 TktBridgeAP
 ===========
 
-TktBridgeAP is a Windows Authentication Package (AP) that allows arbitrary Security Support Providers (SSPs) to be used to acquire Kerberos tickets.
+TktBridgeAP is a Windows Authentication Package (AP) that allows arbitrary Security Support Providers (SSPs) to be used to acquire Kerberos ticket granting tickets (TGTs).
 
 It uses undocumented Windows APIs and is in no way supported by either PADL Software Pty Ltd or Microsoft. Caveat emptor.
 
-You will require a custom GSS-API mechanism / SSP that is supported both by Heimdal and Windows, for example the EAP SSP we developed. TktBridgeAP implements [draft-perez-krb-wg-gss-preauth](https://datatracker.ietf.org/doc/html/draft-perez-krb-wg-gss-preauth) but with some simplifications to the protocol. See [here](https://github.com/heimdal/heimdal/blob/master/lib/gssapi/preauth/README.md) for more information.
+You will require a GSS-API mechanism and SSP that is supported respectively by Heimdal and Windows, for example the EAP SSP developed by PADL and Painless Security. TktBridgeAP implements [draft-perez-krb-wg-gss-preauth](https://datatracker.ietf.org/doc/html/draft-perez-krb-wg-gss-preauth) but with some simplifications to the protocol. See [here](https://github.com/heimdal/heimdal/blob/master/lib/gssapi/preauth/README.md) for more information.
+
+TktBridgeAP was developed PADL Software, who may be contacted at <dev@padl.com>.
 
 Architecture
 ------------
 
-TktBridgeAP uses SSPI to perform a pre-authentication exchange with a Heimdal KDC that shares a secret with Active Directory. Once the user is authenticated, Heimdal issues a ‘partial’ ticket granting ticket (TGT) which passes to the native Windows Kerberos package. In turn, Windows exchanges this with Active Directory for a ticket which can be used to perform user logon.
+TktBridgeAP uses the Security Support Provider Interface (SSPI) to perform a pre-authentication exchange with a Heimdal KDC that shares a secret with Active Directory. Once the user is (pre-)authenticated to the KDC, Heimdal issues a ‘partial’ TGT which the authentication package passes to the native Windows Kerberos package. In turn, Windows exchanges this TGT for a full TGT which can be used to perform user logon. This exchanging of tickets is similar to how Azure Active Directory implements [FIDO authentication](https://docs.microsoft.com/en-us/azure/active-directory/authentication/howto-authentication-passwordless-security-key-on-premises).
 
-TktBridgeAP is agnostic to the logon credential type and is designed to work with smartcards and custom credential providers, as well as password credentials. It has, however, only been tested with password credentials.
+TktBridgeAP is agnostic to the underlying credential type and is designed to work with smartcards and custom credential providers, as well as password credentials. It has, however, only been tested with the latter.
 
 Operation
 ---------
 
-When a user logs on to a workstation on which TktBridgeAP is installed, the following happens:
+When a user logs on to a workstation on which TktBridgeAP is installed, the following occurs:
 
 * The AP validates that the logon type is supported, the workstation is joined to a domain, and it has authority to authenticate users in the supplied domain
-* The credential information supplied by the credential provider is repacked into a form suitable for submitting to SSPI
-* The information is used to acquire a SSPI credential handle
-* The AP exchanges as many SSPI tokens as necessary with the bridge KDC in order to authenticate the user and acquire a partial TGT
+* The credential information supplied by the caller is repacked into a form suitable for using with SSPI
+* In turn, this is used to acquire a SSPI credentials handle
+* Using SSPI, The AP exchanges as many tokens as necessary with the bridge KDC in order to authenticate the user and acquire a partial TGT
 * The partial TGT is made available to the native Kerberos security package
-* The native Kerberos security package exchanges the partial ticket for a full one by performing a TGS-REQ to an Active Directory domain controller
-* The user is logged on
+* The native Kerberos security package recognizes the presence of the partial ticket, and exchanges it for a full one rather than attempting to use the user’s primary credentials
+* The full ticket is used to log the user on
 
 KDC configuration
 -----------------
 
-Configure a recent Heimdal master with GSS-API and synthetic principal support. The Heimdal KDC does not need to contain any principals except for the default ones, and indeed its TGS (krbtgt) entry should be deleted as it will be provided from a keytab.
+A very recent Heimdal (from master) is required in order to support GSS-API pre-authentication. Synthetic principal support is also required to avoid needing to provision individual principals on the KDC. The Heimdal KDC does not need to contain any principals except for the default ones, and indeed its TGS (krbtgt) entry should be deleted as it will be provided from a keytab.
 
-In this example we will use the Kerberos realm KERB.PADL.COM and the RADIUS realm AAA.PADL.COM. Note that the TGS principal is served from a keytab: this is because it needs to share a key with Active Directory, and it is not possible to set a password on a TGS account.
+In this example we will use the Kerberos realm KERB.PADL.COM. Note that the TGS principal is served from a keytab: this is because it this key is shared with Active Directory, and it is not possible to set a password on a TGS account (nor to import a keytab easily into a Heimdal HDB).
 
 Below follows an excerpt of the Kerberos configuration file `/etc/krb5.conf`:
 
@@ -65,7 +67,7 @@ If you are using a custom GSS mechanism, be sure to configure `/etc/gss/mech` ap
 AD configuration
 ----------------
 
-The Heimdal KDC needs to share a secret with Active Directory. It does so by appearing to Active Directory as a Read Only Domain Controller (RODC). Create the RODC TGS and machine accounts as an administrator using the following LDIF:
+The Heimdal KDC will appear to Active Directory as a Read Only Domain Controller (RODC), even though it does not implement any domain controller functionality. Use `ldapadd` to create the RODC TGS and machine accounts as an administrator per the following:
 
 ```
 dn: CN=krbtgt_TktBridgeAP,CN=Users,DC=kerb,DC=padl,DC=com
@@ -86,7 +88,7 @@ mSDS-KrbTgtLink: CN=krbtgt_TktBridgeAP,CN=Users,DC=kerb,DC=padl,DC=com
 mSDS-RevealOnDemandGroup: CN=Users,CN=Builtin,DC=kerb,DC=padl,DC=COM
 ```
 
-Note this enables all users to use GSS pre-authentication: you can restrict this by changing the value of `mSDS-RevalOnDemandGroup` above.
+This example enables all users to use GSS pre-authentication: you can restrict this by changing the value of `mSDS-RevealOnDemandGroup` above.
 
 You then need to read back the RODC branch ID from LDAP by performing a search for `CN=krbtgt_TktBridgeAP` and requesting the `mSDS-SecondaryKrbTgtNumber` attribute. This is an integer ID that is used to distinguish the KDC from other RODCs and the main `krbtgt` account. The ID is randomly assigned by Active Directory. On my test domain controller, it is 30382, so the sAMAccountName is `krbtgt_30382`.
 
@@ -95,28 +97,38 @@ Use `samba-tool` to retrieve this TGS secret from the domain controller, with th
 ```bash
 # export TKTBRIDGEAP_REALM=KERB.PADL.COM
 # export TKTBRIDGEAP_BRANCHID=30382
-# export TKTBRIDGEAP_KRBTGT="krbtgt_$TKTBRIDGEAP_BRANCHID"
 # export TKTBRIDGEAP_DC=dc1.kerb.padl.com
 
 # mkdir /tmp/TktBridgeAP
 # samba-tool drs clone-dc-database $TKTBRIDGEAP_REALM --include-secrets --targetdir=/tmp/TktBridgeAP --server=$TKTBRIDGEAP_DC -UAdministrator@$TKTBRIDGEAP_REALM
-# samba-tool domain export-keytab /var/heimdal/rodc.keytab --configfile=/tmp/TktBridgeAP/smb.conf --principal=krbtgt_30382
-# ktutil -k /var/heimdal/rodc.keytab rename $TKTBRIDGEAP_KRBTGT krbtgt/$TKTBRIDGEAP_REALM
+# samba-tool domain export-keytab /var/heimdal/rodc.keytab --configfile=/tmp/TktBridgeAP/smb.conf --principal=krbtgt_$TKTBRIDGEAP_BRANCHID
+# ktutil -k /var/heimdal/rodc.keytab rename "krbtgt_$TKTBRIDGEAP_BRANCHID" "krbtgt/$TKTBRIDGEAP_REALM"
 # rm -rf /tmp/TktBridgeAP
 ```
+
+Note that `samba-tool` is only used to provision the KDC keytab: you do not need to keep the cloned DC database, nor configure Samba as a domain controller.
 
 TktBridgeAP configuration
 -------------------------
 
-TktBridgeAP should be added to the Security Packages key in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa`.
+TktBridgeAP should be added to the Security Packages key in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` and the workstation rebooted.
 
 You should set the `CloudKerberosTicketRetrievalEnabled` integer value to 1 in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters`.
 
 To configure TktBridgeAP itself, set the `KdcHostName` string value in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa\TktBridgeAP` to the hostname of the Heimdal KDC you configured above. If none is specified, then the `_kerberos-tkt-bridge` DNS SRV record will be queried for the primary DNS domain.
 
-By default TktBridgeAP will use SPNEGO/NegoEx to authenticate to the KDC. You can force a single package with the `RestrictPackage` key.
+By default TktBridgeAP will use SPNEGO/NegoEx to authenticate to the KDC. (All versions of Heimdal that support GSS pre-authentication also support NegoEx.) You can force a single package with the `RestrictPackage` key.
 
-To avoid locking out domain users, TktBridgeAP by default will not attempt GSS pre-authentication for any Active Directory domains (including trusted domains). If you wish to positively associate a set of realms, it cna be done with the `DomainSuffixes` registry key. This key is authoritative and will override any checks for matching Active Directory domains.
+To avoid locking out domain users, TktBridgeAP by default will not attempt GSS pre-authentication where the logging in domain matches an Active Directory domain (as opposed to UPN suffix). If you wish to positively associate a set of realms, it can be done with the `DomainSuffixes` registry key. This key is authoritative.
+
+If you have a debug build of TktBridgeAP, make sure the debug Visual C++ libraries are copied to the Windows system directory, specifically:
+
+* `msvcp140d.dll`
+* `vcruntime140d.dll`
+* `vcruntime140_1d.dll`
+* `ucrtbased.dll`
+
+TktBridgeAP relies on the Heimdal client library assembly that should be installed by recent versions of EapSSP.
 
 User configuration
 ------------------
