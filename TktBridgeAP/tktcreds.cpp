@@ -95,6 +95,10 @@ FindCredForLogonSession(_In_ const LUID &LogonID,
     if (CacheEntry != TktBridgeAP::CredCache.end()) {
         *pTktBridgeCreds = CacheEntry->second.get();
         ReferenceTktBridgeCreds(*pTktBridgeCreds);
+
+        Status = STATUS_SUCCESS;
+
+        assert((*pTktBridgeCreds)->RefCount > 1);
     }
 
     TktBridgeAP::CredCacheLock.unlock();
@@ -109,6 +113,7 @@ SaveCredForLogonSession(_In_ const LUID &LogonID,
     TktBridgeAP::CredCacheLock.lock();
     TktBridgeAP::CredCache.erase(LogonID);
     TktBridgeAP::CredCache.emplace(LogonID, TktBridgeAP::Credentials(TktBridgeCreds));
+    assert(TktBridgeCreds->RefCount > 1);
     TktBridgeAP::CredCacheLock.unlock();
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

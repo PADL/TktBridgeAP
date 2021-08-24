@@ -69,7 +69,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"RetrieveTktBridgeCreds: LogonId %08x.%08x Flags %08x "
-               L"AS-REP Length %u KeyLength %u KeyType %u",
+               L"AsRep Length %u Reply KeyLength %u KeyType %u",
                LogonId.LowPart,
                LogonId.HighPart,
                Flags,
@@ -465,7 +465,7 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)SurrogateEntry->Data;
     auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
  
-    if (NT_SUCCESS(Status) && LogonId != nullptr)
+    if (NT_SUCCESS(Status))
         SaveCredForLogonSession(*LogonId, TktBridgeCreds);
 
     DereferenceTktBridgeCreds(TktBridgeCreds);
