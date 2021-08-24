@@ -1,20 +1,34 @@
-/*++
-
-Copyright (c) PADL Software Pty Ltd, All rights reserved.
-
-Module Name:
-
-    surrogate.cpp
-
-Abstract:
-
-    Interface between surrogate API and Kerberos package.
-
-Environment:
-
-    Local Security Authority (LSA)
-
---*/
+/*
+ * Copyright (c) 2021, PADL Software Pty Ltd.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of PADL Software nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY PADL SOFTWARE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL PADL SOFTWARE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include "TktBridgeAP.h"
 
@@ -58,12 +72,12 @@ RetrievePreauthInitCreds(LUID LogonID,
     if (APFlags & TKTBRIDGEAP_FLAG_CLOUD_CREDS) {
         auto KerbAsRepCred = &KerbAsRepCredU->CloudTgtCredential;
 
-        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
-        KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
-        KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
-        KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-        KerbAsRepCred->TgtClientKeySize = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
-        KerbAsRepCred->TgtKeyType = TktBridgeCreds->AsReplyKey.keytype;
+        KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
+        KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
+        KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
+        KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
+        KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
         memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
                TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
@@ -75,12 +89,12 @@ RetrievePreauthInitCreds(LUID LogonID,
     } else {
         auto KerbAsRepCred = &KerbAsRepCredU->TgtCredential;
 
-        KerbAsRepCred->Type = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
-        KerbAsRepCred->TgtMessageOffset = sizeof(*KerbAsRepCred);
-        KerbAsRepCred->TgtMessageSize = (ULONG)TktBridgeCreds->AsRep.length;
-        KerbAsRepCred->TgtClientKeyOffset = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-        KerbAsRepCred->TgtClientKeySize = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
-        KerbAsRepCred->TgtKeyType = TktBridgeCreds->AsReplyKey.keytype;
+        KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
+        KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
+        KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
+        KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
+        KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
         memcpy((PBYTE)KerbAsRepCred + KerbAsRepCred->TgtMessageOffset,
                TktBridgeCreds->AsRep.data, TktBridgeCreds->AsRep.length);
@@ -190,6 +204,11 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
         return false;
     }
 
+    //
+    // We don't want to get in the way of ordinary logons so by default we
+    // only allow domain suffixes that are not forest domain names (i.e.
+    // they must be UPN suffixes) 
+    //
     if ((APFlags & TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN) == 0) {
         if (RtlEqualUnicodeString(&SpParameters.DnsDomainName, &DomainName, TRUE) ||
             RtlEqualUnicodeString(&SpParameters.DomainName, &DomainName, TRUE))
@@ -378,17 +397,27 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static PTKTBRIDGEAP_CREDS
-GetSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON_ENTRY Entry)
+static PSECPKG_SURROGATE_LOGON_ENTRY
+FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon)
 {
-    if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
-        return nullptr; // not a Kerb AS-REP surrogate logon entry
+    if (SurrogateLogon == nullptr)
+        return nullptr;
 
-    auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
-    if (SurrogateLogonData->AsRepCallback != &RetrievePreauthInitCreds)
-        return nullptr; // must be another package
+    for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
+        PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
 
-    return (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
+        if (!IsEqualGUID(Entry->Type, KERB_SURROGATE_LOGON_TYPE))
+            continue; // not a Kerb AS-REP surrogate logon entry
+
+        auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
+        if (SurrogateLogonData == nullptr ||
+            SurrogateLogonData->AsRepCallback != &RetrievePreauthInitCreds)
+            continue; // must be another package
+
+        return Entry;
+    }
+
+    return nullptr;
 }
 
 NTSTATUS
@@ -411,43 +440,35 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                        _In_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
                        _In_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY SupplementalCredentials)
 {
-    //
-    // Find surrogate logon entry and release, validating callback so we do
-    // not release another package's credentials
-    //
-    if (SurrogateLogon == nullptr)
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+    auto SurrogateEntry = FindSurrogateLogonCreds(SurrogateLogon);
+    if (SurrogateEntry == nullptr)
+        RETURN_NTSTATUS(STATUS_SUCCESS);
 
-    for (ULONG i = 0; i < SurrogateLogon->EntryCount; i++) {
-        PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
-        PSECPKG_SURROGATE_LOGON_ENTRY Entry = &SurrogateLogon->Entries[i];
+    auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)SurrogateEntry->Data;
+    auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
+    PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity;
 
-        auto TktBridgeCreds = GetSurrogateLogonCreds(Entry);
-        if (TktBridgeCreds == nullptr)
-            continue;
-
-        if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) == 0 &&
-            NT_SUCCESS(ConvertLogonSubmitBufferToAuthIdentity(ProtocolSubmitBuffer,
-                                                              SubmitBufferSize,
-                                                              &AuthIdentity,
-                                                              nullptr))) {
-            CacheAddPreauthCredentials(LogonType,
-                                       AuthIdentity,
-                                       LogonId,
-                                       TktBridgeCreds);
-            SspiFreeAuthIdentity(AuthIdentity);
-        } else if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) &&
-                (!NT_SUCCESS(Status) || IsPreauthCredsExpired(TktBridgeCreds))) {    
-            CacheRemovePreauthCredentials(LogonType,
-                                          LogonId,
-                                          TktBridgeCreds);
-        }
-
-        DereferencePreauthInitCreds(TktBridgeCreds);
-
-        auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
-        SurrogateLogonData->PackageData = nullptr;
+    // Potentially update cache
+    if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) == 0 &&
+        NT_SUCCESS(ConvertLogonSubmitBufferToAuthIdentity(ProtocolSubmitBuffer,
+                                                          SubmitBufferSize,
+                                                          &AuthIdentity,
+                                                          nullptr))) {
+        CacheAddPreauthCredentials(LogonType,
+                                   AuthIdentity,
+                                   LogonId,
+                                   TktBridgeCreds);
+        SspiFreeAuthIdentity(AuthIdentity);
+    } else if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) &&
+            (!NT_SUCCESS(Status) || IsPreauthCredsExpired(TktBridgeCreds))) {    
+        CacheRemovePreauthCredentials(LogonType,
+                                      LogonId,
+                                      TktBridgeCreds);
     }
+
+    // Free preauth AS-REP
+    DereferencePreauthInitCreds(TktBridgeCreds);
+    SurrogateLogonData->PackageData = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
