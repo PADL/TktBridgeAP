@@ -231,7 +231,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
         if (SubmitBufferSize < sizeof(*pKIL32))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKIL32 = (PKERB_INTERACTIVE_LOGON32)ProtocolSubmitBuffer;
+        pKIL32 = static_cast<PKERB_INTERACTIVE_LOGON32>(ProtocolSubmitBuffer);
 
         Status = ValidateAndUnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
                                                         SubmitBufferSize,
@@ -256,7 +256,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
         if (SubmitBufferSize < sizeof(*pKIL))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKIL = (PKERB_INTERACTIVE_LOGON)ProtocolSubmitBuffer;
+        pKIL = static_cast<PKERB_INTERACTIVE_LOGON>(ProtocolSubmitBuffer);
 
         Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
                                                       SubmitBufferSize,
@@ -339,7 +339,7 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
     if (CspDataLength < sizeof(DWORD))
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-    auto pCspInfo = (PKERB_SMARTCARD_CSP_INFO)CspData;
+    auto pCspInfo = static_cast<PKERB_SMARTCARD_CSP_INFO>(CspData);
 
     if (CspDataLength < pCspInfo->dwCspInfoLen ||
         pCspInfo->dwCspInfoLen < sizeof(*pCspInfo) ||
@@ -449,7 +449,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
         if (SubmitBufferSize < sizeof(*pKSCL32))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKSCL32 = (PKERB_SMART_CARD_LOGON32)ProtocolSubmitBuffer;
+        pKSCL32 = static_cast<PKERB_SMART_CARD_LOGON32>(ProtocolSubmitBuffer);
 
         Status = ValidateAndUnpackUnicodeString32AllocZ(ProtocolSubmitBuffer,
                                                         SubmitBufferSize,
@@ -470,7 +470,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID
         if (SubmitBufferSize < sizeof(*pKSCL))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKSCL = (PKERB_SMART_CARD_LOGON)ProtocolSubmitBuffer;
+        pKSCL = static_cast<PKERB_SMART_CARD_LOGON>(ProtocolSubmitBuffer);
 
         Status = ValidateAndUnpackUnicodeStringAllocZ(ProtocolSubmitBuffer,
                                                       SubmitBufferSize,
@@ -582,14 +582,14 @@ ConvertAuthenticationBufferToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVO
 
         if (IsWowClient) {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonId = ((PKERB_INTERACTIVE_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
             else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonId = ((PKERB_SMART_CARD_UNLOCK_LOGON32)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
         } else {
             if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonId = ((PKERB_INTERACTIVE_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
             else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonId = ((PKERB_SMART_CARD_UNLOCK_LOGON)ProtocolSubmitBuffer)->LogonId;
+                *pUnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
         }
     }
 
