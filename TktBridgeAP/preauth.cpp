@@ -219,13 +219,13 @@ GssPreauthStep(krb5_context KrbContext,
     InputBufferDesc.pBuffers = InputBuffers;
 
     if (InputToken != nullptr && InputToken->length != 0) {
-        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA for package %s, using target %s", Mech->Package, TargetName);
-
         PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
 
         pSecBuffer->BufferType = SECBUFFER_TOKEN;
         pSecBuffer->cbBuffer = (ULONG)InputToken->length;
         pSecBuffer->pvBuffer = InputToken->data;
+    } else {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA for package %s, using target %s", Mech->Package, TargetName);
     }
 
     KrbError = MakeChannelBindings(KrbContext, EncAsReq, &ChannelBindings);

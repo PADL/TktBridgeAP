@@ -57,15 +57,6 @@ GetCallAttributes(VOID)
     return CallInfo.Attributes;
 }
 
-VOID
-FreeLsaString(_Inout_ PLSA_STRING pLsaString)
-{
-    if (pLsaString != nullptr) {
-        LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
-        LsaDispatchTable->FreeLsaHeap(pLsaString);
-    }
-}
-
 bool
 IsLocalHost(_In_ PUNICODE_STRING HostName)
 {
@@ -79,38 +70,6 @@ IsLocalHost(_In_ PUNICODE_STRING HostName)
     RtlInitUnicodeString(&MachineNameUS, MachineName);
 
     return RtlEqualUnicodeString(HostName, &MachineNameUS, TRUE);
-}
-
-NTSTATUS
-DuplicateLsaString(_In_ PLSA_STRING SourceString,
-                   _Out_ PLSA_STRING *pDestinationString)
-{
-    PLSA_STRING DestinationString = nullptr;
-
-    *pDestinationString = nullptr;
-    
-    assert(LsaDispatchTable != nullptr);
-
-    auto cleanup = wil::scope_exit([&]
-        {
-            FreeLsaString(DestinationString);
-        });
-
-    DestinationString = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString);
-
-    DestinationString->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString->Buffer);
-
-    RtlCopyMemory(DestinationString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
-
-    DestinationString->Length = SourceString->Length;
-    DestinationString->MaximumLength = SourceString->MaximumLength;
-
-    *pDestinationString = DestinationString;
-    DestinationString = nullptr; // don't free in cleanup
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 DWORD

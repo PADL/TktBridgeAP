@@ -32,8 +32,6 @@
 
 #include "TktBridgeAP.h"
 
-ULONG LsaAuthenticationPackageId = 0;
-PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
 PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
 
 SECPKG_PARAMETERS SpParameters;
@@ -52,6 +50,50 @@ extern "C" {
 
 static NTSTATUS
 InitializeRegistryNotification(VOID);
+
+// these don't ever seem to get set
+static ULONG LsaAuthenticationPackageId = SECPKG_ID_NONE;
+static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
+
+VOID
+FreeLsaString(_Inout_ PLSA_STRING pLsaString)
+{
+    if (pLsaString != nullptr) {
+        LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
+        LsaDispatchTable->FreeLsaHeap(pLsaString);
+    }
+}
+
+NTSTATUS
+DuplicateLsaString(_In_ PLSA_STRING SourceString,
+                   _Out_ PLSA_STRING *pDestinationString)
+{
+    PLSA_STRING DestinationString = nullptr;
+
+    *pDestinationString = nullptr;
+
+    assert(LsaDispatchTable != nullptr);
+
+    auto cleanup = wil::scope_exit([&] {
+        FreeLsaString(DestinationString);
+                                   });
+
+    DestinationString = (PLSA_STRING)LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString);
+
+    DestinationString->Buffer = (PCHAR)LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString->Buffer);
+
+    RtlCopyMemory(DestinationString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
+
+    DestinationString->Length = SourceString->Length;
+    DestinationString->MaximumLength = SourceString->MaximumLength;
+
+    *pDestinationString = DestinationString;
+    DestinationString = nullptr; // don't free in cleanup
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
 
 static NTSTATUS NTAPI
 InitializePackage(_In_ ULONG AuthenticationPackageId,
@@ -154,7 +196,7 @@ SpShutdown(VOID)
 
     FreeDomainSuffixes();
 
-    LsaAuthenticationPackageId = 0;
+    LsaAuthenticationPackageId = SECPKG_ID_NONE;
     LsaDispatchTable = nullptr;
     LsaSpFunctionTable = nullptr;
 
@@ -166,9 +208,11 @@ SpShutdown(VOID)
 static SECPKG_FUNCTION_TABLE
 TktBridgeAPFunctionTable = {
     .InitializePackage = InitializePackage,
+    .LogonTerminated = TktBridgeApLogonTerminated,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
+    .LogonUserEx3 = TktBridgeApLogonUserEx3,
     .PreLogonUserSurrogate = PreLogonUserSurrogate,
     .PostLogonUserSurrogate = PostLogonUserSurrogate
 };
@@ -215,7 +259,7 @@ SpGetInfo(_Out_ PSecPkgInfo PackageInfo)
 {
     RtlZeroMemory(PackageInfo, sizeof(*PackageInfo));
 
-    PackageInfo->fCapabilities  = SECPKG_FLAG_LOGON;
+    PackageInfo->fCapabilities  = SECPKG_FLAG_ACCEPT_WIN32_NAME | SECPKG_FLAG_LOGON;
     PackageInfo->wVersion       = TKTBRIDGEAP_PACKAGE_VERSION;
     PackageInfo->wRPCID         = SECPKG_ID_NONE;
     PackageInfo->cbMaxToken     = 0;
