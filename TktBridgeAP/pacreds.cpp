@@ -41,11 +41,11 @@
 //
 
 NTSTATUS
-LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-                               _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                               _In_opt_ PLUID pvLogonID,
-                               _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
-                               _Out_ PNTSTATUS SubStatus)
+LocateCachedTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+                           _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                           _In_opt_ PLUID pvLogonID,
+                           _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
+                           _Out_ PNTSTATUS SubStatus)
 {
     //
     // Unpack auth identity into username, domain name and password
@@ -76,10 +76,10 @@ LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 //
 
 NTSTATUS
-CacheAddPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-                           _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                           _In_opt_ PLUID pvLogonID,
-                           _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
+CacheAddTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+                       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                       _In_opt_ PLUID pvLogonID,
+                       _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     //
     // Unpack auth identity into username, domain name and password
@@ -106,15 +106,15 @@ CacheAddPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
 }
 
 NTSTATUS
-CacheRemovePreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-                              _In_opt_ PLUID pvLogonID,
-                              _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
+CacheRemoveTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+                          _In_opt_ PLUID pvLogonID,
+                          _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 VOID
-ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
+ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;
@@ -126,7 +126,7 @@ ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 }
 
 VOID
-DereferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
+DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;

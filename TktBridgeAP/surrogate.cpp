@@ -39,10 +39,10 @@
 //
 extern "C"
 static NTSTATUS NTAPI
-RetrievePreauthInitCreds(LUID LogonID,
-                         PVOID PackageData,
-                         ULONG Flags,
-                         PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
+RetrieveTktBridgeCreds(LUID LogonID,
+                       PVOID PackageData,
+                       ULONG Flags,
+                       PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
     auto TktBridgeCreds = (PCTKTBRIDGEAP_CREDS)PackageData;
     ULONG cbKerbAsRepCred;
@@ -51,7 +51,7 @@ RetrievePreauthInitCreds(LUID LogonID,
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"RetrievePreauthInitCreds: LogonID %08x.%08x Flags %08x "
+               L"RetrieveTktBridgeCreds: LogonID %08x.%08x Flags %08x "
                L"AS-REP Length %u KeyLength %u KeyType %u",
                LogonID.LowPart,
                LogonID.HighPart,
@@ -234,7 +234,7 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+GetTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
                     _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                     _In_ PLUID LogonID,
                     _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
@@ -251,7 +251,7 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
     RtlInitUnicodeString(&RealmName, NULL);
 
     auto cleanup = wil::scope_exit([&]() {
-        DereferencePreauthInitCreds(TktBridgeCreds);
+        DereferenceTktBridgeCreds(TktBridgeCreds);
         RtlFreeUnicodeString(&RealmName);
                                    });
     TktBridgeCreds = (PTKTBRIDGEAP_CREDS)WIL_AllocateMemory(sizeof(*TktBridgeCreds));
@@ -290,7 +290,7 @@ GetPreauthInitCreds(_In_ SECURITY_LOGON_TYPE LogonType,
                                                     nullptr);
         RETURN_IF_NTSTATUS_FAILED(SecStatus);
 
-        ReferencePreauthInitCreds(TktBridgeCreds);
+        ReferenceTktBridgeCreds(TktBridgeCreds);
         *pTktBridgeCreds = TktBridgeCreds;
     } else {
         if (SecStatus == SEC_E_NO_CREDENTIALS ||
@@ -327,9 +327,9 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
         LsaSpFunctionTable->AllocateLsaHeap(sizeof(KERB_SURROGATE_LOGON_DATA));
     ZeroMemory(SurrogateLogonData, sizeof(*SurrogateLogonData));
 
-    ReferencePreauthInitCreds(TktBridgeCreds);
+    ReferenceTktBridgeCreds(TktBridgeCreds);
 
-    SurrogateLogonData->AsRepCallback = RetrievePreauthInitCreds;
+    SurrogateLogonData->AsRepCallback = RetrieveTktBridgeCreds;
     SurrogateLogonData->PackageData = TktBridgeCreds;
 
     Entry->Type = KERB_SURROGATE_LOGON_TYPE;
@@ -359,7 +359,7 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
-        DereferencePreauthInitCreds(TktBridgeCreds);
+        DereferenceTktBridgeCreds(TktBridgeCreds);
                                    });
 
     if (ProtocolSubmitBuffer == nullptr || SubmitBufferSize == 0 ||
@@ -381,11 +381,11 @@ PreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (!ValidateSurrogateLogonDomain(AuthIdentity))
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
-    Status = LocateCachedPreauthCredentials(LogonType, AuthIdentity,
+    Status = LocateCachedTktBridgeCreds(LogonType, AuthIdentity,
                                             &SurrogateLogon->SurrogateLogonID,
                                             &TktBridgeCreds, SubStatus);
     if (!NT_SUCCESS(Status)) {
-        Status = GetPreauthInitCreds(LogonType, AuthIdentity,
+        Status = GetTktBridgeCreds(LogonType, AuthIdentity,
                                      &SurrogateLogon->SurrogateLogonID,
                                      &TktBridgeCreds, SubStatus);
         RETURN_IF_NTSTATUS_FAILED(Status);
@@ -411,7 +411,7 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon)
 
         auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)Entry->Data;
         if (SurrogateLogonData == nullptr ||
-            SurrogateLogonData->AsRepCallback != &RetrievePreauthInitCreds)
+            SurrogateLogonData->AsRepCallback != &RetrieveTktBridgeCreds)
             continue; // must be another package
 
         return Entry;
@@ -454,20 +454,20 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                                           SubmitBufferSize,
                                                           &AuthIdentity,
                                                           nullptr))) {
-        CacheAddPreauthCredentials(LogonType,
-                                   AuthIdentity,
-                                   LogonId,
-                                   TktBridgeCreds);
+        CacheAddTktBridgeCreds(LogonType,
+                               AuthIdentity,
+                               LogonId,
+                               TktBridgeCreds);
         SspiFreeAuthIdentity(AuthIdentity);
     } else if ((TktBridgeCreds->Flags & TKTBRIDGEAP_CREDS_FLAG_CACHED) &&
             (!NT_SUCCESS(Status) || IsPreauthCredsExpired(TktBridgeCreds))) {    
-        CacheRemovePreauthCredentials(LogonType,
-                                      LogonId,
-                                      TktBridgeCreds);
+        CacheRemoveTktBridgeCreds(LogonType,
+                                  LogonId,
+                                  TktBridgeCreds);
     }
 
     // Free preauth AS-REP
-    DereferencePreauthInitCreds(TktBridgeCreds);
+    DereferenceTktBridgeCreds(TktBridgeCreds);
     SurrogateLogonData->PackageData = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

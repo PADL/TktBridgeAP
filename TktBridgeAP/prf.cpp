@@ -94,8 +94,8 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         return KrbError;
     }
 
-    key.keytype = KeyInfo.EncryptAlgorithm;
-    key.keyvalue.data = SessionKey.SessionKey;
+    key.keytype         = KeyInfo.EncryptAlgorithm;
+    key.keyvalue.data   = SessionKey.SessionKey;
     key.keyvalue.length = SessionKey.SessionKeyLength;
 
     KrbError = krb5_crypto_init(KrbContext, &key, KRB5_ENCTYPE_NULL, &KrbCrypto);

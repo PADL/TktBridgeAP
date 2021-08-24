@@ -172,31 +172,31 @@ typedef struct _TKTBRIDGEAP_CREDS {
 typedef const TKTBRIDGEAP_CREDS *PCTKTBRIDGEAP_CREDS;
 
 NTSTATUS
-LocateCachedPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-                               _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                               _In_opt_ PLUID pvLogonID,
-                               _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
-                               _Out_ PNTSTATUS SubStatus);
-
-NTSTATUS
-CacheAddPreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
+LocateCachedTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
                            _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                            _In_opt_ PLUID pvLogonID,
-                           _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
+                           _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds,
+                           _Out_ PNTSTATUS SubStatus);
 
 NTSTATUS
-CacheRemovePreauthCredentials(_In_ SECURITY_LOGON_TYPE LogonType,
-                              _In_opt_ PLUID pvLogonID,
-                              _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
+CacheAddTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+                       _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                       _In_opt_ PLUID pvLogonID,
+                       _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
+
+NTSTATUS
+CacheRemoveTktBridgeCreds(_In_ SECURITY_LOGON_TYPE LogonType,
+                          _In_opt_ PLUID pvLogonID,
+                          _In_ PCTKTBRIDGEAP_CREDS TktBridgeCreds);
 
 bool
 IsPreauthCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
-ReferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID
-DereferencePreauthInitCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 // errors.cpp
 
