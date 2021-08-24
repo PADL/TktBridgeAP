@@ -47,8 +47,9 @@ RetrieveTktBridgeCreds(LUID LogonID,
     auto TktBridgeCreds = (PCTKTBRIDGEAP_CREDS)PackageData;
     ULONG cbKerbAsRepCred;
 
+    // FIXME support retrieving cached credential by LogonID
     if (TktBridgeCreds == nullptr)
-        RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
+        RETURN_NTSTATUS(STATUS_NO_LOGON_SERVERS);
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"RetrieveTktBridgeCreds: LogonID %08x.%08x Flags %08x "
@@ -471,37 +472,4 @@ PostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     SurrogateLogonData->PackageData = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
-}
-
-NTSTATUS
-TktBridgeApLogonUserEx3(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-                        _In_ SECURITY_LOGON_TYPE LogonType,
-                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                        _In_ PVOID ClientBufferBase,
-                        _In_ ULONG SubmitBufferSize,
-                        _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-                        _Outptr_result_bytebuffer_(*ProfileBufferSize) PVOID *ProfileBuffer,
-                        _Out_ PULONG ProfileBufferSize,
-                        _Out_ PLUID LogonId,
-                        _Out_ PNTSTATUS SubStatus,
-                        _Out_ PLSA_TOKEN_INFORMATION_TYPE TokenInformationType,
-                        _Outptr_ PVOID *TokenInformation,
-                        _Out_ PUNICODE_STRING *AccountName,
-                        _Out_ PUNICODE_STRING *AuthenticatingAuthority,
-                        _Out_ PUNICODE_STRING *MachineName,
-                        _Out_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
-                        _Outptr_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY *SupplementalCredentials)
-{
-    DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"TktBridgeApLogonUserEx3: logon type %d", LogonType);
-
-    RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
-}
-
-VOID
-TktBridgeApLogonTerminated(_In_ PLUID LogonId)
-{
-    DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"TktBridgeApLogonTerminated: logon ID %u.%d", LogonId->LowPart, LogonId->HighPart);
-
 }

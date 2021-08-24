@@ -34,7 +34,7 @@
 
 #ifndef NDEBUG
 #define _CRTDBG_MAP_ALLOC 1
-#endif /* !NDEBUG */
+#endif
 
 #ifdef TKTBRIDGEAP_EXPORTS
 #define TKTBRIDGEAP_API __declspec(dllexport)
@@ -58,10 +58,10 @@
 #include <crtdbg.h>
 #include <assert.h>
 
-#include <windows.h>
 #include <ntstatus.h>
+#define WIN32_NO_STATUS
+#include <Windows.h>
 #include <winternl.h>
-#include <winreg.h>
 #include <wincred.h>
 #include <LM.h>
 #include <Tracelogging.h>
