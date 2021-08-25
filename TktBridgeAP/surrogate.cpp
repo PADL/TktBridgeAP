@@ -489,37 +489,57 @@ LsaApLogonTerminated(_In_ PLUID LogonId)
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-MaybeRefreshTktBridgeCreds(const LUID &LogonId,
-                           PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
+RefreshTktBridgeCreds(const LUID &LogonId,
+                      const PTKTBRIDGEAP_CREDS ExistingCreds,
+                      PTKTBRIDGEAP_CREDS * pRefreshedCreds)
 {
-    auto TktBridgeCreds = *pTktBridgeCreds;
     NTSTATUS Status, SubStatus;
-    PTKTBRIDGEAP_CREDS RefreshedCreds;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
                                    });
 
-    if (!IsTktBridgeCredsExpired(TktBridgeCreds))
-        RETURN_NTSTATUS(STATUS_SUCCESS);
-
-    if (TktBridgeCreds->InitialCreds == nullptr)
-        RETURN_NTSTATUS(STATUS_NO_LOGON_SERVERS);
-
-    Status = SspiCopyAuthIdentity(TktBridgeCreds->InitialCreds, &AuthIdentity);
+    Status = SspiCopyAuthIdentity(ExistingCreds->InitialCreds, &AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = SspiDecryptAuthIdentity(AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = GetTktBridgeCreds(AuthIdentity, LogonId, &RefreshedCreds, &SubStatus);
+    Status = GetTktBridgeCreds(AuthIdentity, LogonId, pRefreshedCreds, &SubStatus);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    SaveCredForLogonSession(LogonId, RefreshedCreds);
-
-    DereferenceTktBridgeCreds(*pTktBridgeCreds);
-    *pTktBridgeCreds = RefreshedCreds;
-
     RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+MaybeRefreshTktBridgeCreds(const LUID &LogonId,
+                           PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
+{
+    auto TktBridgeCreds = *pTktBridgeCreds;
+    NTSTATUS Status;
+    PTKTBRIDGEAP_CREDS RefreshedCreds = nullptr;
+    FILETIME ftNow;
+
+    if (!IsTktBridgeCredsExpired(TktBridgeCreds))
+        RETURN_NTSTATUS(STATUS_SUCCESS);
+
+    Status = STATUS_NO_LOGON_SERVERS;
+
+#if 0
+    if (IsTktBridgeCredsRenewable(TktBridgeCreds))
+        Status = RenewTktBridgeCreds(TktBridgeCreds, &RefreshedCreds);
+#endif
+
+    if (!NT_SUCCESS(Status) && TktBridgeCreds->InitialCreds != nullptr)
+        Status = RefreshTktBridgeCreds(LogonId, TktBridgeCreds, &RefreshedCreds);
+
+    if (NT_SUCCESS(Status)) {
+        SaveCredForLogonSession(LogonId, RefreshedCreds);
+
+        DereferenceTktBridgeCreds(*pTktBridgeCreds);
+        *pTktBridgeCreds = RefreshedCreds;
+    }
+
+    RETURN_NTSTATUS(Status);
 }
