@@ -164,18 +164,6 @@ DebugLogonCreds(VOID)
     CredCacheLock.unlock();
 }
 
-VOID
-ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
-{
-    if (Creds == nullptr)
-        return;
-
-    if (Creds->RefCount == LONG_MAX)
-        return;
-
-    InterlockedIncrement(&Creds->RefCount);
-}
-
 PTKTBRIDGEAP_CREDS
 AllocateTktBridgeCreds(VOID)
 {
@@ -189,6 +177,18 @@ AllocateTktBridgeCreds(VOID)
     TktBridgeCreds->RefCount = 1;
 
     return TktBridgeCreds;
+}
+
+VOID
+ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
+{
+    if (Creds == nullptr)
+        return;
+
+    if (Creds->RefCount == LONG_MAX)
+        return;
+
+    InterlockedIncrement(&Creds->RefCount);
 }
 
 VOID
