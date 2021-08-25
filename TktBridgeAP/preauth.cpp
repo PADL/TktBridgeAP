@@ -135,7 +135,7 @@ MakeChannelBindings(_In_ krb5_context KrbContext,
         return krb5_enomem(KrbContext);
     }
 
-    ChannelBindings->cbApplicationDataLength = (ULONG)EncAsReq->length;
+    ChannelBindings->cbApplicationDataLength = static_cast<ULONG>(EncAsReq->length);
     ChannelBindings->dwApplicationDataOffset = sizeof(*ChannelBindings);
     memcpy(reinterpret_cast<PBYTE>(ChannelBindings) + ChannelBindings->dwApplicationDataOffset,
            EncAsReq->data, EncAsReq->length);
@@ -223,7 +223,7 @@ GssPreauthStep(krb5_context KrbContext,
         PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
 
         pSecBuffer->BufferType = SECBUFFER_TOKEN;
-        pSecBuffer->cbBuffer = (ULONG)InputToken->length;
+        pSecBuffer->cbBuffer = static_cast<ULONG>(InputToken->length);
         pSecBuffer->pvBuffer = InputToken->data;
     } else {
         DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA for package %s, using target %s", Mech->Package, TargetName);
@@ -234,7 +234,7 @@ GssPreauthStep(krb5_context KrbContext,
 
     PSecBuffer pSecBuffer = &InputBuffers[InputBufferDesc.cBuffers++];
     pSecBuffer->BufferType = SECBUFFER_CHANNEL_BINDINGS;
-    pSecBuffer->cbBuffer = sizeof(*ChannelBindings) + (ULONG)EncAsReq->length;
+    pSecBuffer->cbBuffer = sizeof(*ChannelBindings) + static_cast<ULONG>(EncAsReq->length);
     pSecBuffer->pvBuffer = ChannelBindings;
 
     OutputBufferDesc.ulVersion = SECBUFFER_VERSION;

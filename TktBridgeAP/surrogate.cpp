@@ -78,8 +78,8 @@ RetrieveTktBridgeCreds(LUID LogonId,
                TktBridgeCreds->AsReplyKey.keytype);
 
     cbKerbAsRepCred = sizeof(KERB_AS_REP_CREDENTIAL) +
-        (ULONG)TktBridgeCreds->AsRep.length +
-        (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        static_cast<ULONG>(TktBridgeCreds->AsRep.length) +
+        static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
 
     auto KerbAsRepCredU = static_cast<PKERB_AS_REP_CREDENTIAL>(LsaSpFunctionTable->AllocateLsaHeap(cbKerbAsRepCred));
     RETURN_NTSTATUS_IF_NULL_ALLOC(KerbAsRepCredU);
@@ -92,9 +92,9 @@ RetrieveTktBridgeCreds(LUID LogonId,
 
         KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
-        KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
+        KerbAsRepCred->TgtMessageSize       = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
         KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-        KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        KerbAsRepCred->TgtClientKeySize     = static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
         KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
         memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtMessageOffset,
@@ -110,9 +110,9 @@ RetrieveTktBridgeCreds(LUID LogonId,
 
         KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
-        KerbAsRepCred->TgtMessageSize       = (ULONG)TktBridgeCreds->AsRep.length;
+        KerbAsRepCred->TgtMessageSize       = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
         KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-        KerbAsRepCred->TgtClientKeySize     = (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length;
+        KerbAsRepCred->TgtClientKeySize     = static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
         KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
         memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtMessageOffset,
@@ -300,10 +300,9 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
     Status = KrbErrorToNtStatus(KrbError, SubStatus);
     if (NT_SUCCESS(Status)) {
         LsaSpFunctionTable->LsaProtectMemory(TktBridgeCreds->AsReplyKey.keyvalue.data,
-                                             (ULONG)TktBridgeCreds->AsReplyKey.keyvalue.length);
+                                             static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length));
 
-        ReferenceTktBridgeCreds(TktBridgeCreds);
-        *pTktBridgeCreds = TktBridgeCreds;
+        *pTktBridgeCreds = ReferenceTktBridgeCreds(TktBridgeCreds);
 
         if ((APFlags & TKTBRIDGEAP_FLAG_NO_CLEAR_CRED_CACHE) == 0) {
             Status = SspiCopyAuthIdentity(AuthIdentity, &TktBridgeCreds->InitialCreds);
@@ -519,7 +518,6 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
     auto TktBridgeCreds = *pTktBridgeCreds;
     NTSTATUS Status;
     PTKTBRIDGEAP_CREDS RefreshedCreds = nullptr;
-    FILETIME ftNow;
 
     if (!IsTktBridgeCredsExpired(TktBridgeCreds))
         RETURN_NTSTATUS(STATUS_SUCCESS);

@@ -182,7 +182,7 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     NTSTATUS Status;
     ULONG cbUTF8String = 0;
     SIZE_T cbUnicodeString = (wcslen(wszUnicodeString) + 1) * sizeof(WCHAR);
-    ULONG ulcbUnicodeString = (ULONG)cbUnicodeString;
+    ULONG ulcbUnicodeString = static_cast<ULONG>(cbUnicodeString);
 
     *pszUTF8String = nullptr;
 
@@ -209,7 +209,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     NTSTATUS Status;
     ULONG cbUnicodeString = 0;
     SIZE_T cbUTF8String = strlen(szUTF8String) + 1;
-    ULONG ulcbUTF8String = (ULONG)cbUTF8String;
+    ULONG ulcbUTF8String = static_cast<ULONG>(cbUTF8String);
 
     *pwszUnicodeString = nullptr;
 

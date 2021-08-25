@@ -65,8 +65,7 @@ namespace TktBridgeAP {
         Credentials(const Credentials &Creds) : Credentials(Creds.m_Creds) {}
 
         Credentials(PTKTBRIDGEAP_CREDS Creds) {
-            ReferenceTktBridgeCreds(Creds);
-            this->m_Creds = Creds;
+            this->m_Creds = ReferenceTktBridgeCreds(Creds);
         }
 
         ~Credentials() {
@@ -106,8 +105,7 @@ FindCredForLogonSession(_In_ const LUID &LogonID,
 
     auto CacheEntry = CredCache.find(LogonID);
     if (CacheEntry != CredCache.end()) {
-        *pTktBridgeCreds = CacheEntry->second.get();
-        ReferenceTktBridgeCreds(*pTktBridgeCreds);
+        *pTktBridgeCreds = ReferenceTktBridgeCreds(CacheEntry->second.get());
 
         Status = STATUS_SUCCESS;
 
@@ -179,16 +177,14 @@ AllocateTktBridgeCreds(VOID)
     return TktBridgeCreds;
 }
 
-VOID
+PTKTBRIDGEAP_CREDS
 ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
-    if (Creds == nullptr)
-        return;
+    if (Creds != nullptr &&
+        Creds->RefCount != LONG_MAX)
+        InterlockedIncrement(&Creds->RefCount);
 
-    if (Creds->RefCount == LONG_MAX)
-        return;
-
-    InterlockedIncrement(&Creds->RefCount);
+    return Creds;
 }
 
 VOID

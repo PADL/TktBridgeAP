@@ -283,7 +283,7 @@ DebugLogonCreds(VOID);
 PTKTBRIDGEAP_CREDS
 AllocateTktBridgeCreds(VOID);
 
-VOID
+PTKTBRIDGEAP_CREDS
 ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 
 VOID

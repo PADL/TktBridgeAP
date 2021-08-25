@@ -252,7 +252,8 @@ UnprotectString(_In_z_ PWSTR wszProtected,
     if (cchProtected > ULONG_MAX)
         RETURN_NTSTATUS(STATUS_BUFFER_OVERFLOW);
     
-    if (CredUnprotect(FALSE, wszProtected, (DWORD)cchProtected, nullptr, &cchUnprotected))
+    if (CredUnprotect(FALSE, wszProtected, static_cast<DWORD>(cchProtected),
+                      nullptr, &cchUnprotected))
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
     DWORD dwError = GetLastError();
@@ -264,7 +265,7 @@ UnprotectString(_In_z_ PWSTR wszProtected,
     *pwszUnprotected = static_cast<PWSTR>(WIL_AllocateMemory(cchUnprotected * sizeof(WCHAR)));
     RETURN_NTSTATUS_IF_NULL_ALLOC(*pwszUnprotected);
 
-    if (!CredUnprotect(FALSE, wszProtected, (DWORD)cchProtected,
+    if (!CredUnprotect(FALSE, wszProtected, static_cast<DWORD>(cchProtected),
                        *pwszUnprotected, &cchUnprotected)) {
         WIL_FreeMemory(*pwszUnprotected);
         *pwszUnprotected = nullptr;
