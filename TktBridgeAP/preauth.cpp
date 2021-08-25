@@ -444,9 +444,9 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
     return 0;
 }
 
-//
-// Acquire a TGT for a given username/domain/credential/package
-//
+/*
+ * Acquire a TGT for a given username/domain/credential/package
+ */
 krb5_error_code _Success_(return == 0)
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
