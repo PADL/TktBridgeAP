@@ -151,10 +151,10 @@ DebugLogonCreds(VOID)
         auto TktBridgeCreds = Iterator->second.get();
 
         DebugTrace(WINEVENT_LEVEL_VERBOSE,
-                   L"Credential cache entry: Logon Session %08x.%08x InitiatorName %s IsExpired %d InitialCreds %p",
+                   L"Credential cache entry: Logon Session %08x.%08x ClientName %s IsExpired %d InitialCreds %p",
                    Iterator->first.LowPart,
                    Iterator->first.HighPart,
-                   TktBridgeCreds->InitiatorName,
+                   TktBridgeCreds->ClientName,
                    IsTktBridgeCredsExpired(TktBridgeCreds),
                    TktBridgeCreds->InitialCreds);
     }
@@ -202,7 +202,7 @@ DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 
     assert(Old == 1);
 
-    WIL_FreeMemory(Creds->InitiatorName);
+    WIL_FreeMemory(Creds->ClientName);
     krb5_data_free(&Creds->AsRep);
 
     if (Creds->AsReplyKey.keyvalue.data != nullptr) {

@@ -109,7 +109,7 @@
 
 typedef struct _TKTBRIDGEAP_CREDS {
     LONG RefCount;
-    PWSTR InitiatorName;
+    PWSTR ClientName;
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
     LARGE_INTEGER EndTime;
