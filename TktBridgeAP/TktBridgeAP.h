@@ -214,8 +214,8 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
  * kerbinterpose.cpp
  */
 
-_Success_(return == ERROR_SUCCESS)
-DWORD AttachKerbLogonInterposer(VOID);
+_Success_(return == ERROR_SUCCESS) DWORD
+AttachKerbLogonInterposer(VOID);
 
 VOID
 DetachKerbLogonInterposer(VOID);
@@ -224,7 +224,7 @@ DetachKerbLogonInterposer(VOID);
  * preauth.cpp
  */
 
-krb5_error_code _Success_(return == 0)
+_Success_(return == 0) krb5_error_code
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,
@@ -266,15 +266,6 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon);
  * tktcreds.cpp
  */
 
-VOID
-ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
-
-VOID
-DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
-
-bool
-IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
-
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 FindCredForLogonSession(_In_ const LUID &LogonId,
                         _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds);
@@ -288,6 +279,18 @@ RemoveCredForLogonSession(_In_ const LUID &LogonId);
 
 VOID
 DebugLogonCreds(VOID);
+
+PTKTBRIDGEAP_CREDS
+AllocateTktBridgeCreds(VOID);
+
+VOID
+ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+
+VOID
+DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
+
+bool
+IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
 
 /*
  * tracing.cpp

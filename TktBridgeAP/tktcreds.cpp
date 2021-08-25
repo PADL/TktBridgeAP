@@ -176,6 +176,21 @@ ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
     InterlockedIncrement(&Creds->RefCount);
 }
 
+PTKTBRIDGEAP_CREDS
+AllocateTktBridgeCreds(VOID)
+{
+    PTKTBRIDGEAP_CREDS TktBridgeCreds;
+
+    TktBridgeCreds = static_cast<PTKTBRIDGEAP_CREDS>(WIL_AllocateMemory(sizeof(*TktBridgeCreds)));
+    if (TktBridgeCreds == nullptr)
+        return nullptr;
+
+    ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
+    TktBridgeCreds->RefCount = 1;
+
+    return TktBridgeCreds;
+}
+
 VOID
 DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {

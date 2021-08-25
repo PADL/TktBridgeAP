@@ -275,11 +275,9 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
         DereferenceTktBridgeCreds(TktBridgeCreds);
         RtlFreeUnicodeString(&RealmName);
                                    });
-    TktBridgeCreds = static_cast<PTKTBRIDGEAP_CREDS>(WIL_AllocateMemory(sizeof(*TktBridgeCreds)));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(TktBridgeCreds);
 
-    ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
-    TktBridgeCreds->RefCount = 1;
+    TktBridgeCreds = AllocateTktBridgeCreds();
+    RETURN_NTSTATUS_IF_NULL_ALLOC(TktBridgeCreds);
 
     // FIXME where is RtlAllocateUnicodeString
     Status = RtlDuplicateUnicodeString(RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE,
