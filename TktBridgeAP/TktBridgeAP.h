@@ -324,9 +324,3 @@ HeimTracingInit(_In_ krb5_context KrbContext);
 
 VOID
 __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
-
-VOID
-DebugSessionKey(_In_z_ PCWSTR Tag,
-                _In_bytecount_(cbKey) PBYTE pbKey,
-                _In_ SIZE_T cbKey);
-
