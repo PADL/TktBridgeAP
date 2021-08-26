@@ -32,15 +32,21 @@
 
 #include "TktBridgeAP.h"
 
+static const ULONG64 SecondsToStartOf1970 = 0x2b6109100;
+static const ULONG64 HundredNanoSecondsInSecond = 10000000LL;
+
 VOID
 Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
                          _Out_ PLARGE_INTEGER Time)
 {
-    // Don't use RtlSecondsSince1970ToTime as it's not 2038 compliant
-    ULONG64 const SecondsToStartOf1970 = 0x2b6109100;
-    ULONG64 const HundredNanoSecondsInSecond = 10000000LL;
-
     Time->QuadPart = (ElapsedSeconds + SecondsToStartOf1970) * HundredNanoSecondsInSecond;
+}
+
+VOID
+TimeToSeconds64Since1970(_In_ PLARGE_INTEGER Time,
+                         _Out_ PULONG64 ElapsedSeconds)
+{
+    *ElapsedSeconds = (Time->QuadPart / HundredNanoSecondsInSecond) - SecondsToStartOf1970;
 }
 
 ULONG

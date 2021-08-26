@@ -186,6 +186,10 @@ VOID
 Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
                          _Out_ PLARGE_INTEGER Time);
 
+VOID
+TimeToSeconds64Since1970(_In_ PLARGE_INTEGER Time,
+                         _Out_ PULONG64 ElapsedSeconds);
+
 ULONG
 GetCallAttributes(VOID);
 
