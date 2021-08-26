@@ -167,10 +167,15 @@ ValidateOffset(_In_ ULONG cbBuffer,
                _In_ ULONG_PTR cbOffset,
                _In_ ULONG cbItem)
 {
+    NTSTATUS Status;
+
+    /* Don't use RETURN_NTSTATUS as BUFFER_TOO_SMALL is expected */
     if (cbOffset + cbItem > cbBuffer)
-        RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+        Status = STATUS_BUFFER_TOO_SMALL;
     else
-        RETURN_NTSTATUS(STATUS_SUCCESS);
+        Status = STATUS_SUCCESS;
+
+    return Status;
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
