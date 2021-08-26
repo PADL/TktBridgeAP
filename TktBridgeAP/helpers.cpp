@@ -78,104 +78,79 @@ IsLocalHost(_In_ PUNICODE_STRING HostName)
     return RtlEqualUnicodeString(HostName, &MachineNameUS, TRUE);
 }
 
-DWORD
-RegistryGetDWordValueForKey(_In_ HKEY hKey,
+ULONG
+RegistryGetULongValueForKey(_In_ const wil::unique_hkey &hKey,
                             _In_z_ PCWSTR KeyName)
 {
+    ULONG KeyValue = 0;
     DWORD dwResult, dwType = REG_DWORD, dwSize = sizeof(ULONG);
-    DWORD dwValue = 0;
 
-    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
-                               (PBYTE)&dwValue, &dwSize);
-    if (dwResult != ERROR_SUCCESS || dwType == REG_DWORD ||
-        dwSize == sizeof(dwValue))
-        dwValue = 0;
+    dwResult = RegQueryValueEx(hKey.get(), KeyName, nullptr, &dwType,
+                               (PBYTE)&KeyValue, &dwSize);
 
-    return dwValue;
+    return dwResult == ERROR_SUCCESS && dwType == REG_DWORD ?
+        KeyValue : 0;
 }
 
-PWSTR
-RegistryGetStringValueForKey(_In_ HKEY hKey,
-                             _In_z_ PCWSTR KeyName)
+bool
+RegistryGetStringValueForKey(_In_ const wil::unique_hkey &hKey,
+                             _In_z_ PCWSTR KeyName,
+                             _Out_ std::wstring &KeyValue)
 {
-    DWORD dwResult, dwType = REG_SZ;
-    DWORD dwValue = 0, dwSize = 0;
-    PWSTR wszValue = nullptr;
+    auto Result = wil::AdaptFixedSizeToAllocatedResult<std::wstring, 256>(KeyValue,
+                                                                          [&](PWSTR Value,
+                                                                              size_t ValueLength,
+                                                                              size_t *ValueLengthNeededWithNull) -> HRESULT {
+        auto Length = static_cast<DWORD>(ValueLength);
+        DWORD dwType = REG_SZ;
+        auto Status = RegQueryValueEx(hKey.get(), KeyName, 0, &dwType, reinterpret_cast<BYTE *>(Value), &Length);
+    
+        *ValueLengthNeededWithNull = (Length / sizeof(WCHAR));
 
-    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
-                               nullptr, &dwSize);
-    if (dwResult != ERROR_SUCCESS || dwType != REG_SZ)
-        return nullptr;
+        if (Status == ERROR_SUCCESS && dwType != REG_SZ)
+            Status = ERROR_INVALID_PARAMETER;
 
-    wszValue = static_cast<PWSTR>(WIL_AllocateMemory(dwSize + sizeof(WCHAR)));
-    if (wszValue == nullptr)
-        return nullptr;
+        return Status == ERROR_MORE_DATA ? S_OK : HRESULT_FROM_WIN32(Status);
+                                                                          });
 
-    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
-                               (PBYTE)wszValue, &dwSize);
-    if (dwResult != ERROR_SUCCESS || dwType != REG_SZ) {
-        WIL_FreeMemory(wszValue);
-        return nullptr;
-    }
-
-    wszValue[dwSize / sizeof(WCHAR)] = L'\0';
-
-    return wszValue;
+    return Result == S_OK;
 }
 
-PWSTR *
-RegistryGetStringValuesForKey(_In_ HKEY hKey,
-                              _In_z_ PCWSTR KeyName)
+bool
+RegistryGetStringValuesForKey(_In_ const wil::unique_hkey &hKey,
+                              _In_z_ PCWSTR KeyName,
+                              _Out_ std::vector<std::wstring> &KeyValues)
 {
-    DWORD dwResult, dwType = REG_SZ;
-    DWORD dwValue = 0, dwSize = 0, iValue;
-    PWSTR wMultiSzValue = nullptr, pwCurrentMultiSzValue;
-    size_t cchCurrentValue, cValues;
+    std::wstring KeyValue;
 
-    auto cleanup = wil::scope_exit([&] {
-        WIL_FreeMemory(wMultiSzValue);
-                                   });
+    auto Result = wil::AdaptFixedSizeToAllocatedResult<std::wstring, 256>(KeyValue,
+                                                                          [&](PWSTR Value,
+                                                                              size_t ValueLength,
+                                                                              size_t *ValueLengthNeededWithNull) -> HRESULT {
+        auto Length = static_cast<DWORD>(ValueLength);
+        DWORD dwType = REG_MULTI_SZ;
+        auto Status = RegQueryValueEx(hKey.get(), KeyName, 0, &dwType, reinterpret_cast<BYTE *>(Value), &Length);
 
-    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType, nullptr, &dwSize);
-    if (dwResult != ERROR_SUCCESS || dwType != REG_MULTI_SZ)
-        return nullptr;
+        *ValueLengthNeededWithNull = (Length / sizeof(WCHAR));
 
-    wMultiSzValue = static_cast<PWSTR>(WIL_AllocateMemory(dwSize + sizeof(WCHAR)));
-    if (wMultiSzValue == nullptr)
-        return nullptr;
+        if (Status == ERROR_SUCCESS && dwType != REG_MULTI_SZ)
+            Status = ERROR_INVALID_PARAMETER;
 
-    dwResult = RegQueryValueEx(hKey, KeyName, nullptr, &dwType,
-                               (PBYTE)wMultiSzValue, &dwSize);
-    if (dwResult != ERROR_SUCCESS || dwType != REG_MULTI_SZ)
-        return nullptr;
+        return Status == ERROR_MORE_DATA ? S_OK : HRESULT_FROM_WIN32(Status);
+                                                                          });
 
-    wMultiSzValue[dwSize / sizeof(WCHAR)] = L'\0';
+    KeyValues.clear();
 
-    for (cValues = 0, pwCurrentMultiSzValue = wMultiSzValue;
-         *pwCurrentMultiSzValue != L'\0';
-         pwCurrentMultiSzValue += wcslen(pwCurrentMultiSzValue) + 1)
-        cValues++;
+    if (Result != S_OK)
+        return false;
 
-    auto wszValues = static_cast<PWSTR *>(WIL_AllocateMemory((cValues + 1) * sizeof(PWSTR)));
-    if (wszValues == nullptr)
-        return nullptr;
-
-    for (iValue = 0, pwCurrentMultiSzValue = wMultiSzValue, cchCurrentValue = wcslen(pwCurrentMultiSzValue) + 1;
-         *pwCurrentMultiSzValue != L'\0';
-         pwCurrentMultiSzValue += (cchCurrentValue = wcslen(pwCurrentMultiSzValue) + 1)) {
-        size_t cbCurrentValue = cchCurrentValue * sizeof(WCHAR);
-
-        wszValues[iValue] = static_cast<PWSTR>(WIL_AllocateMemory(cbCurrentValue));
-        if (wszValues[iValue] == nullptr)
-            break; // FIXME
-
-        memcpy(wszValues[iValue], pwCurrentMultiSzValue, cbCurrentValue);
-        iValue++;
+    for (auto p = KeyValue.data();
+         *p != L'\0';
+         p += wcslen(p) + 1) {
+        KeyValues.emplace_back(std::wstring(p));
     }
 
-    wszValues[iValue] = nullptr;
-
-    return wszValues;
+    return true;
 }
 
 NTSTATUS

@@ -79,6 +79,14 @@
 #include "ntapiext.h"
 #include "KerbPrivate.h"
 
+#include <stl.h>
+
+#include <string>
+#include <vector>
+#include <map>
+#include <mutex>
+#include <atomic>
+
 #include <wil/common.h>
 #include <wil/resource.h>
 #include <wil/win32_helpers.h>
@@ -141,13 +149,20 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
  */
 
 extern PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable;
-
 extern SECPKG_PARAMETERS SpParameters;
-extern ULONG APFlags;
-extern ULONG APLogLevel;
-extern PWSTR APKdcHostName;
-extern PWSTR APRestrictPackage;
-extern PWSTR *APDomainSuffixes;
+
+extern std::atomic<unsigned long> APFlags;
+extern std::atomic<unsigned long> APLogLevel;
+
+PCWSTR
+GetKdcHostName(std::wstring &Buffer);
+
+PCWSTR
+GetRestrictPackage(std::wstring &Buffer);
+
+bool
+TestDomainSuffix(PCWSTR Suffix,
+                 bool &Authoritative);
 
 /*
  * errors.cpp
@@ -193,15 +208,19 @@ TimeToSeconds64Since1970(_In_ PLARGE_INTEGER Time,
 ULONG
 GetCallAttributes(VOID);
 
-DWORD
-RegistryGetDWordValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
+ULONG
+RegistryGetULongValueForKey(_In_ const wil::unique_hkey &hKey,
+                            _In_z_ PCWSTR KeyName);
 
-PWSTR
-RegistryGetStringValueForKey(_In_ HKEY hKey, _In_z_ PCWSTR KeyName);
+bool
+RegistryGetStringValueForKey(_In_ const wil::unique_hkey &hKey,
+                             _In_z_ PCWSTR KeyName,
+                             _Out_ std::wstring &KeyValue);
 
-PWSTR *
-RegistryGetStringValuesForKey(_In_ HKEY hKey,
-                              _In_z_ PCWSTR KeyName);
+bool
+RegistryGetStringValuesForKey(_In_ const wil::unique_hkey &hKey,
+                              _In_z_ PCWSTR KeyName,
+                              _Out_ std::vector<std::wstring> &KeyValues);
 
 bool
 IsLocalHost(_In_ PUNICODE_STRING HostName);

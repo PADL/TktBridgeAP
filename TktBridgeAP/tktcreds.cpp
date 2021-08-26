@@ -39,10 +39,6 @@
  * flag in the registry.
  */
 
-#include <map>
-#include <mutex>
-#include <iterator>
-
 namespace TktBridgeAP {
     static LONGLONG LuidToQuadValue(const LUID &LogonId) {
         LARGE_INTEGER Value;

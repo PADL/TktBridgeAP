@@ -39,11 +39,15 @@ PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
  */
 
 SECPKG_PARAMETERS SpParameters;
-ULONG APFlags = 0;
-ULONG APLogLevel = 0;
-PWSTR APKdcHostName = nullptr;
-PWSTR APRestrictPackage = nullptr;
-PWSTR *APDomainSuffixes = nullptr;
+static ULONG_PTR LsaAuthenticationPackageId = SECPKG_ID_NONE;
+static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
+
+static std::mutex APGlobalsLock;
+static std::optional<std::wstring> APKdcHostName;
+static std::optional<std::wstring> APRestrictPackage;
+static std::vector<std::wstring> APDomainSuffixes;
+std::atomic<unsigned long> APFlags = 0;
+std::atomic<unsigned long> APLogLevel = 0;
 
 extern "C" {
     static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
@@ -54,9 +58,6 @@ extern "C" {
 
 static NTSTATUS
 InitializeRegistryNotification(VOID);
-
-static ULONG_PTR LsaAuthenticationPackageId = SECPKG_ID_NONE;
-static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
 
 static VOID
 FreeLsaString(_Inout_ PLSA_STRING pLsaString)
@@ -105,18 +106,17 @@ InitializePackage(_In_ ULONG AuthenticationPackageId,
                   _In_opt_ PLSA_STRING Confidentiality,
                   _Out_ PLSA_STRING *AuthenticationPackageName)
 {
-    NTSTATUS Status;
-    LSA_STRING APName;
-
     LsaAuthenticationPackageId = AuthenticationPackageId;
     LsaDispatchTable = DispatchTable;
     *AuthenticationPackageName = nullptr;
 
-    APName.MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A);
-    APName.Length = APName.MaximumLength - sizeof(CHAR);
-    APName.Buffer = (PCHAR)TKTBRIDGEAP_PACKAGE_NAME_A;
+    LSA_STRING APName = {
+        .Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1,
+        .MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A),
+        .Buffer = (PCHAR)TKTBRIDGEAP_PACKAGE_NAME_A,
+    };
 
-    Status = DuplicateLsaString(&APName, AuthenticationPackageName);
+    auto Status = DuplicateLsaString(&APName, AuthenticationPackageName);
     NT_RETURN_IF_NTSTATUS_FAILED(Status);
 
     return STATUS_SUCCESS;
@@ -167,18 +167,6 @@ SpInitialize(_In_ ULONG_PTR PackageId,
     return STATUS_SUCCESS;
 }
 
-static VOID
-FreeDomainSuffixes(VOID)
-{
-    if (APDomainSuffixes != nullptr) {
-        for (PWSTR *pSuffix = APDomainSuffixes; *pSuffix != nullptr; pSuffix++)
-            WIL_FreeMemory(*pSuffix);
-
-        WIL_FreeMemory(APDomainSuffixes);
-        APDomainSuffixes = nullptr;
-    }
-}
-
 static NTSTATUS NTAPI
 SpShutdown(VOID)
 {
@@ -191,20 +179,15 @@ SpShutdown(VOID)
     RtlFreeUnicodeString(&SpParameters.DnsDomainName);
     ZeroMemory(&SpParameters, sizeof(SpParameters));
 
+    APKdcHostName.reset();
+    APRestrictPackage.reset();
+    APDomainSuffixes.clear();
     APFlags = 0;
     APLogLevel = 0;
 
-    WIL_FreeMemory(APKdcHostName);
-    APKdcHostName = nullptr;
-
-    WIL_FreeMemory(APRestrictPackage);
-    APRestrictPackage = nullptr;
-
-    FreeDomainSuffixes();
-
     LsaAuthenticationPackageId = SECPKG_ID_NONE;
-    LsaDispatchTable = nullptr;
-    LsaSpFunctionTable = nullptr;
+    LsaDispatchTable           = nullptr;
+    LsaSpFunctionTable         = nullptr;
 
     EventUnregisterPADL_TktBridgeAP();
 
@@ -281,34 +264,40 @@ SpGetInfo(_Out_ PSecPkgInfo PackageInfo)
 static DWORD
 RegistryNotifyChanged(VOID)
 {
-    DWORD dwResult;
     wil::unique_hkey hKey;
+    std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
-    dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
-                            0, KEY_QUERY_VALUE, &hKey);
-    RETURN_IF_WIN32_ERROR_EXPECTED(dwResult);
+    ULONG Flags = APFlags & ~(TKTBRIDGEAP_FLAG_USER);
+    ULONG LogLevel = 0;
 
-    auto Flags = RegistryGetDWordValueForKey(hKey.get(), L"Flags") & TKTBRIDGEAP_FLAG_USER;
-    Flags |= APFlags & ~(TKTBRIDGEAP_FLAG_USER);
+    APKdcHostName.reset();
+    APRestrictPackage.reset();
+    APDomainSuffixes.clear();
+
+    auto dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
+                                 0, KEY_QUERY_VALUE, &hKey);
+    if (dwResult == ERROR_SUCCESS) {
+        Flags |= RegistryGetULongValueForKey(hKey, L"Flags") & TKTBRIDGEAP_FLAG_USER;
+        LogLevel = RegistryGetULongValueForKey(hKey, L"LogLevel");
+
+        std::wstring KdcHostName;
+        if (RegistryGetStringValueForKey(hKey, L"KdcHostName", KdcHostName))
+            APKdcHostName.emplace(KdcHostName);
+
+        std::wstring RestrictPackage;
+        if (RegistryGetStringValueForKey(hKey, L"RestrictPackage", RestrictPackage))
+            APRestrictPackage.emplace(RestrictPackage);
+
+        RegistryGetStringValuesForKey(hKey, L"DomainSuffixes", APDomainSuffixes);
+    }
+
 #ifndef NDEBUG
     Flags |= TKTBRIDGEAP_FLAG_DEBUG;
 #endif
+    APFlags = Flags;
+    APLogLevel = LogLevel;
 
-    InterlockedExchange(&APFlags, Flags);
-
-    auto LogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
-    InterlockedExchange(&APLogLevel, LogLevel);
-
-    WIL_FreeMemory(APKdcHostName);
-    APKdcHostName = RegistryGetStringValueForKey(hKey.get(), L"KdcHostName");
-
-    WIL_FreeMemory(APRestrictPackage);
-    APRestrictPackage = RegistryGetStringValueForKey(hKey.get(), L"RestrictPackage");
-
-    FreeDomainSuffixes();
-    APDomainSuffixes = RegistryGetStringValuesForKey(hKey.get(), L"DomainSuffixes");
-
-    return ERROR_SUCCESS;
+    return dwResult;
 }
 
 static NTSTATUS
@@ -318,10 +307,79 @@ InitializeRegistryNotification(VOID)
 
     auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
         TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
-            ::RegistryNotifyChanged();
+            RegistryNotifyChanged();
         });
 
     RETURN_NTSTATUS_IF_NULL_ALLOC(watcher);
 
     return STATUS_SUCCESS;
 }
+
+PCWSTR
+GetKdcHostName(std::wstring &Buffer)
+{
+    std::lock_guard GlobalsLockGuard(APGlobalsLock);
+
+    if (APKdcHostName.has_value()) {
+        Buffer = APKdcHostName.value();
+        return Buffer.c_str();
+    } else {
+        return nullptr;
+    }
+}
+
+PCWSTR
+GetRestrictPackage(std::wstring &Buffer)
+{
+    std::lock_guard GlobalsLockGuard(APGlobalsLock);
+
+    if (APRestrictPackage.has_value()) {
+        Buffer = APRestrictPackage.value();
+        return Buffer.c_str();
+    } else {
+        return nullptr;
+    }
+}
+
+bool
+TestDomainSuffix(PCWSTR Suffix,
+                 bool &Authoritative)
+{
+    std::lock_guard GlobalsLockGuard(APGlobalsLock);
+
+    Authoritative = !APDomainSuffixes.empty();
+
+    if (Authoritative) {
+        for (auto Iterator = APDomainSuffixes.begin();
+             Iterator != APDomainSuffixes.end();
+             Iterator++) {
+            if (_wcsicmp(Suffix, Iterator->c_str()) == 0)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+#ifndef NDEBUG
+extern "C"
+TKTBRIDGEAP_API void __cdecl
+TestEntryPoint(PVOID Unused1, PVOID Unused2, CHAR * Unused3, INT Unused4)
+{
+    RegistryNotifyChanged();
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Flags %08x LogLevel %08x KdcHostName %s RestrictPackage %s",
+               APFlags.load(), APLogLevel.load(),
+               APKdcHostName.has_value() ? APKdcHostName.value().c_str() : L"<none>",
+               APRestrictPackage.has_value() ? APRestrictPackage.value().c_str() : L"<none>");
+
+    if (APDomainSuffixes.empty()) {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"No domain suffixes configured");
+    } else {
+        for (auto Iterator = APDomainSuffixes.begin();
+             Iterator != APDomainSuffixes.end();
+             Iterator++)
+            DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Domain suffix: %s", Iterator->c_str());
+    }
+}
+#endif

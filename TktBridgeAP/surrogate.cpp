@@ -215,16 +215,11 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
      * If a list of domain suffixes is configured in the registry,
      * use that as authoritative.
      */
-    if (APDomainSuffixes != nullptr) {
-        for (PWSTR *pDomainSuffix = APDomainSuffixes;
-             *pDomainSuffix != nullptr;
-             pDomainSuffix++) {
-            if (_wcsicmp(wszDomainName, *pDomainSuffix) == 0)
-                return true;
-        }
+    bool Authoritative;
+    bool DomainSuffixMatch = TestDomainSuffix(wszDomainName, Authoritative);
 
-        return false;
-    }
+    if (Authoritative)
+        return DomainSuffixMatch;
 
     /*
      * We don't want to get in the way of ordinary logons so by default we
@@ -287,9 +282,11 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
     Status = RtlUpcaseUnicodeString(&RealmName, &RealmName, FALSE);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
+    std::wstring KdcHostName, RestrictPackage;
+
     auto KrbError = GssPreauthGetInitCreds(RealmName.Buffer,
-                                           APRestrictPackage,
-                                           APKdcHostName,
+                                           GetKdcHostName(KdcHostName),
+                                           GetRestrictPackage(RestrictPackage),
                                            nullptr,
                                            AuthIdentity,
                                            &TktBridgeCreds->ClientName,
