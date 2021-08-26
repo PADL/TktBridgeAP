@@ -100,6 +100,7 @@
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004
 #define TKTBRIDGEAP_FLAG_NO_CLEAR_CRED_CACHE    0x00000008
+#define TKTBRIDGEAP_FLAG_ANON_PKINIT_FAST       0x00000010
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF
 
 #define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000
@@ -117,6 +118,10 @@
  * Unfortunately CloudAP thinks this structure is a user cache
  * entry and its LsaApPostLogonUserSurrogate will attempt to release
  * it. The workarounds to avoid this are fragile; see tktcreds.cpp.
+ *
+ * Credentials are immutable and are encrypted with LsaProtectMemory.
+ * If you need the key, make a copy. If you need to modify it, create
+ * a new one and replace it. That avoids needing a lock.
  */
 
 typedef struct _TKTBRIDGEAP_CREDS {
@@ -252,10 +257,13 @@ DetachKerbLogonInterposer(VOID);
  * preauth.cpp
  */
 
+#define GSS_PREAUTH_INIT_CREDS_ANON_PKINIT_FAST 0x1
+
 _Success_(return == 0) krb5_error_code
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,
+                       _In_ ULONG Flags,
                        _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,

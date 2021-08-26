@@ -263,10 +263,10 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
-GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
-                  _In_ const LUID &LogonId,
-                  _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
-                  _Out_ PNTSTATUS SubStatus)
+AcquireTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+                      _In_ const LUID &LogonId,
+                      _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
+                      _Out_ PNTSTATUS SubStatus)
 {
     NTSTATUS Status;
     SECURITY_STATUS SecStatus;
@@ -296,6 +296,7 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 
     std::wstring RestrictPackageBuffer, KdcHostNameBuffer;
     PCWSTR RestrictPackage, KdcHostName;
+    ULONG Flags = 0;
 
     Status = GetRestrictPackage(RestrictPackageBuffer, RestrictPackage);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -303,9 +304,13 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
     Status = GetKdcHostName(KdcHostNameBuffer, KdcHostName);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
+    if (APFlags & TKTBRIDGEAP_FLAG_ANON_PKINIT_FAST)
+        Flags |= GSS_PREAUTH_INIT_CREDS_ANON_PKINIT_FAST;
+
     auto KrbError = GssPreauthGetInitCreds(RealmName.Buffer,
                                            RestrictPackage,
                                            KdcHostName,
+                                           Flags,
                                            nullptr,
                                            AuthIdentity,
                                            &TktBridgeCreds->ClientName,
@@ -420,10 +425,10 @@ LsaApPreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (!ValidateSurrogateLogonDomain(AuthIdentity))
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
-    Status = GetTktBridgeCreds(AuthIdentity,
-                               SurrogateLogon->SurrogateLogonID,
-                               &TktBridgeCreds,
-                               SubStatus);
+    Status = AcquireTktBridgeCreds(AuthIdentity,
+                                   SurrogateLogon->SurrogateLogonID,
+                                   &TktBridgeCreds,
+                                   SubStatus);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = AddSurrogateLogonEntry(SurrogateLogon, TktBridgeCreds);
@@ -521,7 +526,7 @@ RefreshTktBridgeCreds(_In_ const LUID &LogonId,
     Status = SspiDecryptAuthIdentity(AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = GetTktBridgeCreds(AuthIdentity, LogonId, pRefreshedCreds, &SubStatus);
+    Status = AcquireTktBridgeCreds(AuthIdentity, LogonId, pRefreshedCreds, &SubStatus);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);

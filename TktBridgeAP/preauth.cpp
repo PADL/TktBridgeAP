@@ -331,15 +331,15 @@ GssPreauthFinish(krb5_context KrbContext,
         return SspiStatusToKrbError(SecStatus);
 
     KrbError = GssPreauthParseName(KrbContext,
-                                    NativeNames.sClientName,
-                                    pClientPrincipal);
+                                   NativeNames.sClientName,
+                                   pClientPrincipal);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to parse initiator name");
 
     KrbError = GssPreauthDeriveKey(KrbContext,
-                                    &GssContextHandle->Handle,
-                                    AsReqNonce,
-                                    KrbEncType,
-                                    ppReplyKey);
+                                   &GssContextHandle->Handle,
+                                   AsReqNonce,
+                                   KrbEncType,
+                                   ppReplyKey);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to derive reply key");
 
     return 0;
@@ -446,6 +446,7 @@ krb5_error_code _Success_(return == 0)
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,
+                       _In_ ULONG Flags,
                        _In_opt_ PLUID pvLogonId,
                        _In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                        _Out_ PWSTR *pClientName,
@@ -578,16 +579,21 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to make WELLKNOWN/FEDERATED principal");
 
     KrbError = krb5_get_init_creds_opt_alloc(KrbContext, &InitCredsOpt);
-    RETURN_IF_KRB_FAILED(KrbError);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to allocate init creds options");
 
     krb5_get_init_creds_opt_set_canonicalize(KrbContext, InitCredsOpt, TRUE);
 
     KrbError = krb5_init_creds_init(KrbContext, FederatedPrinc, nullptr, nullptr, 0,
                                     InitCredsOpt, &InitCredsContext);
-    RETURN_IF_KRB_FAILED(KrbError);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to allocate init creds context");
 
     KrbError = krb5_init_creds_set_service(KrbContext, InitCredsContext, nullptr);
-    RETURN_IF_KRB_FAILED(KrbError);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to set TGS on init creds context");
+
+    if (Flags & GSS_PREAUTH_INIT_CREDS_ANON_PKINIT_FAST) {
+        KrbError = krb5_init_creds_set_fast_anon_pkinit(KrbContext, InitCredsContext);
+        RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to enable anonymous PKINIT FAST");
+    }
 
     KrbError = _krb5_init_creds_init_gss(KrbContext,
                                          InitCredsContext,
