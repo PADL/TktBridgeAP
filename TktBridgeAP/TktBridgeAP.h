@@ -113,16 +113,21 @@
 /*
  * Ticket Bridge credential structure: an AS-REP containing a TGT,
  * optionally with the initial credentials used to acquire it.
+ * 
+ * Unfortunately CloudAP thinks this structure is a user cache
+ * entry and its LsaApPostLogonUserSurrogate will attempt to release
+ * it. The workarounds to avoid this are fragile; see tktcreds.cpp.
  */
 
 typedef struct _TKTBRIDGEAP_CREDS {
     LONG RefCount;
     PWSTR ClientName;
-    ULONG Reserved; // FIXME
+    ULONG Reserved1;
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
     LARGE_INTEGER EndTime;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE InitialCreds;
+    ULONG Reserved2[68];
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
 /*

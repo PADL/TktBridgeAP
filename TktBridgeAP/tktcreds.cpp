@@ -186,6 +186,17 @@ AllocateTktBridgeCreds(VOID)
     ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
     TktBridgeCreds->RefCount = 1;
 
+    /*
+     * This is another very unpleasant hack because CloudAP shares
+     * the same surrogate data. Reserved1 contains the reference
+     * count it uses and we want to ensure it never frees an entry
+     * we created (in lieu of documenting the interface, Windows
+     * should at least check the surrogate callback matches before
+     * freeing the private data).
+     */
+    TktBridgeCreds->Reserved1 = ULONG_MAX;  // reference count
+    TktBridgeCreds->Reserved2[67] = 2;      // hint to not free
+
     return TktBridgeCreds;
 }
 
