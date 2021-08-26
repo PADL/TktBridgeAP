@@ -307,9 +307,9 @@ RegistryNotifyChangedNoExcept(VOID)
 
     try {
         Status = RegistryNotifyChanged();
-    } catch (std::bad_alloc &e) {
+    } catch (std::bad_alloc) {
         Status = STATUS_NO_MEMORY;
-    } catch (std::exception &e) {
+    } catch (std::exception) {
         Status = STATUS_UNHANDLED_EXCEPTION;
     }
 
@@ -332,9 +332,9 @@ InitializeRegistryNotification(VOID)
 }
 
 static NTSTATUS
-GetConfigValue(std::optional<std::wstring> &ConfigValue,
-               std::wstring &Buffer,
-               PCWSTR &pValue)
+GetGlobalConfigValue(std::optional<std::wstring> &ConfigValue,
+                     std::wstring &Buffer,
+                     PCWSTR &pValue)
 {
     std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
@@ -345,9 +345,9 @@ GetConfigValue(std::optional<std::wstring> &ConfigValue,
             Buffer = ConfigValue.value();
             pValue = Buffer.c_str();
         }
-    } catch (std::bad_alloc &e) {
+    } catch (std::bad_alloc) {
         RETURN_NTSTATUS(STATUS_NO_MEMORY);
-    } catch (std::exception &e) {
+    } catch (std::exception) {
         RETURN_NTSTATUS(STATUS_UNHANDLED_EXCEPTION);
     }
 
@@ -357,13 +357,13 @@ GetConfigValue(std::optional<std::wstring> &ConfigValue,
 NTSTATUS
 GetKdcHostName(std::wstring &Buffer, PCWSTR &pKdcHostName)
 {
-    return GetConfigValue(APKdcHostName, Buffer, pKdcHostName);
+    return GetGlobalConfigValue(APKdcHostName, Buffer, pKdcHostName);
 }
 
-PCWSTR
+NTSTATUS
 GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage)
 {
-    return GetConfigValue(APRestrictPackage, Buffer, pRestrictPackage);
+    return GetGlobalConfigValue(APRestrictPackage, Buffer, pRestrictPackage);
 }
 
 bool

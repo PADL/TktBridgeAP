@@ -548,7 +548,7 @@ ValidateAndUnpackCspData(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         Status = LsaSpFunctionTable->CopyFromClientBuffer(ClientRequest,
                                                           CspDataLength,
                                                           ClientCspData,
-                                                          CspData);
+                                                          reinterpret_cast<PVOID>(CspData));
         RETURN_IF_NTSTATUS_FAILED(Status);
 
         Status = ConvertCspDataToCertificateCredential(ClientCspData, CspDataLength, pMarshaledCredential);
@@ -657,6 +657,8 @@ ConvertKerbCertficateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 {
     NTSTATUS Status;
     bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
+    PWSTR wszDomainName = nullptr;
+    PWSTR wszUserName = nullptr;
     PWSTR wszPin = nullptr;
     PWSTR wszCspData = nullptr;
     PWSTR wszUnprotectedPin = nullptr;
@@ -714,7 +716,7 @@ ConvertKerbCertficateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           ProtocolSubmitBuffer,
                                           ClientBufferBase,
                                           SubmitBufferSize,
-                                          static_cast<ULONG_PTR>(pKCL32->CspData),
+                                          reinterpret_cast<ULONG_PTR>(pKCL32->CspData),
                                           pKCL32->CspDataLength,
                                           &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);

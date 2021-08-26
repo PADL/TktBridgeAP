@@ -479,7 +479,7 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-VOID
+VOID NTAPI
 LsaApLogonTerminated(_In_ PLUID LogonId)
 {
     assert(LogonId != nullptr);
