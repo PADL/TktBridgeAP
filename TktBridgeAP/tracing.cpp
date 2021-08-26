@@ -92,7 +92,7 @@ HeimLogLogCB(krb5_context KrbContext,
     PCSTR pszMessage,
     PVOID Context)
 {
-    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%s: %s", pszPrefix, pszMessage);
+    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"%S: %S", pszPrefix, pszMessage);
 }
 
 static VOID KRB5_CALLCONV

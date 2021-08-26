@@ -293,11 +293,11 @@ UnprotectString(_In_z_ PWSTR wszProtected,
 
 #define VALIDATE_UNPACK_UNICODE_STRING(UnicodeString, WString) do {             \
         Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,            \
-                                                        ProtocolSubmitBuffer,   \
-                                                        ClientBufferBase,       \
-                                                        SubmitBufferSize,       \
-                                                        &(UnicodeString),       \
-                                                        &(WString));            \
+                                                      ProtocolSubmitBuffer,     \
+                                                      ClientBufferBase,         \
+                                                      SubmitBufferSize,         \
+                                                      &(UnicodeString),         \
+                                                      &(WString));              \
         RETURN_IF_NTSTATUS_FAILED(Status);                                      \
     } while (0)
 
@@ -780,6 +780,8 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
     UnlockLogonId.LowPart = 0;
     UnlockLogonId.HighPart = 0;
 
+    assert(sizeof(PKERB_LOGON_SUBMIT_TYPE) < SubmitBufferSize);
+
     if (IsWowClient) {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON32);
@@ -796,7 +798,7 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
             cbUnlockLogon = sizeof(KERB_CERTIFICATE_UNLOCK_LOGON);
     }
 
-    if (cbUnlockLogon < SubmitBufferSize)
+    if (SubmitBufferSize < cbUnlockLogon)
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
     if (IsWowClient) {
