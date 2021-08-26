@@ -368,13 +368,13 @@ GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage)
 
 bool
 IsEnabledDomainSuffix(PCWSTR Suffix,
-                      bool &Authoritative)
+                      bool *Authoritative)
 {
     std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
-    Authoritative = !APDomainSuffixes.empty();
+    *Authoritative = !APDomainSuffixes.empty();
 
-    if (Authoritative) {
+    if (*Authoritative) {
         for (auto Iterator = APDomainSuffixes.begin();
              Iterator != APDomainSuffixes.end();
              Iterator++) {

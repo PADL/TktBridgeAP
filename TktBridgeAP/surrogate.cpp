@@ -228,7 +228,7 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
      * use that as authoritative.
      */
     bool Authoritative;
-    bool DomainSuffixMatch = IsEnabledDomainSuffix(wszDomainName, Authoritative);
+    bool DomainSuffixMatch = IsEnabledDomainSuffix(wszDomainName, &Authoritative);
 
     if (Authoritative)
         return DomainSuffixMatch;

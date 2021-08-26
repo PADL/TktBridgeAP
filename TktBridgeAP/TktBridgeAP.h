@@ -172,7 +172,7 @@ GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage);
 
 bool
 IsEnabledDomainSuffix(PCWSTR Suffix,
-                      bool &Authoritative);
+                      bool *Authoritative);
 
 /*
  * errors.cpp
