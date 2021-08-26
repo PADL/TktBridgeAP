@@ -521,7 +521,7 @@ ValidateAndUnpackCspData(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                          _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                          _In_ PVOID ClientBufferBase,
                          _In_ ULONG SubmitBufferSize,
-                         _In_reads_bytes_(CspDataLength) PUCHAR CspData,
+                         _In_ ULONG_PTR CspData,
                          _In_ ULONG CspDataLength,
                          _Out_ PWSTR *pMarshaledCredential)
 {
@@ -529,11 +529,9 @@ ValidateAndUnpackCspData(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     *pMarshaledCredential = nullptr;
 
-    Status = ValidateOffset(SubmitBufferSize,
-                            reinterpret_cast<ULONG_PTR>(CspData),
-                            CspDataLength);
+    Status = ValidateOffset(SubmitBufferSize, CspData, CspDataLength);
     if (NT_SUCCESS(Status)) {
-        Status = ConvertCspDataToCertificateCredential(static_cast<PBYTE>(ProtocolSubmitBuffer) + reinterpret_cast<ULONG_PTR>(CspData),
+        Status = ConvertCspDataToCertificateCredential(static_cast<PBYTE>(ProtocolSubmitBuffer) + CspData,
                                                        CspDataLength,
                                                        pMarshaledCredential);
         RETURN_IF_NTSTATUS_FAILED(Status);
@@ -608,7 +606,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           ProtocolSubmitBuffer,
                                           ClientBufferBase,
                                           SubmitBufferSize,
-                                          reinterpret_cast<PUCHAR>(static_cast<ULONG_PTR>(pKSCL32->CspData)),
+                                          static_cast<ULONG_PTR>(pKSCL32->CspData),
                                           pKSCL32->CspDataLength,
                                           &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);
@@ -632,7 +630,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           ProtocolSubmitBuffer,
                                           ClientBufferBase,
                                           SubmitBufferSize,
-                                          pKSCL->CspData,
+                                          reinterpret_cast<ULONG_PTR>(pKSCL->CspData),
                                           pKSCL->CspDataLength,
                                           &wszCspData);
         RETURN_IF_NTSTATUS_FAILED(Status);
@@ -649,6 +647,145 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
+ConvertKerbCertficateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                         _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                         _In_ PVOID ClientBufferBase,
+                                         _In_ ULONG SubmitBufferSize,
+                                         _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
+{
+    NTSTATUS Status;
+    bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
+    PWSTR wszPin = nullptr;
+    PWSTR wszCspData = nullptr;
+    PWSTR wszUnprotectedPin = nullptr;
+    PWSTR wszUpnSuffix = nullptr;
+
+    *pAuthIdentity = nullptr;
+
+    auto cleanup = wil::scope_exit([&]() {
+        WIL_FreeMemory(wszDomainName);
+        WIL_FreeMemory(wszUserName);
+        if (wszPin != nullptr) {
+            SecureZeroMemory(wszPin, wcslen(wszPin) * sizeof(WCHAR));
+            WIL_FreeMemory(wszPin);
+        }
+        CredFree(wszCspData);
+        if (wszUnprotectedPin != nullptr) {
+            SecureZeroMemory(wszUnprotectedPin, wcslen(wszUnprotectedPin) * sizeof(WCHAR));
+            WIL_FreeMemory(wszUnprotectedPin);
+        }
+                                   });
+
+    if (IsWowClient) {
+        PKERB_CERTIFICATE_LOGON32 pKCL32;
+
+        if (SubmitBufferSize < sizeof(*pKCL32))
+            RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+        pKCL32 = static_cast<PKERB_CERTIFICATE_LOGON32>(ProtocolSubmitBuffer);
+
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
+                                                        SubmitBufferSize,
+                                                        &pKCL32->DomainName,
+                                                        &wszDomainName);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
+                                                        SubmitBufferSize,
+                                                        &pKCL32->UserName,
+                                                        &wszUserName);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,
+                                                        ProtocolSubmitBuffer,
+                                                        ClientBufferBase,
+                                                        SubmitBufferSize,
+                                                        &pKCL32->Pin,
+                                                        &wszPin);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ValidateAndUnpackCspData(ClientRequest,
+                                          ProtocolSubmitBuffer,
+                                          ClientBufferBase,
+                                          SubmitBufferSize,
+                                          static_cast<ULONG_PTR>(pKCL32->CspData),
+                                          pKCL32->CspDataLength,
+                                          &wszCspData);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    } else {
+        PKERB_CERTIFICATE_LOGON pKCL;
+
+        if (SubmitBufferSize < sizeof(*pKCL))
+            RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+        pKCL = static_cast<PKERB_CERTIFICATE_LOGON>(ProtocolSubmitBuffer);
+
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
+                                                      SubmitBufferSize,
+                                                      &pKCL->DomainName,
+                                                      &wszDomainName);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
+                                                      SubmitBufferSize,
+                                                      &pKCL->UserName,
+                                                      &wszUserName);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,
+                                                      ProtocolSubmitBuffer,
+                                                      ClientBufferBase,
+                                                      SubmitBufferSize,
+                                                      &pKCL->Pin,
+                                                      &wszPin);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+
+        Status = ValidateAndUnpackCspData(ClientRequest,
+                                          ProtocolSubmitBuffer,
+                                          ClientBufferBase,
+                                          SubmitBufferSize,
+                                          reinterpret_cast<ULONG_PTR>(pKCL->CspData),
+                                          pKCL->CspDataLength,
+                                          &wszCspData);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    }
+
+    /*
+     * Canonicalize into user and domain components as we need to filter
+     * the domain name to determine whether to attempt surrogate logon.
+     */
+    if (wszDomainName == nullptr || wszDomainName[0] == L'\0') {
+        wszUpnSuffix = wcschr(wszUserName, L'@');
+        if (wszUpnSuffix != nullptr) {
+            *wszUpnSuffix = L'\0';
+            wszUpnSuffix++;
+        }
+    }
+
+    // FIXME where do we put the user name? at least we can filter on domain
+
+    Status = UnprotectString(wszPin, &wszUnprotectedPin);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    Status = SspiEncodeStringsAsAuthIdentity(wszCspData,
+                                             wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
+                                             wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
+                                             pAuthIdentity);
+    RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ValidateAuthIdentityEx2(PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentityEx2)
@@ -732,11 +869,15 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
             cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON32);
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
             cbUnlockLogon = sizeof(KERB_SMART_CARD_UNLOCK_LOGON32);
+        else if (LogonSubmitType == KerbCertificateUnlockLogon)
+            cbUnlockLogon = sizeof(KERB_CERTIFICATE_UNLOCK_LOGON32);
     } else {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON);
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
             cbUnlockLogon = sizeof(KERB_SMART_CARD_UNLOCK_LOGON);
+        else if (LogonSubmitType == KerbCertificateUnlockLogon)
+            cbUnlockLogon = sizeof(KERB_CERTIFICATE_UNLOCK_LOGON);
     }
 
     if (cbUnlockLogon < SubmitBufferSize)
@@ -747,11 +888,15 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
             UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
             UnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
+        else if (LogonSubmitType == KerbCertificateUnlockLogon)
+            UnlockLogonId = static_cast<PKERB_CERTIFICATE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
     } else {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
             UnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
+        else if (LogonSubmitType == KerbCertificateUnlockLogon)
+            UnlockLogonId = static_cast<PKERB_CERTIFICATE_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
@@ -830,6 +975,8 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     case KerbWorkstationUnlockLogon:
     case KerbSmartCardLogon:
     case KerbSmartCardUnlockLogon:
+    case KerbCertificateLogon:
+    case KerbCertificateUnlockLogon:
         Status = ConvertAuthenticationBufferToAuthIdentity(ClientRequest,
                                                            ProtocolSubmitBuffer,
                                                            ClientBufferBase,

@@ -75,6 +75,21 @@ typedef struct _KERB_SMART_CARD_UNLOCK_LOGON32 {
     LUID LogonId;
 } KERB_SMART_CARD_UNLOCK_LOGON32, *PKERB_SMART_CARD_UNLOCK_LOGON32;
 
+typedef struct _KERB_CERTIFICATE_LOGON32 {
+    KERB_LOGON_SUBMIT_TYPE MessageType;
+    KERB_UNICODE_STRING32  DomainName;
+    KERB_UNICODE_STRING32  UserName;
+    KERB_UNICODE_STRING32  Pin;
+    ULONG                  Flags;
+    ULONG                  CspDataLength;
+    PUCHAR                 CspData;
+} KERB_CERTIFICATE_LOGON32, *PKERB_CERTIFICATE_LOGON32;
+
+typedef struct _KERB_CERTIFICATE_UNLOCK_LOGON32 {
+    KERB_CERTIFICATE_LOGON32 Logon;
+    LUID LogonId;
+} KERB_CERTIFICATE_UNLOCK_LOGON32, *PKERB_CERTIFICATE_UNLOCK_LOGON32;
+
 /*
  * Smartcard logon
  * https://docs.microsoft.com/en-us/windows/win32/secauthn/kerb-smartcard-csp-info
@@ -99,7 +114,7 @@ typedef struct _KERB_SMARTCARD_CSP_INFO {
 #pragma pack(pop)
 
 /*
- * Partial ticket / AS-REP callback credentials
+ * Callback interface between surrogate and Kerberos packages
  */
 
 typedef struct _KERB_AS_REP_TGT_CREDENTIAL {

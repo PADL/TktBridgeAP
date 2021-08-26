@@ -121,7 +121,6 @@ typedef struct _TKTBRIDGEAP_CREDS {
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
     LARGE_INTEGER EndTime;
-    LARGE_INTEGER RenewTill;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE InitialCreds;
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
