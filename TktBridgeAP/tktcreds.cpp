@@ -36,7 +36,10 @@
  * Implements a simple credential cache for refreshing TGTs using cached
  * primary credentials of a user. Although the credentials are encrypted,
  * the user can disable this globally by setting the NO_INIT_CREDS_CACHE
- * flag in the registry.
+ * flag in the registry. The cache is also used to lookup valid TGTs by
+ * logon ID.
+ *
+ * Exceptions must not escape and must be translated to NTSTATUS codes.
  */
 
 namespace TktBridgeAP {
@@ -89,6 +92,9 @@ namespace TktBridgeAP {
 
 using namespace TktBridgeAP;
 
+/*
+ * Locate credentials by logon session.
+ */
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 FindCredsForLogonSession(_In_ const LUID &LogonID,
                          _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
@@ -114,6 +120,9 @@ FindCredsForLogonSession(_In_ const LUID &LogonID,
     RETURN_NTSTATUS(Status);
 }
 
+/*
+ * Save credentials for a logon session.
+ */
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 SaveCredsForLogonSession(_In_ const LUID &LogonID,
                          _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
@@ -135,6 +144,9 @@ SaveCredsForLogonSession(_In_ const LUID &LogonID,
     RETURN_NTSTATUS(Status);
 }
 
+/*
+ * Remove credentials when a logon is terminated.
+ */
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 RemoveCredsForLogonSession(_In_ const LUID &LogonID)
 {
@@ -154,6 +166,7 @@ RemoveCredsForLogonSession(_In_ const LUID &LogonID)
     RETURN_NTSTATUS(Status);
 }
 
+#ifndef NDEBUG
 VOID
 DebugLogonCreds(VOID)
 {
@@ -173,6 +186,7 @@ DebugLogonCreds(VOID)
                    TktBridgeCreds->InitialCreds);
     }
 }
+#endif /* !NDEBUG */
 
 PTKTBRIDGEAP_CREDS
 AllocateTktBridgeCreds(VOID)

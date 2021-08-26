@@ -38,7 +38,7 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
 
 #ifndef NDEBUG
 static _Success_(return == 0) krb5_error_code
-ValidateAsRep(_In_ PTKTBRIDGEAP_CREDS Creds);
+ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
 #endif
 
 /*
@@ -85,7 +85,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
                IsTktBridgeCredsExpired(TktBridgeCreds) ? L"Expired" : L"Valid");
 
 #ifndef NDEBUG
-    if (ValidateAsRep(TktBridgeCreds) != 0)
+    if (ValidateTgtBridgeCreds(TktBridgeCreds) != 0)
         RETURN_NTSTATUS(STATUS_INTERNAL_ERROR);
 #endif
 
@@ -311,7 +311,7 @@ AcquireTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                                            RestrictPackage,
                                            KdcHostName,
                                            Flags,
-                                           nullptr,
+                                           nullptr, // pvLogonId
                                            AuthIdentity,
                                            &TktBridgeCreds->ClientName,
                                            &TktBridgeCreds->EndTime,
@@ -371,6 +371,11 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
 
     ReferenceTktBridgeCreds(TktBridgeCreds);
 
+    /*
+     * Note that CloudAP will think it owns this entry as it does not check
+     * the callback matches. PackageData must be structured in such a way
+     * that CloudAP will never attempt to release it.
+     */
     SurrogateLogonData->AsRepCallback = RetrieveTktBridgeCreds;
     SurrogateLogonData->PackageData = TktBridgeCreds;
 
@@ -560,7 +565,7 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
 
 #ifndef NDEBUG
 static _Success_(return == 0) krb5_error_code
-ValidateAsRep(_In_ PTKTBRIDGEAP_CREDS Creds)
+ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     krb5_error_code KrbError;
     AS_REP AsRep;
@@ -626,7 +631,7 @@ ValidateAsRep(_In_ PTKTBRIDGEAP_CREDS Creds)
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP enc-part");
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"AS-REP enc-part authtime %d flags %d srealm %S",
+               L"AS-REP enc-part authtime %d flags %08x srealm %S",
                AsRepPart.authtime,
                AsRepPart.flags,
                AsRepPart.srealm);
