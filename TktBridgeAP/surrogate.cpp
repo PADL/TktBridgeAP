@@ -36,6 +36,73 @@ static _Success_(return == STATUS_SUCCESS) NTSTATUS
 MaybeRefreshTktBridgeCreds(const LUID &LogonId,
                            PTKTBRIDGEAP_CREDS *pTktBridgeCreds);
 
+#ifndef NDEBUG
+static krb5_error_code
+ValidateAsRep(PTKTBRIDGEAP_CREDS Creds)
+{
+    krb5_error_code KrbError;
+    AS_REP AsRep;
+    EncASRepPart AsRepPart;
+    size_t Size;
+    krb5_data Data;
+    krb5_context KrbContext = nullptr;
+    krb5_crypto KrbCrypto = nullptr;
+
+    ZeroMemory(&AsRep, sizeof(AsRep));
+    ZeroMemory(&AsRepPart, sizeof(AsRepPart));
+    krb5_data_zero(&Data);
+
+    auto cleanup = wil::scope_exit([&]() {
+        free_AS_REP(&AsRep);
+        free_EncASRepPart(&AsRepPart);
+        if (KrbContext != nullptr) {
+            if (KrbCrypto != nullptr)
+                krb5_crypto_destroy(KrbContext, KrbCrypto);
+            krb5_free_context(KrbContext);
+            krb5_data_free(&Data);
+        }
+                                   });
+
+    KrbError = decode_AS_REP(static_cast<PBYTE>(Creds->AsRep.data),
+                             Creds->AsRep.length,
+                             &AsRep, &Size);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to decode AS-REP");
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+               L"AS-REP pvno %d message type %d crealm %S trealm %S enc-part type %d kvno %d length %zu",
+               AsRep.pvno, AsRep.msg_type,
+               AsRep.crealm, AsRep.ticket.realm,
+               AsRep.enc_part.etype,
+               AsRep.enc_part.kvno,
+               AsRep.enc_part.cipher.length);
+
+    KrbError = krb5_init_context(&KrbContext);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to initialize context");
+
+    KrbError = krb5_crypto_init(KrbContext, &Creds->AsReplyKey, KRB5_ENCTYPE_NULL, &KrbCrypto);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to initialize crypto context");
+
+    KrbError = krb5_decrypt_EncryptedData(KrbContext, KrbCrypto,
+                                          KRB5_KU_AS_REP_ENC_PART,
+                                          &AsRep.enc_part,
+                                          &Data);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to decrypt AS-REP enc-part");
+
+    KrbError = decode_EncASRepPart(static_cast<PBYTE>(Data.data),
+                                   Data.length,
+                                   &AsRepPart,
+                                   &Size);
+    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to decode AS-REP enc-part");
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+               L"AS-REP enc-part authtime %d flags %d srealm %S",
+               AsRepPart.authtime,
+               AsRepPart.flags,
+               AsRepPart.srealm);
+
+    return 0;
+}
+#endif /* !NDEBUG */
 
 /*
  * Callback function called from Kerberos package that passes TktBridgeAP-
@@ -68,14 +135,20 @@ RetrieveTktBridgeCreds(LUID LogonId,
     }
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"RetrieveTktBridgeCreds: LogonId %08x.%08x Flags %08x "
-               L"AsRep Length %u Reply KeyLength %u KeyType %u",
+               L"RetrieveTktBridgeCreds[%s] LogonId %08x.%08x Flags %08x "
+               L"Client %s AS-REP Length %u KeyLength %u KeyType %u TGT %s",
+               PackageData != nullptr ? L"SurrogateEntry" : L"LogonSession",
                LogonId.LowPart,
                LogonId.HighPart,
                Flags,
+               TktBridgeCreds->ClientName,
                TktBridgeCreds->AsRep.length,
                TktBridgeCreds->AsReplyKey.keyvalue.length,
-               TktBridgeCreds->AsReplyKey.keytype);
+               TktBridgeCreds->AsReplyKey.keytype,
+               IsTktBridgeCredsExpired(TktBridgeCreds) ? L"Expired" : L"Valid");
+#ifndef NDEBUG
+    ValidateAsRep(TktBridgeCreds);
+#endif
 
     cbKerbAsRepCred = sizeof(KERB_AS_REP_CREDENTIAL) +
         static_cast<ULONG>(TktBridgeCreds->AsRep.length) +
