@@ -118,7 +118,7 @@
 typedef struct _TKTBRIDGEAP_CREDS {
     LONG RefCount;
     PWSTR ClientName;
-    ULONG Flags; /* this seems to get clobbered somewhere FIXME */
+    ULONG Reserved; // FIXME
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
     LARGE_INTEGER EndTime;
