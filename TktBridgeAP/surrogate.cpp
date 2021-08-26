@@ -490,7 +490,7 @@ LsaApLogonTerminated(_In_ PLUID LogonId)
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 RefreshTktBridgeCreds(const LUID &LogonId,
                       const PTKTBRIDGEAP_CREDS ExistingCreds,
-                      PTKTBRIDGEAP_CREDS * pRefreshedCreds)
+                      PTKTBRIDGEAP_CREDS *pRefreshedCreds)
 {
     NTSTATUS Status, SubStatus;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
