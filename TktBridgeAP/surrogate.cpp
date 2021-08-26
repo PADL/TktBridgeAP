@@ -37,8 +37,8 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
                            PTKTBRIDGEAP_CREDS *pTktBridgeCreds);
 
 #ifndef NDEBUG
-static krb5_error_code
-ValidateAsRep(PTKTBRIDGEAP_CREDS Creds);
+static _Success_(return == 0) krb5_error_code
+ValidateAsRep(_In_ PTKTBRIDGEAP_CREDS Creds);
 #endif
 
 /*
@@ -83,8 +83,10 @@ RetrieveTktBridgeCreds(LUID LogonId,
                TktBridgeCreds->AsReplyKey.keyvalue.length,
                TktBridgeCreds->AsReplyKey.keytype,
                IsTktBridgeCredsExpired(TktBridgeCreds) ? L"Expired" : L"Valid");
+
 #ifndef NDEBUG
-    ValidateAsRep(TktBridgeCreds);
+    if (ValidateAsRep(TktBridgeCreds) != 0)
+        RETURN_NTSTATUS(STATUS_INTERNAL_ERROR);
 #endif
 
     cbKerbAsRepCred = sizeof(KERB_AS_REP_CREDENTIAL) +
@@ -502,12 +504,14 @@ LsaApLogonTerminated(_In_ PLUID LogonId)
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-RefreshTktBridgeCreds(const LUID &LogonId,
-                      const PTKTBRIDGEAP_CREDS ExistingCreds,
-                      PTKTBRIDGEAP_CREDS *pRefreshedCreds)
+RefreshTktBridgeCreds(_In_ const LUID &LogonId,
+                      _In_ const PTKTBRIDGEAP_CREDS ExistingCreds,
+                      _Out_ PTKTBRIDGEAP_CREDS *pRefreshedCreds)
 {
     NTSTATUS Status, SubStatus;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
+
+    *pRefreshedCreds = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
@@ -536,29 +540,24 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
     if (!IsTktBridgeCredsExpired(TktBridgeCreds))
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
-    Status = STATUS_NO_LOGON_SERVERS;
-
-#if 0
-    if (IsTktBridgeCredsRenewable(TktBridgeCreds))
-        Status = RenewTktBridgeCreds(TktBridgeCreds, &RefreshedCreds);
-#endif
-
-    if (!NT_SUCCESS(Status) && TktBridgeCreds->InitialCreds != nullptr)
+    if (TktBridgeCreds->InitialCreds != nullptr)
         Status = RefreshTktBridgeCreds(LogonId, TktBridgeCreds, &RefreshedCreds);
+    else
+        Status = SEC_E_NO_CREDENTIALS;
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
-    if (NT_SUCCESS(Status)) {
-        SaveCredForLogonSession(LogonId, RefreshedCreds);
+    assert(RefreshedCreds != nullptr);
 
-        DereferenceTktBridgeCreds(*pTktBridgeCreds);
-        *pTktBridgeCreds = RefreshedCreds;
-    }
+    SaveCredForLogonSession(LogonId, RefreshedCreds);
+    DereferenceTktBridgeCreds(*pTktBridgeCreds);
+    *pTktBridgeCreds = RefreshedCreds;
 
-    RETURN_NTSTATUS(Status);
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 #ifndef NDEBUG
-static krb5_error_code
-ValidateAsRep(PTKTBRIDGEAP_CREDS Creds)
+static _Success_(return == 0) krb5_error_code
+ValidateAsRep(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     krb5_error_code KrbError;
     AS_REP AsRep;
