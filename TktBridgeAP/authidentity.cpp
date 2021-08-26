@@ -332,12 +332,12 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                    });
 
     if (IsWowClient) {
-        PKERB_INTERACTIVE_LOGON32 pKIL32;
+        PKERB_INTERACTIVE_LOGON_WOW pKIL32;
 
         if (SubmitBufferSize < sizeof(*pKIL32))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKIL32 = static_cast<PKERB_INTERACTIVE_LOGON32>(ProtocolSubmitBuffer);
+        pKIL32 = static_cast<PKERB_INTERACTIVE_LOGON_WOW>(ProtocolSubmitBuffer);
 
         VALIDATE_UNPACK_UNICODE_STRING32(pKIL32->LogonDomainName, wszDomainName);
         VALIDATE_UNPACK_UNICODE_STRING32(pKIL32->UserName,        wszUserName);
@@ -577,12 +577,12 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                    });
 
     if (IsWowClient) {
-        PKERB_SMART_CARD_LOGON32 pKSCL32;
+        PKERB_SMART_CARD_LOGON_WOW pKSCL32;
 
         if (SubmitBufferSize < sizeof(*pKSCL32))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKSCL32 = static_cast<PKERB_SMART_CARD_LOGON32>(ProtocolSubmitBuffer);
+        pKSCL32 = static_cast<PKERB_SMART_CARD_LOGON_WOW>(ProtocolSubmitBuffer);
 
         VALIDATE_UNPACK_UNICODE_STRING32(pKSCL32->Pin, wszPin);
         VALIDATE_UNPACK_CSP_DATA(static_cast<ULONG_PTR>(pKSCL32->CspData),
@@ -647,12 +647,12 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                    });
 
     if (IsWowClient) {
-        PKERB_CERTIFICATE_LOGON32 pKCL32;
+        PKERB_CERTIFICATE_LOGON_WOW pKCL32;
 
         if (SubmitBufferSize < sizeof(*pKCL32))
             RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-        pKCL32 = static_cast<PKERB_CERTIFICATE_LOGON32>(ProtocolSubmitBuffer);
+        pKCL32 = static_cast<PKERB_CERTIFICATE_LOGON_WOW>(ProtocolSubmitBuffer);
 
         VALIDATE_UNPACK_UNICODE_STRING32(pKCL32->DomainName, wszDomainName);
         VALIDATE_UNPACK_UNICODE_STRING32(pKCL32->UserName,   wszUserName);
@@ -784,11 +784,11 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
 
     if (IsWowClient) {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
-            cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON32);
+            cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON_WOW);
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-            cbUnlockLogon = sizeof(KERB_SMART_CARD_UNLOCK_LOGON32);
+            cbUnlockLogon = sizeof(KERB_SMART_CARD_UNLOCK_LOGON_WOW);
         else if (LogonSubmitType == KerbCertificateUnlockLogon)
-            cbUnlockLogon = sizeof(KERB_CERTIFICATE_UNLOCK_LOGON32);
+            cbUnlockLogon = sizeof(KERB_CERTIFICATE_UNLOCK_LOGON_WOW);
     } else {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON);
@@ -803,11 +803,11 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
 
     if (IsWowClient) {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
-            UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
+            UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON_WOW>(ProtocolSubmitBuffer)->LogonId;
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-            UnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
+            UnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON_WOW>(ProtocolSubmitBuffer)->LogonId;
         else if (LogonSubmitType == KerbCertificateUnlockLogon)
-            UnlockLogonId = static_cast<PKERB_CERTIFICATE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
+            UnlockLogonId = static_cast<PKERB_CERTIFICATE_UNLOCK_LOGON_WOW>(ProtocolSubmitBuffer)->LogonId;
     } else {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
