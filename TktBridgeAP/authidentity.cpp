@@ -716,6 +716,48 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
 }
 
 static NTSTATUS _Success_(return == STATUS_SUCCESS)
+GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                 _In_ ULONG SubmitBufferSize,
+                 _Out_ LUID &UnlockLogonId)
+{
+    KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(static_cast<PKERB_LOGON_SUBMIT_TYPE>(ProtocolSubmitBuffer));
+    bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
+    size_t cbUnlockLogon = 0;
+
+    UnlockLogonId.LowPart = 0;
+    UnlockLogonId.HighPart = 0;
+
+    if (IsWowClient) {
+        if (LogonSubmitType == KerbWorkstationUnlockLogon)
+            cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON32);
+        else if (LogonSubmitType == KerbSmartCardUnlockLogon)
+            cbUnlockLogon = sizeof(KERB_SMART_CARD_UNLOCK_LOGON32);
+    } else {
+        if (LogonSubmitType == KerbWorkstationUnlockLogon)
+            cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON);
+        else if (LogonSubmitType == KerbSmartCardUnlockLogon)
+            cbUnlockLogon = sizeof(KERB_SMART_CARD_UNLOCK_LOGON);
+    }
+
+    if (cbUnlockLogon < SubmitBufferSize)
+        RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+    if (IsWowClient) {
+        if (LogonSubmitType == KerbWorkstationUnlockLogon)
+            UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
+        else if (LogonSubmitType == KerbSmartCardUnlockLogon)
+            UnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
+    } else {
+        if (LogonSubmitType == KerbWorkstationUnlockLogon)
+            UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
+        else if (LogonSubmitType == KerbSmartCardUnlockLogon)
+            UnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
+    }
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static NTSTATUS _Success_(return == STATUS_SUCCESS)
 ConvertAuthenticationBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ PVOID ClientBufferBase,
@@ -723,27 +765,8 @@ ConvertAuthenticationBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity,
                                           _Out_opt_ PLUID pUnlockLogonId)
 {
-    KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(KERB_LOGON_SUBMIT_TYPE *)ProtocolSubmitBuffer;
+    KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(static_cast<PKERB_LOGON_SUBMIT_TYPE>(ProtocolSubmitBuffer));
     NTSTATUS Status;
-
-    if (pUnlockLogonId != nullptr) {
-        bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
-
-        pUnlockLogonId->LowPart = 0;
-        pUnlockLogonId->HighPart = 0;
-
-        if (IsWowClient) {
-            if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
-            else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON32>(ProtocolSubmitBuffer)->LogonId;
-        } else {
-            if (LogonSubmitType == KerbWorkstationUnlockLogon)
-                *pUnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
-            else if (LogonSubmitType == KerbSmartCardUnlockLogon)
-                *pUnlockLogonId = static_cast<PKERB_SMART_CARD_UNLOCK_LOGON>(ProtocolSubmitBuffer)->LogonId;
-        }
-    }
 
     if (LogonSubmitType == KerbInteractiveLogon ||
         LogonSubmitType == KerbWorkstationUnlockLogon)
@@ -762,7 +785,14 @@ ConvertAuthenticationBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     else
         Status = STATUS_INVALID_LOGON_TYPE;
 
-    RETURN_NTSTATUS(Status);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    if (pUnlockLogonId != nullptr) {
+        Status = GetUnlockLogonId(ProtocolSubmitBuffer, SubmitBufferSize, *pUnlockLogonId);
+        RETURN_IF_NTSTATUS_FAILED(Status);
+    }
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 NTSTATUS _Success_(return == STATUS_SUCCESS)
