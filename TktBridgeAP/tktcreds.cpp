@@ -201,25 +201,31 @@ AllocateTktBridgeCreds(VOID)
     TktBridgeCreds->RefCount = 1;
 
     /*
-     * This is another very unpleasant hack because CloudAP shares
-     * the same surrogate data. Reserved1 contains the reference
-     * count it uses and we want to ensure it never frees an entry
-     * we created (in lieu of documenting the interface, Windows
-     * should at least check the surrogate callback matches before
-     * freeing the private data).
+     * CloudAP shares the same Kerberos surrogate data with TktBridgeAP.
+     * We ensure our post-logon surrogate is called before CloudAP's by
+     * calling it directly in our KerbLsaLogonUserEx3 interposer, but
+     * just in case it isn't we set the CloudAP reference count to a
+     * very large value.
      */
-    TktBridgeCreds->Reserved1 = ULONG_MAX;  // reference count
-    TktBridgeCreds->Reserved2[67] = 2;      // hint to not free
+    TktBridgeCreds->Reserved = ULONG_MAX;
 
     return TktBridgeCreds;
+}
+
+static VOID
+ValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
+{
+    assert(Creds->Reserved == ULONG_MAX);
 }
 
 PTKTBRIDGEAP_CREDS
 ReferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds != nullptr &&
-        Creds->RefCount != LONG_MAX)
+        Creds->RefCount != LONG_MAX) {
+        ValidateTktBridgeCreds(Creds);
         InterlockedIncrement(&Creds->RefCount);
+    }
 
     return Creds;
 }
@@ -229,6 +235,8 @@ DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds == nullptr)
         return;
+
+    ValidateTktBridgeCreds(Creds);
 
     if (Creds->RefCount == LONG_MAX)
         return;

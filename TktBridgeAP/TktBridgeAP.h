@@ -101,6 +101,7 @@
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004 // allow preauth logon with trusted domain suffixes
 #define TKTBRIDGEAP_FLAG_NO_INIT_CREDS_CACHE    0x00000008 // do not cache initial credentials
 #define TKTBRIDGEAP_FLAG_ANON_PKINIT_FAST       0x00000010 // use anon PKINIT FAST armor
+#define TKTBRIDGEAP_FLAG_DEBUG_VALIDATE_CRED    0x00000020 // check AS-REP decrypts before sending to Windows
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF // flags that settable in registry
 
 #define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000 // Windows 11 Insider Peview
@@ -127,12 +128,11 @@
 typedef struct _TKTBRIDGEAP_CREDS {
     LONG RefCount;
     PWSTR ClientName;
-    ULONG Reserved1;
+    ULONG Reserved;
     krb5_data AsRep;
     EncryptionKey AsReplyKey;
     LARGE_INTEGER EndTime;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE InitialCreds;
-    ULONG Reserved2[68];
 } TKTBRIDGEAP_CREDS, *PTKTBRIDGEAP_CREDS;
 
 /*

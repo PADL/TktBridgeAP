@@ -137,23 +137,48 @@ KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         SubmitBufferSize = FidoAuthIdentity.AuthIdentity.cbStructureLength;
     }
 
-    return KerbFunctionTable->LogonUserEx3(ClientRequest,
-                                           LogonType,
-                                           ProtocolSubmitBuffer,
-                                           ClientBufferBase,
-                                           SubmitBufferSize,
-                                           SurrogateLogon,
-                                           ProfileBuffer,
-                                           ProfileBufferSize,
-                                           LogonId,
-                                           SubStatus,
-                                           TokenInformationType,
-                                           TokenInformation,
-                                           AccountName,
-                                           AuthenticatingAuthority,
-                                           MachineName,
-                                           PrimaryCredentials,
-                                           SupplementalCredentials);
+    auto Status = KerbFunctionTable->LogonUserEx3(ClientRequest,
+                                                  LogonType,
+                                                  ProtocolSubmitBuffer,
+                                                  ClientBufferBase,
+                                                  SubmitBufferSize,
+                                                  SurrogateLogon,
+                                                  ProfileBuffer,
+                                                  ProfileBufferSize,
+                                                  LogonId,
+                                                  SubStatus,
+                                                  TokenInformationType,
+                                                  TokenInformation,
+                                                  AccountName,
+                                                  AuthenticatingAuthority,
+                                                  MachineName,
+                                                  PrimaryCredentials,
+                                                  SupplementalCredentials);
+
+    /*
+     * Call our PostLogonUserSurrogate before CloudAP can get to it and stomp
+     * on our data.
+     */
+    LsaApPostLogonUserSurrogate(ClientRequest,
+                                LogonType,
+                                ProtocolSubmitBuffer,
+                                ClientBufferBase,
+                                SubmitBufferSize,
+                                SurrogateLogon,
+                                ProfileBuffer,
+                                *ProfileBufferSize,
+                                LogonId,
+                                Status,
+                                *SubStatus,
+                                *TokenInformationType,
+                                TokenInformation,
+                                *AccountName,
+                                *AuthenticatingAuthority,
+                                *MachineName,
+                                PrimaryCredentials,
+                                *SupplementalCredentials);
+
+    return Status;
 }
 
 DWORD _Success_(return == ERROR_SUCCESS)

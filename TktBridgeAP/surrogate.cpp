@@ -36,10 +36,8 @@ static _Success_(return == STATUS_SUCCESS) NTSTATUS
 MaybeRefreshTktBridgeCreds(const LUID &LogonId,
                            PTKTBRIDGEAP_CREDS *pTktBridgeCreds);
 
-#ifndef NDEBUG
 static _Success_(return == 0) krb5_error_code
 ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
-#endif
 
 /*
  * Callback function called from Kerberos package that passes TktBridgeAP-
@@ -84,10 +82,9 @@ RetrieveTktBridgeCreds(LUID LogonId,
                TktBridgeCreds->AsReplyKey.keytype,
                IsTktBridgeCredsExpired(TktBridgeCreds) ? L"Expired" : L"Valid");
 
-#ifndef NDEBUG
-    if (ValidateTgtBridgeCreds(TktBridgeCreds) != 0)
+    if ((APFlags & TKTBRIDGEAP_FLAG_DEBUG_VALIDATE_CRED) &&
+        ValidateTgtBridgeCreds(TktBridgeCreds) != 0)
         RETURN_NTSTATUS(STATUS_INTERNAL_ERROR);
-#endif
 
     cbKerbAsRepCred = sizeof(KERB_AS_REP_CREDENTIAL) +
         static_cast<ULONG>(TktBridgeCreds->AsRep.length) +
@@ -491,6 +488,9 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)SurrogateEntry->Data;
     auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
+
+    if (TktBridgeCreds == nullptr)
+        RETURN_NTSTATUS(STATUS_SUCCESS); // in case we get called multiple times
  
     if (NT_SUCCESS(Status))
         SaveCredsForLogonSession(*LogonId, TktBridgeCreds);
@@ -563,7 +563,6 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-#ifndef NDEBUG
 static _Success_(return == 0) krb5_error_code
 ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
@@ -599,7 +598,7 @@ ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP");
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"AS-REP pvno %d message type %d crealm %S trealm %S enc-part type %d kvno %d length %zu",
+               L"AS-REP pvno %d message type %d crealm %S trealm %S enc-part type %d kvno %u length %zu",
                AsRep.pvno, AsRep.msg_type,
                AsRep.crealm, AsRep.ticket.realm,
                AsRep.enc_part.etype,
@@ -638,4 +637,3 @@ ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 
     return 0;
 }
-#endif /* !NDEBUG */
