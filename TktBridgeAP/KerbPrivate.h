@@ -82,7 +82,7 @@ typedef struct _KERB_CERTIFICATE_LOGON32 {
     KERB_UNICODE_STRING32  Pin;
     ULONG                  Flags;
     ULONG                  CspDataLength;
-    PUCHAR                 CspData;
+    ULONG                  CspData;
 } KERB_CERTIFICATE_LOGON32, *PKERB_CERTIFICATE_LOGON32;
 
 typedef struct _KERB_CERTIFICATE_UNLOCK_LOGON32 {
