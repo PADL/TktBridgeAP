@@ -92,9 +92,9 @@ RetrieveTktBridgeCreds(LUID LogonId,
 
         KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
-        KerbAsRepCred->TgtMessageSize       = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
-        KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-        KerbAsRepCred->TgtClientKeySize     = static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
+        KerbAsRepCred->TgtMessageLength     = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
+        KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageLength;
+        KerbAsRepCred->TgtClientKeyLength   = static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
         KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
         memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtMessageOffset,
@@ -103,16 +103,16 @@ RetrieveTktBridgeCreds(LUID LogonId,
                TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
 
         LsaSpFunctionTable->LsaUnprotectMemory(KerbAsRepCredBase + KerbAsRepCred->TgtClientKeyOffset,
-                                               KerbAsRepCred->TgtClientKeySize);
+                                               KerbAsRepCred->TgtClientKeyLength);
     } else {
         auto KerbAsRepCred = &KerbAsRepCredU->TgtCredential;
         auto KerbAsRepCredBase = reinterpret_cast<PBYTE>(KerbAsRepCred);
 
         KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
-        KerbAsRepCred->TgtMessageSize       = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
-        KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageSize;
-        KerbAsRepCred->TgtClientKeySize     = static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
+        KerbAsRepCred->TgtMessageLength     = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
+        KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageLength;
+        KerbAsRepCred->TgtClientKeyLength   = static_cast<ULONG>(TktBridgeCreds->AsReplyKey.keyvalue.length);
         KerbAsRepCred->TgtKeyType           = TktBridgeCreds->AsReplyKey.keytype;
 
         memcpy(KerbAsRepCredBase + KerbAsRepCred->TgtMessageOffset,
@@ -121,7 +121,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
                TktBridgeCreds->AsReplyKey.keyvalue.data, TktBridgeCreds->AsReplyKey.keyvalue.length);
 
         LsaSpFunctionTable->LsaUnprotectMemory(KerbAsRepCredBase + KerbAsRepCred->TgtClientKeyOffset,
-                                               KerbAsRepCred->TgtClientKeySize);
+                                               KerbAsRepCred->TgtClientKeyLength);
     }
 
     *pKerbAsRepCred = KerbAsRepCredU;
