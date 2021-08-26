@@ -83,24 +83,24 @@ namespace TktBridgeAP {
         }
     };
 
-    static std::map<const LUID, class Credentials, decltype(CompareLuid)> CredCache;
-    static std::mutex CredCacheLock;
+    static std::map<const LUID, class Credentials, decltype(CompareLuid)> CredsCache;
+    static std::mutex CredsCacheLock;
 }
 
 using namespace TktBridgeAP;
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
-FindCredForLogonSession(_In_ const LUID &LogonID,
-                        _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
+FindCredsForLogonSession(_In_ const LUID &LogonID,
+                         _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
 {
     NTSTATUS Status = STATUS_NO_SUCH_LOGON_SESSION;
-    std::lock_guard CredCacheLockGuard(CredCacheLock);
+    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     *pTktBridgeCreds = nullptr;
 
     try {
-        auto CacheEntry = CredCache.find(LogonID);
-        if (CacheEntry != CredCache.end()) {
+        auto CacheEntry = CredsCache.find(LogonID);
+        if (CacheEntry != CredsCache.end()) {
             *pTktBridgeCreds = ReferenceTktBridgeCreds(CacheEntry->second.get());
             Status = STATUS_SUCCESS;
             assert((*pTktBridgeCreds)->RefCount > 1);
@@ -115,15 +115,15 @@ FindCredForLogonSession(_In_ const LUID &LogonID,
 }
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
-SaveCredForLogonSession(_In_ const LUID &LogonID,
-                        _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
+SaveCredsForLogonSession(_In_ const LUID &LogonID,
+                         _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     NTSTATUS Status;
-    std::lock_guard CredCacheLockGuard(CredCacheLock);
+    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     try {
-        CredCache.erase(LogonID);
-        CredCache.emplace(LogonID, Credentials(TktBridgeCreds));
+        CredsCache.erase(LogonID);
+        CredsCache.emplace(LogonID, Credentials(TktBridgeCreds));
         assert(TktBridgeCreds->RefCount > 1);
         Status = STATUS_SUCCESS;
     } catch (std::bad_alloc) {
@@ -136,13 +136,13 @@ SaveCredForLogonSession(_In_ const LUID &LogonID,
 }
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
-RemoveCredForLogonSession(_In_ const LUID &LogonID)
+RemoveCredsForLogonSession(_In_ const LUID &LogonID)
 {
     NTSTATUS Status;
-    std::lock_guard CredCacheLockGuard(CredCacheLock);
+    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     try {
-        auto Count = CredCache.erase(LogonID);
+        auto Count = CredsCache.erase(LogonID);
         Status = Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
         RETURN_IF_NTSTATUS_FAILED_EXPECTED(Status); // logon may belong to another package
     } catch (std::bad_alloc) {
@@ -157,10 +157,10 @@ RemoveCredForLogonSession(_In_ const LUID &LogonID)
 VOID
 DebugLogonCreds(VOID)
 {
-    std::lock_guard CredCacheLockGuard(CredCacheLock);
+    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
-    for (auto Iterator = CredCache.begin();
-         Iterator != CredCache.end();
+    for (auto Iterator = CredsCache.begin();
+         Iterator != CredsCache.end();
          Iterator++) {
         auto TktBridgeCreds = Iterator->second.get();
 

@@ -290,15 +290,15 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon);
  */
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
-FindCredForLogonSession(_In_ const LUID &LogonId,
-                        _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds);
+FindCredsForLogonSession(_In_ const LUID &LogonId,
+                         _Out_ PTKTBRIDGEAP_CREDS *TktBridgeCreds);
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
-SaveCredForLogonSession(_In_ const LUID &LogonId,
-                        _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds);
+SaveCredsForLogonSession(_In_ const LUID &LogonId,
+                         _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds);
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
-RemoveCredForLogonSession(_In_ const LUID &LogonId);
+RemoveCredsForLogonSession(_In_ const LUID &LogonId);
 
 VOID
 DebugLogonCreds(VOID);

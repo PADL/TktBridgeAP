@@ -64,7 +64,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
     if (TktBridgeCreds != nullptr) {
         ReferenceTktBridgeCreds(TktBridgeCreds);
     } else {
-        Status = FindCredForLogonSession(LogonId, &TktBridgeCreds);
+        Status = FindCredsForLogonSession(LogonId, &TktBridgeCreds);
         RETURN_IF_NTSTATUS_FAILED(Status);
 
         Status = MaybeRefreshTktBridgeCreds(LogonId, &TktBridgeCreds);
@@ -483,7 +483,7 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
  
     if (NT_SUCCESS(Status))
-        SaveCredForLogonSession(*LogonId, TktBridgeCreds);
+        SaveCredsForLogonSession(*LogonId, TktBridgeCreds);
 
     DereferenceTktBridgeCreds(TktBridgeCreds);
     SurrogateLogonData->PackageData = nullptr;
@@ -494,13 +494,11 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 VOID NTAPI
 LsaApLogonTerminated(_In_ PLUID LogonId)
 {
-    assert(LogonId != nullptr);
-
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"LsaApLogonTerminated: LUID %08x.%08x.",
                LogonId->LowPart, LogonId->HighPart);
 
-    RemoveCredForLogonSession(*LogonId);
+    RemoveCredsForLogonSession(*LogonId);
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
@@ -548,7 +546,7 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
 
     assert(RefreshedCreds != nullptr);
 
-    SaveCredForLogonSession(LogonId, RefreshedCreds);
+    SaveCredsForLogonSession(LogonId, RefreshedCreds);
     DereferenceTktBridgeCreds(*pTktBridgeCreds);
     *pTktBridgeCreds = RefreshedCreds;
 
