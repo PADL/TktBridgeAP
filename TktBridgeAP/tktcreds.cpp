@@ -94,21 +94,22 @@ FindCredForLogonSession(_In_ const LUID &LogonID,
                         _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
 {
     NTSTATUS Status = STATUS_NO_SUCH_LOGON_SESSION;
+    std::lock_guard CredCacheLockGuard(CredCacheLock);
 
     *pTktBridgeCreds = nullptr;
 
-    CredCacheLock.lock();
-
-    auto CacheEntry = CredCache.find(LogonID);
-    if (CacheEntry != CredCache.end()) {
-        *pTktBridgeCreds = ReferenceTktBridgeCreds(CacheEntry->second.get());
-
-        Status = STATUS_SUCCESS;
-
-        assert((*pTktBridgeCreds)->RefCount > 1);
+    try {
+        auto CacheEntry = CredCache.find(LogonID);
+        if (CacheEntry != CredCache.end()) {
+            *pTktBridgeCreds = ReferenceTktBridgeCreds(CacheEntry->second.get());
+            Status = STATUS_SUCCESS;
+            assert((*pTktBridgeCreds)->RefCount > 1);
+        }
+    } catch (std::bad_alloc) {
+        Status = STATUS_NO_MEMORY;
+    } catch (std::exception) {
+        Status = STATUS_UNHANDLED_EXCEPTION;
     }
-
-    CredCacheLock.unlock();
 
     RETURN_NTSTATUS(Status);
 }
@@ -117,29 +118,45 @@ _Success_(return == STATUS_SUCCESS) NTSTATUS
 SaveCredForLogonSession(_In_ const LUID &LogonID,
                         _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
-    CredCacheLock.lock();
-    CredCache.erase(LogonID);
-    CredCache.emplace(LogonID, Credentials(TktBridgeCreds));
-    assert(TktBridgeCreds->RefCount > 1);
-    CredCacheLock.unlock();
+    NTSTATUS Status;
+    std::lock_guard CredCacheLockGuard(CredCacheLock);
 
-    RETURN_NTSTATUS(STATUS_SUCCESS);
+    try {
+        CredCache.erase(LogonID);
+        CredCache.emplace(LogonID, Credentials(TktBridgeCreds));
+        assert(TktBridgeCreds->RefCount > 1);
+        Status = STATUS_SUCCESS;
+    } catch (std::bad_alloc) {
+        Status = STATUS_NO_MEMORY;
+    } catch (std::exception) {
+        Status = STATUS_UNHANDLED_EXCEPTION;
+    }
+
+    RETURN_NTSTATUS(Status);
 }
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
 RemoveCredForLogonSession(_In_ const LUID &LogonID)
 {
-    CredCacheLock.lock();
-    auto Count = CredCache.erase(LogonID);
-    CredCacheLock.unlock();
+    NTSTATUS Status;
+    std::lock_guard CredCacheLockGuard(CredCacheLock);
 
-    return Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
+    try {
+        auto Count = CredCache.erase(LogonID);
+        Status = Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
+    } catch (std::bad_alloc) {
+        Status = STATUS_NO_MEMORY;
+    } catch (std::exception) {
+        Status = STATUS_UNHANDLED_EXCEPTION;
+    }
+
+    RETURN_NTSTATUS(Status);
 }
 
 VOID
 DebugLogonCreds(VOID)
 {
-    CredCacheLock.lock();
+    std::lock_guard CredCacheLockGuard(CredCacheLock);
 
     for (auto Iterator = CredCache.begin();
          Iterator != CredCache.end();
@@ -154,8 +171,6 @@ DebugLogonCreds(VOID)
                    IsTktBridgeCredsExpired(TktBridgeCreds),
                    TktBridgeCreds->InitialCreds);
     }
-
-    CredCacheLock.unlock();
 }
 
 PTKTBRIDGEAP_CREDS
