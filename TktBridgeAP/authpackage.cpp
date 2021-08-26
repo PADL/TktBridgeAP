@@ -285,16 +285,19 @@ RegistryNotifyChanged(VOID)
     wil::unique_hkey hKey;
 
     dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
-        0, KEY_QUERY_VALUE, &hKey);
+                            0, KEY_QUERY_VALUE, &hKey);
     RETURN_IF_WIN32_ERROR_EXPECTED(dwResult);
 
-    APFlags &= ~(TKTBRIDGEAP_FLAG_USER);
-    APFlags |= RegistryGetDWordValueForKey(hKey.get(), L"Flags") & TKTBRIDGEAP_FLAG_USER;
+    auto Flags = RegistryGetDWordValueForKey(hKey.get(), L"Flags") & TKTBRIDGEAP_FLAG_USER;
+    Flags |= APFlags & ~(TKTBRIDGEAP_FLAG_USER);
 #ifndef NDEBUG
-    APFlags |= TKTBRIDGEAP_FLAG_DEBUG;
+    Flags |= TKTBRIDGEAP_FLAG_DEBUG;
 #endif
 
-    APLogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
+    InterlockedExchange(&APFlags, Flags);
+
+    auto LogLevel = RegistryGetDWordValueForKey(hKey.get(), L"LogLevel");
+    InterlockedExchange(&APLogLevel, LogLevel);
 
     WIL_FreeMemory(APKdcHostName);
     APKdcHostName = RegistryGetStringValueForKey(hKey.get(), L"KdcHostName");
