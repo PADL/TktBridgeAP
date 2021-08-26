@@ -153,11 +153,11 @@ extern SECPKG_PARAMETERS SpParameters;
 extern std::atomic<unsigned long> APFlags;
 extern std::atomic<unsigned long> APLogLevel;
 
-PCWSTR
-GetKdcHostName(std::wstring &Buffer);
+NTSTATUS
+GetKdcHostName(std::wstring &Buffer, PCWSTR &pHostName);
 
-PCWSTR
-GetRestrictPackage(std::wstring &Buffer);
+NTSTATUS
+GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage);
 
 bool
 IsEnabledDomainSuffix(PCWSTR Suffix,

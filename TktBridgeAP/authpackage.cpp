@@ -274,9 +274,9 @@ RegistryNotifyChanged(VOID)
     APRestrictPackage.reset();
     APDomainSuffixes.clear();
 
-    auto dwResult = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
-                                 0, KEY_QUERY_VALUE, &hKey);
-    if (dwResult == ERROR_SUCCESS) {
+    auto dwError = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
+                                0, KEY_QUERY_VALUE, &hKey);
+    if (dwError == ERROR_SUCCESS) {
         Flags |= RegistryGetULongValueForKey(hKey, L"Flags") & TKTBRIDGEAP_FLAG_USER;
         LogLevel = RegistryGetULongValueForKey(hKey, L"LogLevel");
 
@@ -297,17 +297,33 @@ RegistryNotifyChanged(VOID)
     APFlags = Flags;
     APLogLevel = LogLevel;
 
-    return dwResult;
+    return dwError;
+}
+
+static NTSTATUS
+RegistryNotifyChangedNoExcept(VOID)
+{
+    NTSTATUS Status;
+
+    try {
+        Status = RegistryNotifyChanged();
+    } catch (std::bad_alloc &e) {
+        Status = STATUS_NO_MEMORY;
+    } catch (std::exception &e) {
+        Status = STATUS_UNHANDLED_EXCEPTION;
+    }
+
+    RETURN_NTSTATUS(Status);
 }
 
 static NTSTATUS
 InitializeRegistryNotification(VOID)
 {
-    RegistryNotifyChanged();
+    RegistryNotifyChangedNoExcept();
 
     auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
         TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
-            RegistryNotifyChanged();
+            RegistryNotifyChangedNoExcept();
         });
 
     RETURN_NTSTATUS_IF_NULL_ALLOC(watcher);
@@ -315,30 +331,39 @@ InitializeRegistryNotification(VOID)
     return STATUS_SUCCESS;
 }
 
-PCWSTR
-GetKdcHostName(std::wstring &Buffer)
+static NTSTATUS
+GetConfigValue(std::optional<std::wstring> &ConfigValue,
+               std::wstring &Buffer,
+               PCWSTR &pValue)
 {
     std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
-    if (APKdcHostName.has_value()) {
-        Buffer = APKdcHostName.value();
-        return Buffer.c_str();
-    } else {
-        return nullptr;
+    pValue = nullptr;
+
+    try {
+        if (ConfigValue.has_value()) {
+            Buffer = ConfigValue.value();
+            pValue = Buffer.c_str();
+        }
+    } catch (std::bad_alloc &e) {
+        RETURN_NTSTATUS(STATUS_NO_MEMORY);
+    } catch (std::exception &e) {
+        RETURN_NTSTATUS(STATUS_UNHANDLED_EXCEPTION);
     }
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+NTSTATUS
+GetKdcHostName(std::wstring &Buffer, PCWSTR &pKdcHostName)
+{
+    return GetConfigValue(APKdcHostName, Buffer, pKdcHostName);
 }
 
 PCWSTR
-GetRestrictPackage(std::wstring &Buffer)
+GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage)
 {
-    std::lock_guard GlobalsLockGuard(APGlobalsLock);
-
-    if (APRestrictPackage.has_value()) {
-        Buffer = APRestrictPackage.value();
-        return Buffer.c_str();
-    } else {
-        return nullptr;
-    }
+    return GetConfigValue(APRestrictPackage, Buffer, pRestrictPackage);
 }
 
 bool

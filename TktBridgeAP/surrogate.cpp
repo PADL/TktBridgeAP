@@ -283,10 +283,17 @@ GetTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     std::wstring RestrictPackageBuffer, KdcHostNameBuffer;
+    PCWSTR RestrictPackage, KdcHostName;
+
+    Status = GetRestrictPackage(RestrictPackageBuffer, RestrictPackage);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    Status = GetKdcHostName(KdcHostNameBuffer, KdcHostName);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
     auto KrbError = GssPreauthGetInitCreds(RealmName.Buffer,
-                                           GetRestrictPackage(RestrictPackageBuffer),
-                                           GetKdcHostName(KdcHostNameBuffer),
+                                           RestrictPackage,
+                                           KdcHostName,
                                            nullptr,
                                            AuthIdentity,
                                            &TktBridgeCreds->ClientName,
