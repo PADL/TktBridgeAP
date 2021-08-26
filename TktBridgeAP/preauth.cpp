@@ -86,15 +86,11 @@ GssPreauthUnparseName(_In_ krb5_context KrbContext,
         RETURN_IF_KRB_FAILED(KrbError);
     }
 
-    if (!NT_SUCCESS(UTF8ToUnicodeAlloc(szNameString, pwszNameString))) {
-        KrbError = krb5_enomem(KrbContext);
-    } else {
-        KrbError = 0;
-    }
+    KrbError = NT_SUCCESS(UTF8ToUnicodeAlloc(szNameString, pwszNameString))
+               ? 0 : krb5_enomem(KrbContext);
 
-    if (szNameString != Principal->name.name_string.val[0]) {
+    if (szNameString != Principal->name.name_string.val[0])
         krb5_xfree(szNameString);
-    }
 
     return KrbError;
 }
@@ -109,9 +105,8 @@ GssPreauthParseName(_In_ krb5_context KrbContext,
 
     *pPrincipal = nullptr;
 
-    if (!NT_SUCCESS(UnicodeToUTF8Alloc(NameString, &szNameString))) {
+    if (!NT_SUCCESS(UnicodeToUTF8Alloc(NameString, &szNameString)))
         return krb5_enomem(KrbContext);
-    }
 
     KrbError = krb5_parse_name_flags(KrbContext, szNameString, 0, pPrincipal);
 

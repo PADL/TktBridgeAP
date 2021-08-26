@@ -182,7 +182,7 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
 
 NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
-    _Out_ PWSTR* pwszUnicodeString)
+                   _Out_ PWSTR *pwszUnicodeString)
 {
     NTSTATUS Status;
     ULONG cbUnicodeString = 0;
