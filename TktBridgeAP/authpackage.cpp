@@ -342,8 +342,8 @@ GetRestrictPackage(std::wstring &Buffer)
 }
 
 bool
-TestDomainSuffix(PCWSTR Suffix,
-                 bool &Authoritative)
+IsEnabledDomainSuffix(PCWSTR Suffix,
+                      bool &Authoritative)
 {
     std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
