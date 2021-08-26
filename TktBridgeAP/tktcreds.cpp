@@ -215,7 +215,11 @@ AllocateTktBridgeCreds(VOID)
 static VOID
 ValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
-    assert(Creds->Reserved == ULONG_MAX);
+    if (Creds->Reserved != ULONG_MAX) {
+        DebugTrace(WINEVENT_LEVEL_WARNING,
+                   L"CloudAP reference count has changed (%08x), validate post-logon user surrogate order",
+                   Creds->Reserved);
+    }
 }
 
 PTKTBRIDGEAP_CREDS

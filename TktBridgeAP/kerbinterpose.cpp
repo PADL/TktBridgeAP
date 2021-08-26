@@ -81,13 +81,17 @@ LoadKerbPackage(VOID)
  * An extremely inelegant kludge to force the native Kerberos security
  * package to pick up surrogate credentials containing an AS-REP, by
  * pretending the logon was a FIDO logon. The contents of the credentials
- * are ignored so we can leave them empty.
+ * are ignored so we can leave them empty. We also ensure our post-logon
+ * user surrogate is called so that we can clear surrogate data before
+ * CloudAP is called, as they share the same data structure.
  *
  * The interposed function is transparent to the Kerberos package if
  * TktBridgeAP-issued surrogate logon credentials cannot be found.
- *
- * The real fix would be for MS to document these APIs and not require
- * FIDO credentials to honor AS-REP credentials
+ * 
+ * Were Microsoft to update their Kerberos package to allow AS-REP
+ * surrogate data to be provided irrespective of logon submit data,
+ * and to update CloudAP to validate it issued the surrogate entry
+ * first, then this file can go away.
  */
 
 static NTSTATUS
