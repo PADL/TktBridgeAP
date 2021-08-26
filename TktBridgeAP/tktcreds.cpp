@@ -35,7 +35,7 @@
 /*
  * Implements a simple credential cache for refreshing TGTs using cached
  * primary credentials of a user. Although the credentials are encrypted,
- * the user can disable this globally by setting the NO_CLEAR_CRED_CACHE
+ * the user can disable this globally by setting the NO_INIT_CREDS_CACHE
  * flag in the registry.
  */
 

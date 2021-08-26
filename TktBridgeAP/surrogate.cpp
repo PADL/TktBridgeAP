@@ -325,7 +325,7 @@ AcquireTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
 
         *pTktBridgeCreds = ReferenceTktBridgeCreds(TktBridgeCreds);
 
-        if ((APFlags & TKTBRIDGEAP_FLAG_NO_CLEAR_CRED_CACHE) == 0) {
+        if ((APFlags & TKTBRIDGEAP_FLAG_NO_INIT_CREDS_CACHE) == 0) {
             Status = SspiCopyAuthIdentity(AuthIdentity, &TktBridgeCreds->InitialCreds);
             RETURN_IF_NTSTATUS_FAILED(Status);
 
