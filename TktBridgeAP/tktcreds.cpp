@@ -144,13 +144,14 @@ RemoveCredForLogonSession(_In_ const LUID &LogonID)
     try {
         auto Count = CredCache.erase(LogonID);
         Status = Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
+        RETURN_IF_NTSTATUS_FAILED_EXPECTED(Status); // logon may belong to another package
     } catch (std::bad_alloc) {
-        Status = STATUS_NO_MEMORY;
+        RETURN_NTSTATUS(STATUS_NO_MEMORY);
     } catch (std::exception) {
-        Status = STATUS_UNHANDLED_EXCEPTION;
+        RETURN_NTSTATUS(STATUS_UNHANDLED_EXCEPTION);
     }
 
-    RETURN_NTSTATUS(Status);
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 VOID
