@@ -66,7 +66,7 @@ ValidateAsRep(PTKTBRIDGEAP_CREDS Creds)
     KrbError = decode_AS_REP(static_cast<PBYTE>(Creds->AsRep.data),
                              Creds->AsRep.length,
                              &AsRep, &Size);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to decode AS-REP");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP");
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"AS-REP pvno %d message type %d crealm %S trealm %S enc-part type %d kvno %d length %zu",
@@ -77,22 +77,22 @@ ValidateAsRep(PTKTBRIDGEAP_CREDS Creds)
                AsRep.enc_part.cipher.length);
 
     KrbError = krb5_init_context(&KrbContext);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to initialize context");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to initialize context");
 
     KrbError = krb5_crypto_init(KrbContext, &Creds->AsReplyKey, KRB5_ENCTYPE_NULL, &KrbCrypto);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to initialize crypto context");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to initialize crypto context");
 
     KrbError = krb5_decrypt_EncryptedData(KrbContext, KrbCrypto,
                                           KRB5_KU_AS_REP_ENC_PART,
                                           &AsRep.enc_part,
                                           &Data);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to decrypt AS-REP enc-part");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decrypt AS-REP enc-part");
 
     KrbError = decode_EncASRepPart(static_cast<PBYTE>(Data.data),
                                    Data.length,
                                    &AsRepPart,
                                    &Size);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to decode AS-REP enc-part");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP enc-part");
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"AS-REP enc-part authtime %d flags %d srealm %S",

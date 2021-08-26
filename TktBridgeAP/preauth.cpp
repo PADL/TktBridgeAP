@@ -333,14 +333,14 @@ GssPreauthFinish(krb5_context KrbContext,
     KrbError = GssPreauthParseName(KrbContext,
                                     NativeNames.sClientName,
                                     pClientPrincipal);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to parse initiator name");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to parse initiator name");
 
     KrbError = GssPreauthDeriveKey(KrbContext,
                                     &GssContextHandle->Handle,
                                     AsReqNonce,
                                     KrbEncType,
                                     ppReplyKey);
-    RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to derive reply key");
+    RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to derive reply key");
 
     return 0;
 }
@@ -621,7 +621,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
         // note: AsReq buffer is owned by InitCredsContext, do not free
         KrbError = krb5_sendto_context(KrbContext, SendToContext, &AsReq,
                                        FederatedPrinc->realm, AsRep);
-        RETURN_IF_KRB_FAILED_MSG(KrbError, "Failed to send AS-REQ to KDC");
+        RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to send AS-REQ to KDC");
     }
 
     auto ClientName = _krb5_init_creds_get_cred_client(KrbContext, InitCredsContext);
