@@ -56,5 +56,5 @@ RtlDuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
 
     *DestinationSid = Sid;
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
