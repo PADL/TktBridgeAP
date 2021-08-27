@@ -597,13 +597,11 @@ ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
                              &AsRep, &Size);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP");
 
-    DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"AS-REP pvno %d message type %d crealm %S trealm %S enc-part type %d kvno %u length %zu",
-               AsRep.pvno, AsRep.msg_type,
-               AsRep.crealm, AsRep.ticket.realm,
-               AsRep.enc_part.etype,
-               AsRep.enc_part.kvno,
-               AsRep.enc_part.cipher.length);
+    auto szAS_REP = print_AS_REP(&AsRep, 0);
+    if (szAS_REP != nullptr) {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"AS-REP\r\n%S", szAS_REP);
+        krb5_xfree(szAS_REP);
+    }
 
     KrbError = krb5_init_context(&KrbContext);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to initialize context");
@@ -629,11 +627,11 @@ ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
                                    &Size);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP enc-part");
 
-    DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"AS-REP enc-part authtime %d flags %08x srealm %S",
-               AsRepPart.authtime,
-               AsRepPart.flags,
-               AsRepPart.srealm);
+    auto szEncASRepPart = print_EncASRepPart(&AsRepPart, 0);
+    if (szEncASRepPart != nullptr) {
+        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"EncASRepPart\r\n%S", szEncASRepPart);
+        krb5_xfree(szEncASRepPart);
+    }
 
     return 0;
 }
