@@ -321,7 +321,7 @@ InitializeRegistryNotification(VOID)
 {
     RegistryNotifyChangedNoExcept();
 
-    auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
+    static auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
         TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
             RegistryNotifyChangedNoExcept();
         });
