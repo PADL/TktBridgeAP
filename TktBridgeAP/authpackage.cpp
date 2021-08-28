@@ -49,6 +49,8 @@ static std::vector<std::wstring> APDomainSuffixes;
 std::atomic<unsigned long> APFlags = 0;
 std::atomic<unsigned long> APLogLevel = 0;
 
+static wil::unique_registry_watcher_nothrow RegistryWatcher;
+
 extern "C" {
     static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
     static SpInitializeFn SpInitialize;
@@ -185,6 +187,8 @@ SpShutdown(VOID)
     APFlags = 0;
     APLogLevel = 0;
 
+    RegistryWatcher = nullptr;
+
     LsaAuthenticationPackageId = SECPKG_ID_NONE;
     LsaDispatchTable           = nullptr;
     LsaSpFunctionTable         = nullptr;
@@ -301,7 +305,7 @@ RegistryNotifyChanged(VOID)
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-RegistryNotifyChangedNoExcept(VOID)
+RegistryNotifyChangedNoThrow(VOID)
 {
     NTSTATUS Status;
 
@@ -319,14 +323,14 @@ RegistryNotifyChangedNoExcept(VOID)
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeRegistryNotification(VOID)
 {
-    RegistryNotifyChangedNoExcept();
+    RegistryNotifyChangedNoThrow();
 
-    static auto watcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
+    RegistryWatcher = wil::make_registry_watcher_nothrow(HKEY_LOCAL_MACHINE,
         TKTBRIDGEAP_REGISTRY_KEY_W, true, [&](wil::RegistryChangeKind) {
-            RegistryNotifyChangedNoExcept();
+            RegistryNotifyChangedNoThrow();
         });
 
-    RETURN_NTSTATUS_IF_NULL_ALLOC(watcher);
+    RETURN_NTSTATUS_IF_NULL_ALLOC(RegistryWatcher);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
