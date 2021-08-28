@@ -144,7 +144,7 @@ SpInitialize(_In_ ULONG_PTR PackageId,
     SpParameters.SetupMode    = Parameters->SetupMode;
 
     if (Parameters->DomainSid != nullptr) {
-        Status = RtlDuplicateSid(&SpParameters.DomainSid, Parameters->DomainSid);
+        Status = DuplicateSid(&SpParameters.DomainSid, Parameters->DomainSid);
         NT_RETURN_IF_NTSTATUS_FAILED(Status);
     }
 

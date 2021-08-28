@@ -207,6 +207,9 @@ SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
  * helpers.cpp
  */
 
+NTSTATUS NTAPI
+DuplicateSid(_Out_ PSID *NewSid, _In_ PSID OriginalSid);
+
 VOID
 Seconds64Since1970ToTime(_In_ ULONG64 ElapsedSeconds,
                          _Out_ PLARGE_INTEGER Time);

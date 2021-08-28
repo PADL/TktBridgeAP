@@ -56,9 +56,6 @@ RtlEqualUnicodeString(
     _In_ BOOLEAN CaseInSensitive
 );
 
-NTSTATUS NTAPI
-RtlDuplicateSid(_Out_ PSID *NewSid, _In_ PSID OriginalSid);
-
 NTSYSAPI
 VOID NTAPI
 RtlFreeSid(_Inout_ PSID Sid);
