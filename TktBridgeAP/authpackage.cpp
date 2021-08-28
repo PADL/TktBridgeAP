@@ -119,7 +119,7 @@ InitializePackage(_In_ ULONG AuthenticationPackageId,
     auto Status = DuplicateLsaString(&APName, AuthenticationPackageName);
     NT_RETURN_IF_NTSTATUS_FAILED(Status);
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static NTSTATUS NTAPI
@@ -164,7 +164,7 @@ SpInitialize(_In_ ULONG_PTR PackageId,
 
     SpParameters.DomainGuid = Parameters->DomainGuid;
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static NTSTATUS NTAPI
@@ -191,7 +191,7 @@ SpShutdown(VOID)
 
     EventUnregisterPADL_TktBridgeAP();
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static SECPKG_FUNCTION_TABLE
@@ -243,7 +243,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
     Status = AttachKerbLogonDetour();
     NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to attach Kerberos logon interposer");
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static NTSTATUS NTAPI
@@ -258,7 +258,7 @@ SpGetInfo(_Out_ PSecPkgInfo PackageInfo)
     PackageInfo->Name           = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_NAME_W;
     PackageInfo->Comment        = (SEC_WCHAR *)TKTBRIDGEAP_PACKAGE_COMMENT_W;
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static DWORD
@@ -328,7 +328,7 @@ InitializeRegistryNotification(VOID)
 
     RETURN_NTSTATUS_IF_NULL_ALLOC(watcher);
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS

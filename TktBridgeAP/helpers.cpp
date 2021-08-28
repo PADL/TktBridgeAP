@@ -177,7 +177,7 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
                                wszUnicodeString, ulcbUnicodeString);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
@@ -204,7 +204,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
                                szUTF8String, ulcbUTF8String);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    return STATUS_SUCCESS;
+    RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS NTAPI
