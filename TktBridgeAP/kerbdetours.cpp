@@ -163,24 +163,26 @@ KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
      * Call our PostLogonUserSurrogate before CloudAP can get to it and stomp
      * on our data.
      */
-    LsaApPostLogonUserSurrogate(ClientRequest,
-                                LogonType,
-                                ProtocolSubmitBuffer,
-                                ClientBufferBase,
-                                SubmitBufferSize,
-                                SurrogateLogon,
-                                ProfileBuffer,
-                                *ProfileBufferSize,
-                                LogonId,
-                                Status,
-                                *SubStatus,
-                                *TokenInformationType,
-                                TokenInformation,
-                                *AccountName,
-                                *AuthenticatingAuthority,
-                                *MachineName,
-                                PrimaryCredentials,
-                                *SupplementalCredentials);
+    if (SurrogateLogonCreds != nullptr) {
+        LsaApPostLogonUserSurrogate(ClientRequest,
+                                    LogonType,
+                                    ProtocolSubmitBuffer,
+                                    ClientBufferBase,
+                                    SubmitBufferSize,
+                                    SurrogateLogon,
+                                    ProfileBuffer,
+                                    *ProfileBufferSize,
+                                    LogonId,
+                                    Status,
+                                    *SubStatus,
+                                    *TokenInformationType,
+                                    TokenInformation,
+                                    *AccountName,
+                                    *AuthenticatingAuthority,
+                                    *MachineName,
+                                    PrimaryCredentials,
+                                    *SupplementalCredentials);
+    }
 
     return Status;
 }
