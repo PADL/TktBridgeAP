@@ -56,7 +56,7 @@ extern "C" {
     static SpGetInfoFn SpGetInfo;
 }
 
-static NTSTATUS
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeRegistryNotification(VOID);
 
 static VOID
@@ -68,7 +68,7 @@ FreeLsaString(_Inout_ PLSA_STRING pLsaString)
     }
 }
 
-static NTSTATUS
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 DuplicateLsaString(_In_ PLSA_STRING SourceString,
                    _Out_ PLSA_STRING *pDestinationString)
 {
@@ -300,7 +300,7 @@ RegistryNotifyChanged(VOID)
     return dwError;
 }
 
-static NTSTATUS
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 RegistryNotifyChangedNoExcept(VOID)
 {
     NTSTATUS Status;
@@ -316,7 +316,7 @@ RegistryNotifyChangedNoExcept(VOID)
     RETURN_NTSTATUS(Status);
 }
 
-static NTSTATUS
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeRegistryNotification(VOID)
 {
     RegistryNotifyChangedNoExcept();
@@ -331,7 +331,7 @@ InitializeRegistryNotification(VOID)
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 GetGlobalConfigValue(std::optional<std::wstring> &ConfigValue,
                      std::wstring &Buffer,
                      PCWSTR &pValue)
@@ -354,13 +354,13 @@ GetGlobalConfigValue(std::optional<std::wstring> &ConfigValue,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 GetKdcHostName(std::wstring &Buffer, PCWSTR &pKdcHostName)
 {
     return GetGlobalConfigValue(APKdcHostName, Buffer, pKdcHostName);
 }
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage)
 {
     return GetGlobalConfigValue(APRestrictPackage, Buffer, pRestrictPackage);
@@ -389,7 +389,7 @@ IsEnabledDomainSuffix(PCWSTR Suffix,
 #ifndef NDEBUG
 extern "C"
 TKTBRIDGEAP_API void __cdecl
-TestEntryPoint(PVOID Unused1, PVOID Unused2, CHAR * Unused3, INT Unused4)
+TestEntryPoint(PVOID Unused1, PVOID Unused2, CHAR *Unused3, INT Unused4)
 {
     RegistryNotifyChanged();
 

@@ -146,7 +146,7 @@ typedef struct _TKTBRIDGEAP_CREDS {
  * authidentity.cpp
  */
 
-NTSTATUS _Success_(return == STATUS_SUCCESS)
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ PVOID ClientBufferBase,
@@ -164,10 +164,10 @@ extern SECPKG_PARAMETERS SpParameters;
 extern std::atomic<unsigned long> APFlags;
 extern std::atomic<unsigned long> APLogLevel;
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 GetKdcHostName(std::wstring &Buffer, PCWSTR &pHostName);
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage);
 
 bool
@@ -207,7 +207,7 @@ SspiStatusToKrbError(_In_ SECURITY_STATUS SecStatus);
  * helpers.cpp
  */
 
-NTSTATUS NTAPI
+_Success_(return == STATUS_SUCCESS) NTSTATUS NTAPI
 DuplicateSid(_Out_ PSID *NewSid, _In_ PSID OriginalSid);
 
 VOID
@@ -238,11 +238,11 @@ RegistryGetStringValuesForKey(_In_ const wil::unique_hkey &hKey,
 bool
 IsLocalHost(_In_ PUNICODE_STRING HostName);
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
                    _Out_ PCHAR *pszUTF8String);
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
                    _Out_ PWSTR *pwszUnicodeString);
 

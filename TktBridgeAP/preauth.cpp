@@ -442,7 +442,7 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
 /*
  * Acquire a TGT for a given username/domain/credential/package
  */
-krb5_error_code _Success_(return == 0)
+_Success_(return == 0) krb5_error_code
 GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                        _In_opt_z_ PCWSTR PackageName,
                        _In_opt_z_ PCWSTR KdcHostName,

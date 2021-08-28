@@ -62,7 +62,7 @@ UnpackUnicodeString32(_In_ PVOID ProtocolSubmitBuffer,
         DestinationString->Buffer = nullptr;
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 UnpackUnicodeStringAllocZ(_In_ PVOID ProtocolSubmitBuffer,
                           _In_ PCUNICODE_STRING SourceString,
                           _Out_ PWSTR *pDestinationString)
@@ -84,7 +84,7 @@ UnpackUnicodeStringAllocZ(_In_ PVOID ProtocolSubmitBuffer,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 UnpackUnicodeString32AllocZ(_In_ PVOID ProtocolSubmitBuffer,
                             _In_ PCKERB_UNICODE_STRING32 SourceString,
                             _Out_ PWSTR *pDestinationString)
@@ -106,7 +106,7 @@ UnpackUnicodeString32AllocZ(_In_ PVOID ProtocolSubmitBuffer,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 UnpackClientUnicodeStringAllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                 _In_ PVOID ClientBufferBase,
                                 _In_ PCUNICODE_STRING RelativeString,
@@ -134,7 +134,7 @@ UnpackClientUnicodeStringAllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 UnpackClientUnicodeString32AllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                   _In_ PVOID ClientBufferBase,
                                   _In_ PCKERB_UNICODE_STRING32 RelativeString,
@@ -162,7 +162,7 @@ UnpackClientUnicodeString32AllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ValidateOffset(_In_ ULONG cbBuffer,
                _In_ ULONG_PTR cbOffset,
                _In_ ULONG cbItem)
@@ -178,7 +178,7 @@ ValidateOffset(_In_ ULONG cbBuffer,
     return Status;
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ValidateAndUnpackUnicodeStringAllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                      _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                      _In_ PVOID ClientBufferBase,
@@ -209,7 +209,7 @@ ValidateAndUnpackUnicodeStringAllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ValidateAndUnpackUnicodeString32AllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ PVOID ClientBufferBase,
@@ -238,7 +238,7 @@ ValidateAndUnpackUnicodeString32AllocZ(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 UnprotectString(_In_z_ PWSTR wszProtected,
                 _Out_ PWSTR *pwszUnprotected)
 {
@@ -301,7 +301,7 @@ UnprotectString(_In_z_ PWSTR wszProtected,
         RETURN_IF_NTSTATUS_FAILED(Status);                                      \
     } while (0)
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ PVOID ClientBufferBase,
@@ -379,7 +379,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ValidateTStrOffset(_In_ ULONG cbBuffer,
                    _In_ PTSTR pchBuffer,
                    _In_ ULONG cchOffset)
@@ -405,7 +405,7 @@ ValidateTStrOffset(_In_ ULONG cbBuffer,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspData,
                                       _In_ ULONG CspDataLength,
                                       _Out_ PWSTR *pMarshaledCredential)
@@ -496,7 +496,7 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ValidateAndUnpackCspData(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                          _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                          _In_ PVOID ClientBufferBase,
@@ -549,7 +549,7 @@ ValidateAndUnpackCspData(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         RETURN_IF_NTSTATUS_FAILED(Status);                                  \
     } while (0)
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                         _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                         _In_ PVOID ClientBufferBase,
@@ -614,7 +614,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ PVOID ClientBufferBase,
@@ -703,7 +703,7 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
 }
 
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ValidateAuthIdentityEx2(PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentityEx2)
 {
     NTSTATUS Status;
@@ -732,7 +732,7 @@ ValidateAuthIdentityEx2(PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentityEx2)
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                       _In_ ULONG SubmitBufferSize,
                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
@@ -768,7 +768,7 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                  _In_ ULONG SubmitBufferSize,
                  _Out_ LUID &UnlockLogonId)
@@ -820,7 +820,7 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertKerbLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                _In_ PVOID ClientBufferBase,
@@ -865,7 +865,7 @@ ConvertKerbLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-NTSTATUS _Success_(return == STATUS_SUCCESS)
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                        _In_ PVOID ClientBufferBase,

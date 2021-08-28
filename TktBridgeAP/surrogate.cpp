@@ -259,7 +259,7 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
     return true;
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 AcquireTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
                       _In_ const LUID &LogonId,
                       _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds,
@@ -344,7 +344,7 @@ AcquireTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
     RETURN_NTSTATUS(Status);
 }
 
-static NTSTATUS _Success_(return == STATUS_SUCCESS)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
                        _Inout_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {

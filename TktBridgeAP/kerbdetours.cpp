@@ -187,7 +187,7 @@ KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     return Status;
 }
 
-DWORD _Success_(return == ERROR_SUCCESS)
+_Success_(return == ERROR_SUCCESS) DWORD
 AttachKerbLogonDetour(VOID)
 {
     DWORD dwError;

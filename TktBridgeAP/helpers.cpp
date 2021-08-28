@@ -153,7 +153,7 @@ RegistryGetStringValuesForKey(_In_ const wil::unique_hkey &hKey,
     return true;
 }
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
                    _Out_ PCHAR *pszUTF8String)
 {
@@ -180,7 +180,7 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     return STATUS_SUCCESS;
 }
 
-NTSTATUS
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
                    _Out_ PWSTR *pwszUnicodeString)
 {
@@ -207,7 +207,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     return STATUS_SUCCESS;
 }
 
-NTSTATUS NTAPI
+_Success_(return == STATUS_SUCCESS) NTSTATUS NTAPI
 DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
 {
     NTSTATUS Status;
