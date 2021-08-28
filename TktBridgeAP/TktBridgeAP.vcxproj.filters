@@ -71,7 +71,7 @@
     <ClCompile Include="prf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="kerbinterpose.cpp">
+    <ClCompile Include="kerbdetours.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

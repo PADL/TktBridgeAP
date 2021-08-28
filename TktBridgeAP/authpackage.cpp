@@ -172,7 +172,7 @@ SpShutdown(VOID)
 {
     DebugTrace(WINEVENT_LEVEL_INFO, L"TktBridgeAP shutting down");
 
-    DetachKerbLogonInterposer();
+    DetachKerbLogonDetour();
 
     RtlFreeSid(SpParameters.DomainSid);
     RtlFreeUnicodeString(&SpParameters.DomainName);
@@ -240,7 +240,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
     EventRegisterPADL_TktBridgeAP();
     InitializeRegistryNotification();
 
-    Status = AttachKerbLogonInterposer();
+    Status = AttachKerbLogonDetour();
     NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to attach Kerberos logon interposer");
 
     return STATUS_SUCCESS;

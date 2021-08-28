@@ -95,23 +95,23 @@ LoadKerbPackage(VOID)
  */
 
 static NTSTATUS
-KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-                           _In_ SECURITY_LOGON_TYPE LogonType,
-                           _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                           _In_ PVOID ClientBufferBase,
-                           _In_ ULONG SubmitBufferSize,
-                           _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
-                           _Outptr_result_bytebuffer_(*ProfileBufferSize) PVOID *ProfileBuffer,
-                           _Out_ PULONG ProfileBufferSize,
-                           _Out_ PLUID LogonId,
-                           _Out_ PNTSTATUS SubStatus,
-                           _Out_ PLSA_TOKEN_INFORMATION_TYPE TokenInformationType,
-                           _Outptr_ PVOID *TokenInformation,
-                           _Out_ PUNICODE_STRING *AccountName,
-                           _Out_ PUNICODE_STRING *AuthenticatingAuthority,
-                           _Out_ PUNICODE_STRING *MachineName,
-                           _Out_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
-                           _Outptr_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY *SupplementalCredentials)
+KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                       _In_ SECURITY_LOGON_TYPE LogonType,
+                       _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                       _In_ PVOID ClientBufferBase,
+                       _In_ ULONG SubmitBufferSize,
+                       _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+                       _Outptr_result_bytebuffer_(*ProfileBufferSize) PVOID *ProfileBuffer,
+                       _Out_ PULONG ProfileBufferSize,
+                       _Out_ PLUID LogonId,
+                       _Out_ PNTSTATUS SubStatus,
+                       _Out_ PLSA_TOKEN_INFORMATION_TYPE TokenInformationType,
+                       _Outptr_ PVOID *TokenInformation,
+                       _Out_ PUNICODE_STRING *AccountName,
+                       _Out_ PUNICODE_STRING *AuthenticatingAuthority,
+                       _Out_ PUNICODE_STRING *MachineName,
+                       _Out_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
+                       _Outptr_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY *SupplementalCredentials)
 {
     struct _FIDO_AUTH_IDENTITY {
         SEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentity;
@@ -120,7 +120,7 @@ KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     auto SurrogateLogonCreds = FindSurrogateLogonCreds(SurrogateLogon);
 
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
-               L"KerbLogonUserEx3Interposer: LogonType %d SurrogateCreds %p",
+               L"KerbLogonUserEx3Detour: LogonType %d SurrogateCreds %p",
                LogonType, SurrogateLogonCreds);
 
     if (SurrogateLogonCreds != nullptr) {
@@ -186,7 +186,7 @@ KerbLogonUserEx3Interposer(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 }
 
 DWORD _Success_(return == ERROR_SUCCESS)
-AttachKerbLogonInterposer(VOID)
+AttachKerbLogonDetour(VOID)
 {
     DWORD dwError;
     bool BegunTransaction = false;
@@ -207,7 +207,7 @@ AttachKerbLogonInterposer(VOID)
     dwError = DetourUpdateThread(GetCurrentThread());
     RETURN_IF_WIN32_ERROR(dwError);
 
-    dwError = DetourAttach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Interposer);
+    dwError = DetourAttach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Detour);
     RETURN_IF_WIN32_ERROR(dwError);
 
     dwError = DetourTransactionCommit();
@@ -217,7 +217,7 @@ AttachKerbLogonInterposer(VOID)
 }
 
 VOID
-DetachKerbLogonInterposer(VOID)
+DetachKerbLogonDetour(VOID)
 {
     DWORD dwError;
 
@@ -228,7 +228,7 @@ DetachKerbLogonInterposer(VOID)
     if (dwError == ERROR_SUCCESS) {
         dwError = DetourUpdateThread(GetCurrentThread());
         if (dwError == ERROR_SUCCESS)
-            DetourDetach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Interposer);
+            DetourDetach(&(PVOID &)KerbFunctionTable->LogonUserEx3, KerbLogonUserEx3Detour);
         if (dwError == ERROR_SUCCESS)
             DetourTransactionCommit();
         else

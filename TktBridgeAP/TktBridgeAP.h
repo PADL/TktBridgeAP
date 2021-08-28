@@ -248,10 +248,10 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
  */
 
 _Success_(return == ERROR_SUCCESS) DWORD
-AttachKerbLogonInterposer(VOID);
+AttachKerbLogonDetour(VOID);
 
 VOID
-DetachKerbLogonInterposer(VOID);
+DetachKerbLogonDetour(VOID);
 
 /*
  * preauth.cpp
