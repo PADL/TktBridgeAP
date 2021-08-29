@@ -122,3 +122,33 @@ HeimTracingInit(_In_ krb5_context KrbContext)
 
     return KrbError;
 }
+
+#ifndef NDEBUG
+VOID
+DebugCredentials(_In_ PSECPKG_PRIMARY_CRED_EX PrimaryCred,
+                 _In_opt_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY SupplementalCred)
+{
+    DWORD dwLogonSubmitType = 0;
+
+    if (PrimaryCred->Spare1.Length >= sizeof(dwLogonSubmitType))
+        dwLogonSubmitType = *(reinterpret_cast<PDWORD>(PrimaryCred->Spare1.Buffer));
+
+    DebugTrace(WINEVENT_LEVEL_VERBOSE,
+               L"KerbLogonUser: PrimaryCred LogonId %08x.%08x SamAccountName %.*s DomainName %.*s Flags %08x Spare1 %08x",
+               PrimaryCred->LogonId.LowPart, PrimaryCred->LogonId.HighPart,
+               PrimaryCred->DownlevelName.Length, PrimaryCred->DownlevelName.Buffer,
+               PrimaryCred->DomainName.Length, PrimaryCred->DomainName.Buffer,
+               PrimaryCred->Flags, dwLogonSubmitType);
+
+    if (SupplementalCred != nullptr) {
+        for (ULONG i = 0; i < SupplementalCred->CredentialCount; i++) {
+            PSECPKG_SUPPLEMENTAL_CRED Cred = &SupplementalCred->Credentials[i];
+
+            DebugTrace(WINEVENT_LEVEL_VERBOSE,
+                       L"KerbLogonUser: SupplementalCred Package %.*s Length %u",
+                       Cred->PackageName.Length, Cred->PackageName.Buffer,
+                       Cred->CredentialSize);
+        }
+    }
+}
+#endif

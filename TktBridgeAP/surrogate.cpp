@@ -371,7 +371,8 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
     /*
      * Note that CloudAP will think it owns this entry as it does not check
      * the callback matches. PackageData must be structured in such a way
-     * that CloudAP will never attempt to release it.
+     * that CloudAP will never attempt to release it, or it must be freed
+     * before CloudAP's LsaApPostLogonUserSurrogate is called.
      */
     SurrogateLogonData->AsRepCallback = RetrieveTktBridgeCreds;
     SurrogateLogonData->PackageData = TktBridgeCreds;
