@@ -4,10 +4,10 @@
 
   <?define EventManifestDll=[$(var.PlatformSystemFolder)]TktBridgeAP.dll ?>
 
-  <DirectoryRef Id="INSTALLLOCATION" FileSource="$(var.BinDir)">
+  <DirectoryRef Id="TARGETDIR" FileSource="$(var.BinDir)">
     <Component Id="C_TktBridgeAPEventManifest"
                Guid="3f045b64-bfcb-45e9-b4b1-d763a18ca6e0">
-      <File Name="TktBridgeAP-trace.man">
+      <File Name="TktBridgeAP-trace.man" Source="$(var.SolutionDir)\TktBridgeAP\TktBridgeAP-trace.man">
         <util:EventManifest MessageFile="$(var.EventManifestDll)"
                             ParameterFile="$(var.EventManifestDll)"
                             ResourceFile="$(var.EventManifestDll)">
