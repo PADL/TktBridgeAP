@@ -343,6 +343,6 @@ __cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
 
 #ifndef NDEBUG
 VOID
-DebugCredentials(_In_ PSECPKG_PRIMARY_CRED_EX PrimaryCred,
-                 _In_opt_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY SupplementalCred);
+DebugTraceCredentials(_In_ PSECPKG_PRIMARY_CRED_EX PrimaryCred,
+                      _In_opt_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY SupplementalCred);
 #endif

@@ -166,8 +166,8 @@ KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (SurrogateLogonCreds != nullptr) {
 #ifndef NDEBUG
         if (NT_SUCCESS(Status)) {
-            DebugCredentials((PSECPKG_PRIMARY_CRED_EX)PrimaryCredentials,
-                             *SupplementalCredentials);
+            DebugTraceCredentials((PSECPKG_PRIMARY_CRED_EX)PrimaryCredentials,
+                                  *SupplementalCredentials);
         }
 #endif
         LsaApPostLogonUserSurrogate(ClientRequest,
