@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<Include xmlns="http://schemas.microsoft.com/wix/2006/wi"
+         xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <?define EventManifestDll=[$(var.PlatformSystemFolder)]TktBridgeAP.dll ?>
+
+  <DirectoryRef Id="INSTALLLOCATION" FileSource="$(var.BinDir)">
+    <Component Id="C_TktBridgeAPEventManifest"
+               Guid="3f045b64-bfcb-45e9-b4b1-d763a18ca6e0">
+      <File Name="TktBridgeAP-trace.man">
+        <util:EventManifest MessageFile="$(var.EventManifestDll)"
+                            ParameterFile="$(var.EventManifestDll)"
+                            ResourceFile="$(var.EventManifestDll)">
+        </util:EventManifest>
+      </File>
+    </Component>
+  </DirectoryRef>
+
+</Include>
