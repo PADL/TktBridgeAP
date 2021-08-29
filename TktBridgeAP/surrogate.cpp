@@ -587,7 +587,10 @@ ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
         if (KrbContext != nullptr) {
             if (KrbCrypto != nullptr)
                 krb5_crypto_destroy(KrbContext, KrbCrypto);
-            krb5_free_keyblock_contents(KrbContext, &KrbKey);
+            if (KrbKey.keyvalue.data != nullptr) {
+                SecureZeroMemory(KrbKey.keyvalue.data, KrbKey.keyvalue.length);
+                krb5_free_keyblock_contents(KrbContext, &KrbKey);
+            }
             krb5_free_context(KrbContext);
             krb5_data_free(&Data);
         }
