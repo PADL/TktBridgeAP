@@ -45,7 +45,7 @@ static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
 static std::mutex APGlobalsLock;
 static std::optional<std::wstring> APKdcHostName;
 static std::optional<std::wstring> APRestrictPackage;
-static std::vector<std::wstring> APDomainSuffixes;
+static std::vector<std::wstring> APUPNSuffixes;
 std::atomic<unsigned long> APFlags = 0;
 std::atomic<unsigned long> APLogLevel = 0;
 
@@ -183,7 +183,7 @@ SpShutdown(VOID)
 
     APKdcHostName.reset();
     APRestrictPackage.reset();
-    APDomainSuffixes.clear();
+    APUPNSuffixes.clear();
     APFlags = 0;
     APLogLevel = 0;
 
@@ -276,7 +276,7 @@ RegistryNotifyChanged(VOID)
 
     APKdcHostName.reset();
     APRestrictPackage.reset();
-    APDomainSuffixes.clear();
+    APUPNSuffixes.clear();
 
     auto dwError = RegOpenKeyEx(HKEY_LOCAL_MACHINE, TKTBRIDGEAP_REGISTRY_KEY_W,
                                 0, KEY_QUERY_VALUE, &hKey);
@@ -292,7 +292,7 @@ RegistryNotifyChanged(VOID)
         if (RegistryGetStringValueForKey(hKey, L"RestrictPackage", RestrictPackage))
             APRestrictPackage.emplace(RestrictPackage);
 
-        RegistryGetStringValuesForKey(hKey, L"DomainSuffixes", APDomainSuffixes);
+        RegistryGetStringValuesForKey(hKey, L"UPNSuffixes", APUPNSuffixes);
     }
 
 #ifndef NDEBUG
@@ -371,16 +371,16 @@ GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage)
 }
 
 bool
-IsEnabledDomainSuffix(PCWSTR Suffix,
-                      bool *Authoritative)
+IsEnabledUPNSuffix(PCWSTR Suffix,
+                   bool *Authoritative)
 {
     std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
-    *Authoritative = !APDomainSuffixes.empty();
+    *Authoritative = !APUPNSuffixes.empty();
 
     if (*Authoritative) {
-        for (auto Iterator = APDomainSuffixes.begin();
-             Iterator != APDomainSuffixes.end();
+        for (auto Iterator = APUPNSuffixes.begin();
+             Iterator != APUPNSuffixes.end();
              Iterator++) {
             if (_wcsicmp(Suffix, Iterator->c_str()) == 0)
                 return true;
@@ -402,11 +402,11 @@ TestEntryPoint(PVOID Unused1, PVOID Unused2, CHAR *Unused3, INT Unused4)
                APKdcHostName.has_value() ? APKdcHostName.value().c_str() : L"<none>",
                APRestrictPackage.has_value() ? APRestrictPackage.value().c_str() : L"<none>");
 
-    if (APDomainSuffixes.empty()) {
+    if (APUPNSuffixes.empty()) {
         DebugTrace(WINEVENT_LEVEL_VERBOSE, L"No domain suffixes configured");
     } else {
-        for (auto Iterator = APDomainSuffixes.begin();
-             Iterator != APDomainSuffixes.end();
+        for (auto Iterator = APUPNSuffixes.begin();
+             Iterator != APUPNSuffixes.end();
              Iterator++)
             DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Domain suffix: %s", Iterator->c_str());
     }

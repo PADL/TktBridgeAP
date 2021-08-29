@@ -225,10 +225,10 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
      * use that as authoritative.
      */
     bool Authoritative;
-    bool DomainSuffixMatch = IsEnabledDomainSuffix(wszDomainName, &Authoritative);
+    bool UPNSuffixMatch = IsEnabledUPNSuffix(wszDomainName, &Authoritative);
 
     if (Authoritative)
-        return DomainSuffixMatch;
+        return UPNSuffixMatch;
 
     /*
      * We don't want to get in the way of ordinary logons so by default we

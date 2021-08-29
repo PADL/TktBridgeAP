@@ -171,8 +171,8 @@ _Success_(return == STATUS_SUCCESS) NTSTATUS
 GetRestrictPackage(std::wstring &Buffer, PCWSTR &pRestrictPackage);
 
 bool
-IsEnabledDomainSuffix(PCWSTR Suffix,
-                      bool *Authoritative);
+IsEnabledUPNSuffix(PCWSTR Suffix,
+                   bool *Authoritative);
 
 /*
  * errors.cpp
