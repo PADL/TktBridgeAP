@@ -123,10 +123,12 @@ To avoid locking out domain users, TktBridgeAP by default will not attempt GSS p
 
 There are a variety of additional flags which can be set on TktBridgeAP in the `flags` key:
 
-* 0x1: enable debugging on release builds
-* 0x2: allow GSS pre-authentication to be used for users in the primary domain
-* 0x4: allow GSS pre-authentication to be used for users in trusted domains
-* 0x8: do not cache users’ cleartext credentials (this will disable automatic ticket refresh)
+* 0x01: enable debugging on release builds
+* 0x02: enable the primary domain suffix for GSS pre-authentication
+* 0x04: enable the trusted domain suffixes for GSS pre-authentication
+* 0x08: do not cache users’ cleartext credentials (this will disable automatic ticket refresh)
+* 0x10: use anonymous PKINIT FAST to wrap KDC requests
+* 0x20: validate AS-REP credentials before handoff
 
 If you have a debug build of TktBridgeAP, make sure the debug Visual C++ libraries are copied to the Windows system directory, specifically:
 
