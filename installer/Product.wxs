@@ -75,11 +75,9 @@
         <!-- Other properties -->
         <Property Id="ALLUSERS" Value="1" Secure="yes" />
         <Property Id="TktBridgeAPFlags" Value="0" />
-<!--        <UIRef Id="WixUI_FeatureTree" /> -->
 
         <InstallExecuteSequence>
             <RemoveExistingProducts After="InstallFinalize" />
-            <Custom Action="CA_SetLegacyLsaPackagesKey" Before="WriteRegistryValues"></Custom>
             <ScheduleReboot After="InstallFinalize" />
         </InstallExecuteSequence>
     </Product>
