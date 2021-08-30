@@ -31,10 +31,6 @@
     <Compile Include="Product.wxs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="EventManifest.wxi" />
-    <Content Include="Registry.wxi" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="en-us.wxl" />
   </ItemGroup>
   <ItemGroup>
