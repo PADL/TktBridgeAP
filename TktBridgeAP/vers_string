@@ -46,6 +46,10 @@ if ($ARGV[0] eq "-f") {
 	print "const char VERS_NUM[] = \"$VERSION\";\n";
 } elsif ($ARGV[0] eq "-n") {
 	print "$VERSION\n";
+} elsif ($ARGV[0] eq "-N") {
+	my ($AUX, $PATCH) = split(/\-/, $VERSION);
+	if (!defined($PATCH)) { $PATCH = 0; }
+	print "$AUX.$PATCH\n";
 } elsif ($ARGV[0] eq "-m") {
 	my ($AUX, $PATCH) = split(/\-/, $VERSION);
 	if (!defined($PATCH)) { $PATCH = 0; }

@@ -3,7 +3,6 @@
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
     <?define GuidTktBridgeAP=3dee3591-bc1b-4043-99a4-9e081206ca26 ?>
-    <?define Version="0.1.0.0" ?>
 
     <?if $(var.Platform)=x64 ?>
     <?define Win64=yes ?>
