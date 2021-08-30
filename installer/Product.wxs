@@ -78,7 +78,7 @@
         <Condition Message="!(loc.AdminRequired)">Installed OR Privileged</Condition>
         <Condition Message="!(loc.AlreadyInstalled)">Installed OR NOT EXISTINGINSTALLATION</Condition>
         <Condition Message="This application is only supported on Windows 10 or higher.">
-            <![CDATA[Installed OR HASCLOUDAP]]>
+             <![CDATA[Installed OR (VersionNT >= 603 AND HASCLOUDAP)]]>
         </Condition>
 
         <Feature Id="F_TktBridgeAP"
