@@ -67,6 +67,39 @@ GssPreauthDeriveKey(_In_ krb5_context KrbContext,
 }
 
 static krb5_error_code
+MakeWKAnonymousName(_In_ krb5_context KrbContext,
+                    _Out_ krb5_principal *pPrincipal)
+{
+    return krb5_make_principal(KrbContext, pPrincipal,
+                               KRB5_ANON_REALM, KRB5_WELLKNOWN_NAME,
+                               KRB5_ANON_NAME, nullptr);
+}
+
+static krb5_error_code
+MakeWKFederatedName(_In_ krb5_context KrbContext,
+                    _In_z_ PCWSTR RealmName,
+                    _Out_ krb5_principal *pPrincipal)
+{
+    PCHAR RealmNameUTF8;
+
+    *pPrincipal = nullptr;
+
+    if (!NT_SUCCESS(UnicodeToUTF8Alloc(RealmName, &RealmNameUTF8)))
+        return krb5_enomem(KrbContext);
+
+    auto KrbError = krb5_make_principal(KrbContext,
+                                        pPrincipal,
+                                        RealmNameUTF8,
+                                        KRB5_WELLKNOWN_NAME,
+                                        KRB5_FEDERATED_NAME,
+                                        nullptr);
+
+    WIL_FreeMemory(RealmNameUTF8);
+
+    return KrbError;
+}
+
+static krb5_error_code
 GssPreauthUnparseName(_In_ krb5_context KrbContext,
                       _In_ krb5_const_principal Principal,
                       _Out_ PWSTR *pwszNameString)
@@ -365,39 +398,6 @@ GssPreauthReleaseCred(krb5_context KrbContext,
         FreeCredentialsHandle(&GssCredHandle->Handle);
         WIL_FreeMemory(GssCredHandle);
     }
-}
-
-static krb5_error_code
-MakeWKAnonymousName(_In_ krb5_context KrbContext,
-                    _Out_ krb5_principal *pPrincipal)
-{
-    return krb5_make_principal(KrbContext, pPrincipal,
-                               KRB5_ANON_REALM, KRB5_WELLKNOWN_NAME,
-                               KRB5_ANON_NAME, nullptr);
-}
-
-static krb5_error_code
-MakeWKFederatedName(_In_ krb5_context KrbContext,
-                    _In_z_ PCWSTR RealmName,
-                    _Out_ krb5_principal *pPrincipal)
-{
-    PCHAR RealmNameUTF8;
-
-    *pPrincipal = nullptr;
-
-    if (!NT_SUCCESS(UnicodeToUTF8Alloc(RealmName, &RealmNameUTF8)))
-        return krb5_enomem(KrbContext);
-
-    auto KrbError = krb5_make_principal(KrbContext,
-                                        pPrincipal,
-                                        RealmNameUTF8,
-                                        KRB5_WELLKNOWN_NAME,
-                                        KRB5_FEDERATED_NAME,
-                                        nullptr);
-
-    WIL_FreeMemory(RealmNameUTF8);
-
-    return KrbError;
 }
 
 static krb5_error_code
