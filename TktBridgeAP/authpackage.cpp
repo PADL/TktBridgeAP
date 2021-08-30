@@ -376,15 +376,18 @@ IsEnabledUPNSuffix(PCWSTR Suffix,
 {
     std::lock_guard GlobalsLockGuard(APGlobalsLock);
 
-    *Authoritative = !APUPNSuffixes.empty();
+    try {
+        *Authoritative = !APUPNSuffixes.empty();
 
-    if (*Authoritative) {
-        for (auto Iterator = APUPNSuffixes.begin();
-             Iterator != APUPNSuffixes.end();
-             Iterator++) {
-            if (_wcsicmp(Suffix, Iterator->c_str()) == 0)
-                return true;
+        if (*Authoritative) {
+            for (auto Iterator = APUPNSuffixes.begin();
+                 Iterator != APUPNSuffixes.end();
+                 Iterator++) {
+                if (_wcsicmp(Suffix, Iterator->c_str()) == 0)
+                    return true;
+            }
         }
+    } catch (std::exception) {
     }
 
     return false;
