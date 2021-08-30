@@ -104,7 +104,7 @@
 #define TKTBRIDGEAP_FLAG_DEBUG_VALIDATE_CRED    0x00000020 // check AS-REP decrypts before sending to Windows
 #define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF // flags that settable in registry
 
-#define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000 // Windows 11 Insider Peview
+#define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000 // Windows 11 Insider Preview
 
 #define TKTBRIDGEAP_REGISTRY_KEY_W              L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_VERSION             1
