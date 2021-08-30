@@ -115,7 +115,7 @@ InitializePackage(_In_ ULONG AuthenticationPackageId,
     LSA_STRING APName = {
         .Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1,
         .MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A),
-        .Buffer = (PCHAR)TKTBRIDGEAP_PACKAGE_NAME_A,
+        .Buffer = const_cast<PCHAR>(TKTBRIDGEAP_PACKAGE_NAME_A)
     };
 
     auto Status = DuplicateLsaString(&APName, AuthenticationPackageName);

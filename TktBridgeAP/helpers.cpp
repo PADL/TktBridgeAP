@@ -86,7 +86,7 @@ RegistryGetULongValueForKey(_In_ const wil::unique_hkey &hKey,
     DWORD dwResult, dwType = REG_DWORD, dwSize = sizeof(ULONG);
 
     dwResult = RegQueryValueEx(hKey.get(), KeyName, nullptr, &dwType,
-                               (PBYTE)&KeyValue, &dwSize);
+                               reinterpret_cast<PBYTE>(&KeyValue), &dwSize);
 
     return dwResult == ERROR_SUCCESS && dwType == REG_DWORD ?
         KeyValue : 0;
@@ -103,7 +103,7 @@ RegistryGetStringValueForKey(_In_ const wil::unique_hkey &hKey,
                                                                               size_t *ValueLengthNeededWithNull) -> HRESULT {
         auto Length = static_cast<DWORD>(ValueLength);
         DWORD dwType = REG_SZ;
-        auto Status = RegQueryValueEx(hKey.get(), KeyName, 0, &dwType, reinterpret_cast<BYTE *>(Value), &Length);
+        auto Status = RegQueryValueEx(hKey.get(), KeyName, 0, &dwType, reinterpret_cast<PBYTE>(Value), &Length);
     
         *ValueLengthNeededWithNull = (Length / sizeof(WCHAR));
 
@@ -129,7 +129,7 @@ RegistryGetStringValuesForKey(_In_ const wil::unique_hkey &hKey,
                                                                               size_t *ValueLengthNeededWithNull) -> HRESULT {
         auto Length = static_cast<DWORD>(ValueLength);
         DWORD dwType = REG_MULTI_SZ;
-        auto Status = RegQueryValueEx(hKey.get(), KeyName, 0, &dwType, reinterpret_cast<BYTE *>(Value), &Length);
+        auto Status = RegQueryValueEx(hKey.get(), KeyName, 0, &dwType, reinterpret_cast<PBYTE>(Value), &Length);
 
         *ValueLengthNeededWithNull = (Length / sizeof(WCHAR));
 

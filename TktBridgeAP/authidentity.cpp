@@ -748,7 +748,7 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
     });
 
     SecStatus = SspiUnmarshalAuthIdentity(SubmitBufferSize,
-                                          (PCHAR)ProtocolSubmitBuffer,
+                                          static_cast<PCHAR>(ProtocolSubmitBuffer),
                                           &AuthIdentity);
     if (SecStatus != SEC_E_OK)
         return SecStatus;
