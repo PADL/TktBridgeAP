@@ -10,27 +10,27 @@
     <OutputType>Package</OutputType>
     <ProdVerMajor>1</ProdVerMajor>
     <ProdVerMinor>0</ProdVerMinor>
-    <ProdVerAuxDotPatch>0.0</ProdVerAuxDotPatch>
+    <ProdVerBuild>0.0</ProdVerBuild>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</DefineConstants>
+    <DefineConstants>Debug;Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</DefineConstants>
+    <DefineConstants>Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <OutputPath>x64\bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>x64\obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</DefineConstants>
+    <DefineConstants>Debug;Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>x64\bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>x64\obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</DefineConstants>
+    <DefineConstants>Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Product.wxs" />
@@ -51,7 +51,7 @@
   </Target>
   <Target Name="BeforeBuild">
     <Exec Command="perl -I$(MSBuildProjectDirectory)\..\TktBridgeAP $(MSBuildProjectDirectory)\..\TktBridgeAP\vers_string -N" ConsoleToMSBuild="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerAuxDotPatch" />
+      <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerBuild" />
     </Exec>
   </Target>
 </Project>

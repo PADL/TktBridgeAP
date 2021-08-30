@@ -31,8 +31,14 @@
     <DetoursIncludeDir>$(DetoursDir)\include</DetoursIncludeDir>
     <ProdVerMajor>1</ProdVerMajor>
     <ProdVerMinor>0</ProdVerMinor>
-    <ProdVerAuxDotPatch>0.0</ProdVerAuxDotPatch>
+    <ProdVerBuild>1</ProdVerBuild>
   </PropertyGroup>
+  <Target Name="GetVersionString" BeforeTargets="Build">
+    <Exec Command="perl -I$(MSBuildProjectDirectory) $(MSBuildProjectDirectory)\vers_string -N" ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerBuild" />
+    </Exec>
+    <Message Importance="high" Text="Build Version: $(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)" />
+  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -133,7 +139,7 @@ nmake
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -170,7 +176,7 @@ nmake
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -200,7 +206,7 @@ nmake
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -234,7 +240,7 @@ nmake
       <Message>Generating ETW Dependencies</Message>
     </CustomBuildStep>
     <Manifest>
-      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerAuxDotPatch)</AssemblyIdentity>
+      <AssemblyIdentity>PADL.TktBridgeAP, processorArchitecture=$(ProcessorArchitecture), version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</AssemblyIdentity>
       <InputResourceManifests>
       </InputResourceManifests>
       <AdditionalManifestFiles>$(HeimdalSDKIncDir)\Heimdal.Application.$(ProcessorArchitecture).manifest</AdditionalManifestFiles>
@@ -269,12 +275,4 @@ nmake
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-  <Target Name="GetSGSVersion" DependsOnTargets="ResolveReferences">
-    <Exec Command="perl -I$(MSBuildProjectDirectory) $(MSBuildProjectDirectory)\vers_string -N" ConsoleToMSBuild="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerAuxDotPatch" />
-    </Exec>
-  </Target>
-  <PropertyGroup>
-    <BuildDependsOn>GetSGSVersion;$(BuildDependsOn)</BuildDependsOn>
-  </PropertyGroup>
 </Project>
