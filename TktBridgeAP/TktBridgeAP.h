@@ -96,13 +96,13 @@
 #include "HeimPrivate.h"
 #include "TktBridgeAP-trace.h"
 
-#define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001 // debugging on free builds
+#define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001 // enable debugging on free builds
 #define TKTBRIDGEAP_FLAG_PRIMARY_DOMAIN         0x00000002 // allow preauth logon with primary domain suffix
 #define TKTBRIDGEAP_FLAG_TRUSTED_DOMAINS        0x00000004 // allow preauth logon with trusted domain suffixes
-#define TKTBRIDGEAP_FLAG_NO_INIT_CREDS_CACHE    0x00000008 // do not cache initial credentials
+#define TKTBRIDGEAP_FLAG_NO_INIT_CREDS_CACHE    0x00000008 // do not cache cleartext credentials
 #define TKTBRIDGEAP_FLAG_ANON_PKINIT_FAST       0x00000010 // use anon PKINIT FAST armor
-#define TKTBRIDGEAP_FLAG_DEBUG_VALIDATE_CRED    0x00000020 // check AS-REP decrypts before sending to Windows
-#define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF // flags that settable in registry
+#define TKTBRIDGEAP_FLAG_DEBUG_VALIDATE_CRED    0x00000020 // check AS-REP decrypts before returning
+#define TKTBRIDGEAP_FLAG_USER                   0x0000FFFF // flags settable in registry
 
 #define TKTBRIDGEAP_FLAG_CLOUD_CREDS            0x00010000 // Windows 11 Insider Preview
 
