@@ -52,7 +52,6 @@ std::atomic<unsigned long> APLogLevel = 0;
 static wil::unique_registry_watcher_nothrow RegistryWatcher;
 
 extern "C" {
-    static LSA_AP_INITIALIZE_PACKAGE InitializePackage;
     static SpInitializeFn SpInitialize;
     static SpShutdownFn SpShutdown;
     static SpGetInfoFn SpGetInfo;
@@ -60,69 +59,6 @@ extern "C" {
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeRegistryNotification(VOID);
-
-static VOID
-FreeLsaString(_Inout_ PLSA_STRING pLsaString)
-{
-    if (pLsaString != nullptr) {
-        LsaDispatchTable->FreeLsaHeap(pLsaString->Buffer);
-        LsaDispatchTable->FreeLsaHeap(pLsaString);
-    }
-}
-
-static _Success_(return == STATUS_SUCCESS) NTSTATUS
-DuplicateLsaString(_In_ PLSA_STRING SourceString,
-                   _Out_ PLSA_STRING *pDestinationString)
-{
-    PLSA_STRING DestinationString = nullptr;
-
-    *pDestinationString = nullptr;
-
-    assert(LsaDispatchTable != nullptr);
-
-    auto cleanup = wil::scope_exit([&] {
-        FreeLsaString(DestinationString);
-                                   });
-
-    DestinationString = static_cast<PLSA_STRING>(LsaDispatchTable->AllocateLsaHeap(sizeof(LSA_STRING)));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString);
-
-    DestinationString->Buffer = static_cast<PCHAR>(LsaDispatchTable->AllocateLsaHeap(SourceString->MaximumLength));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(DestinationString->Buffer);
-
-    RtlCopyMemory(DestinationString->Buffer, SourceString->Buffer, SourceString->MaximumLength);
-
-    DestinationString->Length = SourceString->Length;
-    DestinationString->MaximumLength = SourceString->MaximumLength;
-
-    *pDestinationString = DestinationString;
-    DestinationString = nullptr;
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-}
-
-static NTSTATUS NTAPI
-InitializePackage(_In_ ULONG AuthenticationPackageId,
-                  _In_ PLSA_DISPATCH_TABLE DispatchTable,
-                  _In_opt_ PLSA_STRING Database,
-                  _In_opt_ PLSA_STRING Confidentiality,
-                  _Out_ PLSA_STRING *AuthenticationPackageName)
-{
-    LsaAuthenticationPackageId = AuthenticationPackageId;
-    LsaDispatchTable = DispatchTable;
-    *AuthenticationPackageName = nullptr;
-
-    LSA_STRING APName = {
-        .Length = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A) - 1,
-        .MaximumLength = sizeof(TKTBRIDGEAP_PACKAGE_NAME_A),
-        .Buffer = const_cast<PCHAR>(TKTBRIDGEAP_PACKAGE_NAME_A)
-    };
-
-    auto Status = DuplicateLsaString(&APName, AuthenticationPackageName);
-    NT_RETURN_IF_NTSTATUS_FAILED(Status);
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-}
 
 static NTSTATUS NTAPI
 SpInitialize(_In_ ULONG_PTR PackageId,
@@ -200,7 +136,6 @@ SpShutdown(VOID)
 
 static SECPKG_FUNCTION_TABLE
 TktBridgeAPFunctionTable = {
-    .InitializePackage = InitializePackage,
     .LogonTerminated = LsaApLogonTerminated,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
