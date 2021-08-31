@@ -137,6 +137,8 @@ If you have a debug build of TktBridgeAP, make sure the debug Visual C++ librari
 * `vcruntime140_1d.dll`
 * `ucrtbased.dll`
 
+If you do not have a signed build of TktBridgeAP, you must also disable test signing with the command `bcdedit /set TESTSIGNING OFF`.
+
 TktBridgeAP relies on the Heimdal client library assembly that should be installed by recent versions of EapSSP.
 
 User configuration
