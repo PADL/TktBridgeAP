@@ -108,7 +108,6 @@
 
 #define TKTBRIDGEAP_REGISTRY_KEY_W              L"SYSTEM\\CurrentControlSet\\Control\\Lsa\\TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_VERSION             1
-#define TKTBRIDGEAP_PACKAGE_NAME_A               "TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_NAME_W              L"TktBridgeAP"
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W           L"TktBridge Authentication Package"
 
