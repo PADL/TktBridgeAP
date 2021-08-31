@@ -37,7 +37,7 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
                            PTKTBRIDGEAP_CREDS *pTktBridgeCreds);
 
 static _Success_(return == 0) krb5_error_code
-ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
+DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
 
 /*
  * Callback function called from Kerberos package that passes TktBridgeAP-
@@ -83,7 +83,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
                IsTktBridgeCredsExpired(TktBridgeCreds) ? L"Expired" : L"Valid");
 
     if ((APFlags & TKTBRIDGEAP_FLAG_DEBUG_VALIDATE_CRED) &&
-        ValidateTgtBridgeCreds(TktBridgeCreds) != 0)
+        DebugValidateTktBridgeCreds(TktBridgeCreds) != 0)
         RETURN_NTSTATUS(STATUS_INTERNAL_ERROR);
 
     cbKerbAsRepCred = sizeof(KERB_AS_REP_CREDENTIAL) +
@@ -565,7 +565,7 @@ MaybeRefreshTktBridgeCreds(const LUID &LogonId,
 }
 
 static _Success_(return == 0) krb5_error_code
-ValidateTgtBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
+DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     krb5_error_code KrbError;
     AS_REP AsRep;
