@@ -11,26 +11,27 @@
     <ProdVerMajor>1</ProdVerMajor>
     <ProdVerMinor>0</ProdVerMinor>
     <ProdVerBuild>0.0</ProdVerBuild>
+    <Version>$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</Version>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
+    <DefineConstants>Debug;Version=$(Version)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
+    <DefineConstants>Version=$(Version)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <OutputPath>x64\bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>x64\obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
+    <DefineConstants>Debug;Version=$(Version)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>x64\bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>x64\obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Version=$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)</DefineConstants>
+    <DefineConstants>Version=$(Version)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Product.wxs" />
@@ -49,9 +50,12 @@
   <Target Name="EnsureWixToolsetInstalled" Condition=" '$(WixTargetsImported)' != 'true' ">
     <Error Text="The WiX Toolset v3.11 (or newer) build tools must be installed to build this project. To download the WiX Toolset, see http://wixtoolset.org/releases/" />
   </Target>
-  <Target Name="BeforeBuild">
+  <Target Name="AfterBuild">
     <Exec Command="perl -I$(MSBuildProjectDirectory)\..\TktBridgeAP $(MSBuildProjectDirectory)\..\TktBridgeAP\vers_string -N" ConsoleToMSBuild="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerBuild" />
     </Exec>
+    <CreateProperty Value="$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)">
+      <Output TaskParameter="Value" PropertyName="Version" />
+    </CreateProperty>
   </Target>
 </Project>
