@@ -145,3 +145,6 @@ User configuration
 ------------------
 
 To enable a user for GSS pre-authentication, they must first be a member of the group specified in `mSDS-RevealOnDemandGroup` above, and they must have their `userPrincipalName` attribute set to the GSS-API initiator name (for example, with EAP, this will be the NAI name such as `lukeh@AAA.PADL.COM`).
+
+Heimdal also includes a `altsecid_gss_preauth_authorizer` KDC plugin that can map GSS-API initiators to Kerberos principals using the altSecurityIdentities attribute: this is consistent with how the EAP SSP authorizes users when operating as an acceptor (server). If you install this plugin, by moving it to `/usr/heimdal/lib/plugin/kdc`, then you will need to ensure the KDC has access to credentials it can use for contacting Active Directory. You cannot use the RODC TGS account for this (as it cannot act as a client) but you can use the RODC domain controller account. You may need to set `userPrincipalName` on the domain controller account to match the service principal name to avoid salting issues.
+
