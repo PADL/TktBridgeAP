@@ -1,2 +1,3 @@
-* installer
+* propagate build number into DLL, installer
+* check why not working reliably on x86
 * provisioning tool
