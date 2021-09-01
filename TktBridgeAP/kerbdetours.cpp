@@ -34,6 +34,19 @@
 
 #include "detours.h"
 
+/*
+ * An extremely inelegant kludge to force the native Kerberos security
+ * package to pick up surrogate credentials containing an AS-REP, by
+ * pretending the logon was a FIDO logon. The contents of the credentials
+ * are ignored so we can leave them empty.
+ *
+ * The interposed function is transparent to the Kerberos package if
+ * TktBridgeAP-issued surrogate logon credentials cannot be found.
+ *
+ * This file can go away once the native Kerberos package accepts
+ * AS-REP surrogate data irrespective of the logon type.
+ */
+
 static PSECPKG_FUNCTION_TABLE KerbFunctionTable;
 static HMODULE hKerbPackage;
 
@@ -76,21 +89,6 @@ LoadKerbPackage(VOID)
 
     RETURN_WIN32(ERROR_SUCCESS);
 }
-
-/*
- * An extremely inelegant kludge to force the native Kerberos security
- * package to pick up surrogate credentials containing an AS-REP, by
- * pretending the logon was a FIDO logon. The contents of the credentials
- * are ignored so we can leave them empty.
- *
- * The interposed function is transparent to the Kerberos package if
- * TktBridgeAP-issued surrogate logon credentials cannot be found.
- * 
- * Were Microsoft to update their Kerberos package to allow AS-REP
- * surrogate data to be provided irrespective of logon submit data,
- * and to update CloudAP to validate it issued the surrogate entry
- * first, then this file can go away.
- */
 
 static NTSTATUS NTAPI
 KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,

@@ -199,15 +199,7 @@ AllocateTktBridgeCreds(VOID)
 
     ZeroMemory(TktBridgeCreds, sizeof(*TktBridgeCreds));
     TktBridgeCreds->RefCount = 1;
-
-    /*
-     * CloudAP shares the same Kerberos surrogate data with TktBridgeAP.
-     * We ensure our post-logon surrogate is called before CloudAP's by
-     * calling it directly in our KerbLsaLogonUserEx3 interposer, but
-     * just in case it isn't we set the CloudAP reference count to a
-     * very large value.
-     */
-    TktBridgeCreds->Reserved = ULONG_MAX;
+    TktBridgeCreds->Reserved = ULONG_MAX; /* CloudAP refcount */
 
     return TktBridgeCreds;
 }
@@ -220,7 +212,7 @@ ValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
      * count once. Previously we called our post-logon surrogate
      * function within the logon interposer, but this broke the case
      * where the logon function was called multiple times by the LSA
-     * before it would otherwise have called the post-logon surrogate.
+     * before it would have itself called the post-logon surrogate.
      */
     if (Creds->Reserved < ULONG_MAX - 1) {
         DebugTrace(WINEVENT_LEVEL_WARNING,
