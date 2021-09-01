@@ -60,6 +60,7 @@
                         <util:EventManifest MessageFile="$(var.EventManifestDll)"
                                             ParameterFile="$(var.EventManifestDll)"
                                             ResourceFile="$(var.EventManifestDll)">
+                            
                         </util:EventManifest>
                     </File>
                 </Component>

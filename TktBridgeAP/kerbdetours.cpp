@@ -34,6 +34,9 @@
 
 #include "detours.h"
 
+extern "C"
+static LSA_AP_LOGON_USER_EX3 KerbLogonUserEx3Detour;
+
 static PSECPKG_FUNCTION_TABLE KerbFunctionTable;
 static HMODULE hKerbPackage;
 
