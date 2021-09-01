@@ -9,3 +9,6 @@ release/
 *.aps
 /TktBridgeAP/.TktBridgeAP.vcxproj.swp
 /TktBridgeAP/.TktBridgeAP.vcxproj.swo
+.DS_Store
+.*.swp
+*~
