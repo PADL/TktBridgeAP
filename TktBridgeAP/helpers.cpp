@@ -207,7 +207,7 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-_Success_(return == STATUS_SUCCESS) NTSTATUS NTAPI
+_Success_(return == STATUS_SUCCESS) NTSTATUS
 DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
 {
     NTSTATUS Status;

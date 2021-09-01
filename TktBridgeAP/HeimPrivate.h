@@ -40,6 +40,13 @@ extern "C" {
 
 #include <krb5.h>
 
+/* FIXME broken linkage in Heimdal */
+static inline krb5_error_code
+krb5_enomem(krb5_context context)
+{
+    return ENOMEM;
+}
+
 /*
  * Private APIs that are not exported from the Heimdal SDK and which
  * are used to implement the GSS-API pre-authentication callbacks
@@ -139,7 +146,6 @@ _krb5_init_creds_get_cred_client(krb5_context /*context*/,
 KRB5_LIB_FUNCTION krb5_timestamp KRB5_LIB_CALL
 _krb5_init_creds_get_cred_endtime(krb5_context /*context*/,
                                   krb5_init_creds_context /*ctx*/);
-
 
 #ifdef __cplusplus
 }

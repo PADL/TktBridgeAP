@@ -121,6 +121,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -156,6 +157,7 @@ nmake
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -191,6 +193,7 @@ nmake
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -223,6 +226,7 @@ nmake
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
