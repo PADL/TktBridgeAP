@@ -269,7 +269,7 @@ nmake
     <ClCompile Include="helpers.cpp" />
     <ClCompile Include="prf.cpp" />
     <ClCompile Include="surrogate.cpp" />
-    <ClCompile Include="authpackage.cpp" />
+    <ClCompile Include="logonap.cpp" />
     <ClCompile Include="preauth.cpp" />
     <ClCompile Include="tracing.cpp" />
   </ItemGroup>
