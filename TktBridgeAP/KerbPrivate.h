@@ -176,12 +176,9 @@ EXTERN_C __declspec(selectany) const GUID KERB_SURROGATE_LOGON_TYPE =
 { 0x045fbe6b, 0x7995, 0x4205, { 0x91, 0x11, 0x74, 0xfa, 0x9c, 0xdd, 0x3c, 0x27 } };
 
 /*
- * Surrogate logon data shared with Kerberos package. Note that CloudAP
- * will think it owns this and will attempt to free AsRepCallbackData. You
- * must arrange to reset AsRepCallbackData to NULL before CloudAP is called,
- * or ensure its layout is compatible (i.e. the reference count is at
- * the right offset) so that it never attempts to free it. Clearly,
- * the former solution is less likely to break between Windows builds.
+ * Note: AsRepCallbackData is shared with CloudAP. Care must be
+ * taken to ensure that CloudAP never attempts to access data
+ * that was allocated by TktBridgeAP.
  */
 typedef struct _KERB_SURROGATE_LOGON_DATA {
     ULONG64 Reserved1[8];

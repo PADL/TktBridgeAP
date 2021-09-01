@@ -81,9 +81,7 @@ LoadKerbPackage(VOID)
  * An extremely inelegant kludge to force the native Kerberos security
  * package to pick up surrogate credentials containing an AS-REP, by
  * pretending the logon was a FIDO logon. The contents of the credentials
- * are ignored so we can leave them empty. We also ensure our post-logon
- * user surrogate is called so that we can clear surrogate data before
- * CloudAP is called, as they share the same data structure.
+ * are ignored so we can leave them empty.
  *
  * The interposed function is transparent to the Kerberos package if
  * TktBridgeAP-issued surrogate logon credentials cannot be found.
@@ -141,56 +139,23 @@ KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         SubmitBufferSize = FidoAuthIdentity.AuthIdentity.cbStructureLength;
     }
 
-    auto Status = KerbFunctionTable->LogonUserEx3(ClientRequest,
-                                                  LogonType,
-                                                  ProtocolSubmitBuffer,
-                                                  ClientBufferBase,
-                                                  SubmitBufferSize,
-                                                  SurrogateLogon,
-                                                  ProfileBuffer,
-                                                  ProfileBufferSize,
-                                                  LogonId,
-                                                  SubStatus,
-                                                  TokenInformationType,
-                                                  TokenInformation,
-                                                  AccountName,
-                                                  AuthenticatingAuthority,
-                                                  MachineName,
-                                                  PrimaryCredentials,
-                                                  SupplementalCredentials);
-
-    /*
-     * Call our PostLogonUserSurrogate before CloudAP can get to it and stomp
-     * on our data.
-     */
-    if (SurrogateLogonCreds != nullptr) {
-#ifndef NDEBUG
-        if (NT_SUCCESS(Status)) {
-            DebugTraceCredentials((PSECPKG_PRIMARY_CRED_EX)PrimaryCredentials,
-                                  *SupplementalCredentials);
-        }
-#endif
-        LsaApPostLogonUserSurrogate(ClientRequest,
-                                    LogonType,
-                                    ProtocolSubmitBuffer,
-                                    ClientBufferBase,
-                                    SubmitBufferSize,
-                                    SurrogateLogon,
-                                    ProfileBuffer,
-                                    *ProfileBufferSize,
-                                    LogonId,
-                                    Status,
-                                    *SubStatus,
-                                    *TokenInformationType,
-                                    TokenInformation,
-                                    *AccountName,
-                                    *AuthenticatingAuthority,
-                                    *MachineName,
-                                    PrimaryCredentials,
-                                    *SupplementalCredentials);
-    }
-
-    return Status;
+    return KerbFunctionTable->LogonUserEx3(ClientRequest,
+                                           LogonType,
+                                           ProtocolSubmitBuffer,
+                                           ClientBufferBase,
+                                           SubmitBufferSize,
+                                           SurrogateLogon,
+                                           ProfileBuffer,
+                                           ProfileBufferSize,
+                                           LogonId,
+                                           SubStatus,
+                                           TokenInformationType,
+                                           TokenInformation,
+                                           AccountName,
+                                           AuthenticatingAuthority,
+                                           MachineName,
+                                           PrimaryCredentials,
+                                           SupplementalCredentials);
 }
 
 _Success_(return == ERROR_SUCCESS) DWORD

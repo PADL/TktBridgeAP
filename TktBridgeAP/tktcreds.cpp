@@ -215,10 +215,16 @@ AllocateTktBridgeCreds(VOID)
 static VOID
 ValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
-    if (Creds->Reserved != ULONG_MAX) {
+    /*
+     * We let CloudAP decrement what it thinks to be its reference
+     * count once. Previously we called our post-logon surrogate
+     * function within the logon interposer, but this broke the case
+     * where the logon function was called multiple times by the LSA
+     * before it would otherwise have called the post-logon surrogate.
+     */
+    if (Creds->Reserved < ULONG_MAX - 1) {
         DebugTrace(WINEVENT_LEVEL_WARNING,
-                   L"CloudAP reference count has changed (%08x), "
-                   L"validate post-logon user surrogate order",
+                   L"CloudAP reference count too low (%08x)",
                    Creds->Reserved);
     }
 }
