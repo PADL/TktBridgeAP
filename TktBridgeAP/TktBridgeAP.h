@@ -32,10 +32,6 @@
 
 #pragma once
 
-#ifndef NDEBUG
-#define _CRTDBG_MAP_ALLOC 1
-#endif
-
 #ifdef TKTBRIDGEAP_EXPORTS
 #define TKTBRIDGEAP_API __declspec(dllexport)
 #else
