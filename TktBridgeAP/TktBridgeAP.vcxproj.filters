@@ -19,6 +19,9 @@
     <None Include="TktBridgeAP-trace.man">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="TktBridgeAP-exports.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TktBridgeAP.h">
@@ -56,7 +59,7 @@
     <ClCompile Include="tktcreds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="authidentity.cpp">
+    <ClCompile Include="marshall.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="errors.cpp">

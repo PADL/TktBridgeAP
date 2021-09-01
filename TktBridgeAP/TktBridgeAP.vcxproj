@@ -129,6 +129,7 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man
@@ -167,6 +168,7 @@ nmake
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man
@@ -201,6 +203,7 @@ nmake
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -236,6 +239,7 @@ nmake
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -252,6 +256,7 @@ nmake
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="TktBridgeAP-exports.def" />
     <None Include="TktBridgeAP-trace.man" />
   </ItemGroup>
   <ItemGroup>
@@ -262,7 +267,7 @@ nmake
     <ClInclude Include="TktBridgeAP.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="authidentity.cpp" />
+    <ClCompile Include="marshall.cpp" />
     <ClCompile Include="kerbdetours.cpp" />
     <ClCompile Include="tktcreds.cpp" />
     <ClCompile Include="errors.cpp" />
