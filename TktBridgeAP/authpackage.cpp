@@ -142,7 +142,7 @@ TktBridgeAPFunctionTable = {
 };
 
 extern "C"
-TKTBRIDGEAP_API NTSTATUS __cdecl
+TKTBRIDGEAP_API NTSTATUS NTAPI
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PULONG PackageVersion,
                     _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
@@ -324,26 +324,3 @@ IsEnabledUPNSuffix(PCWSTR Suffix,
 
     return false;
 }
-
-#ifndef NDEBUG
-extern "C"
-TKTBRIDGEAP_API void __cdecl
-TestEntryPoint(PVOID Unused1, PVOID Unused2, CHAR *Unused3, INT Unused4)
-{
-    RegistryNotifyChanged();
-
-    DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Flags %08x LogLevel %08x KdcHostName %s RestrictPackage %s",
-               APFlags.load(), APLogLevel.load(),
-               APKdcHostName.has_value() ? APKdcHostName.value().c_str() : L"<none>",
-               APRestrictPackage.has_value() ? APRestrictPackage.value().c_str() : L"<none>");
-
-    if (APUPNSuffixes.empty()) {
-        DebugTrace(WINEVENT_LEVEL_VERBOSE, L"No domain suffixes configured");
-    } else {
-        for (auto Iterator = APUPNSuffixes.begin();
-             Iterator != APUPNSuffixes.end();
-             Iterator++)
-            DebugTrace(WINEVENT_LEVEL_VERBOSE, L"Domain suffix: %s", Iterator->c_str());
-    }
-}
-#endif
