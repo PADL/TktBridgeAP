@@ -36,7 +36,7 @@ static inline bool
 IsWowClient(VOID)
 {
 #ifdef _WIN64
-    return !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
+    return (GetCallAttributes() & SECPKG_CALL_WOWCLIENT) != 0;
 #else
     return false;
 #endif
