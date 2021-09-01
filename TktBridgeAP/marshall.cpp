@@ -32,6 +32,16 @@
 
 #include "TktBridgeAP.h"
 
+static inline bool
+IsWowClient(VOID)
+{
+#ifdef _WIN64
+    return !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
+#else
+    return false;
+#endif
+}
+
 static VOID
 UnpackUnicodeString(_In_ PVOID ProtocolSubmitBuffer,
                     _In_ PCUNICODE_STRING SourceString,
@@ -314,8 +324,6 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     PWSTR wszPassword = nullptr;
     PWSTR wszUpnSuffix = nullptr;
     PWSTR wszUnprotectedPassword = nullptr;
-    bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
-
     *pAuthIdentity = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
@@ -331,7 +339,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
         }
                                    });
 
-    if (IsWowClient) {
+    if (IsWowClient()) {
         PKERB_INTERACTIVE_LOGON_WOW pKIL32;
 
         if (SubmitBufferSize < sizeof(*pKIL32))
@@ -557,7 +565,6 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                         _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
     NTSTATUS Status;
-    bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
     PWSTR wszPin = nullptr;
     PWSTR wszCspData = nullptr;
     PWSTR wszUnprotectedPin = nullptr;
@@ -576,7 +583,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         }
                                    });
 
-    if (IsWowClient) {
+    if (IsWowClient()) {
         PKERB_SMART_CARD_LOGON_WOW pKSCL32;
 
         if (SubmitBufferSize < sizeof(*pKSCL32))
@@ -622,7 +629,6 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                           _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
     NTSTATUS Status;
-    bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
     PWSTR wszDomainName = nullptr;
     PWSTR wszUserName = nullptr;
     PWSTR wszPin = nullptr;
@@ -646,7 +652,7 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
         }
                                    });
 
-    if (IsWowClient) {
+    if (IsWowClient()) {
         PKERB_CERTIFICATE_LOGON_WOW pKCL32;
 
         if (SubmitBufferSize < sizeof(*pKCL32))
@@ -774,7 +780,7 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                  _Out_ LUID &UnlockLogonId)
 {
     KERB_LOGON_SUBMIT_TYPE LogonSubmitType = *(static_cast<PKERB_LOGON_SUBMIT_TYPE>(ProtocolSubmitBuffer));
-    bool IsWowClient = !!(GetCallAttributes() & SECPKG_CALL_WOWCLIENT);
+    bool bIsWowClient = IsWowClient();
     size_t cbUnlockLogon = 0;
 
     UnlockLogonId.LowPart = 0;
@@ -782,7 +788,7 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
 
     assert(sizeof(PKERB_LOGON_SUBMIT_TYPE) < SubmitBufferSize);
 
-    if (IsWowClient) {
+    if (bIsWowClient) {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             cbUnlockLogon = sizeof(KERB_INTERACTIVE_UNLOCK_LOGON_WOW);
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
@@ -801,7 +807,7 @@ GetUnlockLogonId(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
     if (SubmitBufferSize < cbUnlockLogon)
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-    if (IsWowClient) {
+    if (bIsWowClient) {
         if (LogonSubmitType == KerbWorkstationUnlockLogon)
             UnlockLogonId = static_cast<PKERB_INTERACTIVE_UNLOCK_LOGON_WOW>(ProtocolSubmitBuffer)->LogonId;
         else if (LogonSubmitType == KerbSmartCardUnlockLogon)
