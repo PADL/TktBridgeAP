@@ -47,11 +47,11 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
 extern "C"
 static NTSTATUS NTAPI
 RetrieveTktBridgeCreds(LUID LogonId,
-                       PVOID PackageData,
+                       PVOID AsRepCallbackData,
                        ULONG Flags,
                        PKERB_AS_REP_CREDENTIAL *pKerbAsRepCred)
 {
-    PTKTBRIDGEAP_CREDS TktBridgeCreds = (PTKTBRIDGEAP_CREDS)PackageData;
+    PTKTBRIDGEAP_CREDS TktBridgeCreds = (PTKTBRIDGEAP_CREDS)AsRepCallbackData;
     ULONG cbKerbAsRepCred;
     NTSTATUS Status;
 
@@ -72,7 +72,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
     DebugTrace(WINEVENT_LEVEL_VERBOSE,
                L"RetrieveTktBridgeCreds[%s] LogonId %08x.%08x Flags %08x "
                L"Client %s AS-REP Length %u KeyLength %u KeyType %u TGT %s",
-               PackageData != nullptr ? L"SurrogateEntry" : L"LogonSession",
+               AsRepCallbackData != nullptr ? L"SurrogateEntry" : L"LogonSession",
                LogonId.LowPart,
                LogonId.HighPart,
                Flags,
@@ -370,12 +370,12 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
 
     /*
      * Note that CloudAP will think it owns this entry as it does not check
-     * the callback matches. PackageData must be structured in such a way
+     * the callback matches. AsRepCallbackData must be structured in such a way
      * that CloudAP will never attempt to release it, or it must be freed
      * before CloudAP's LsaApPostLogonUserSurrogate is called.
      */
     SurrogateLogonData->AsRepCallback = RetrieveTktBridgeCreds;
-    SurrogateLogonData->PackageData = TktBridgeCreds;
+    SurrogateLogonData->AsRepCallbackData = TktBridgeCreds;
 
     Entry->Type = KERB_SURROGATE_LOGON_TYPE;
     Entry->Data = SurrogateLogonData;
@@ -488,7 +488,7 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         RETURN_NTSTATUS(STATUS_SUCCESS);
 
     auto SurrogateLogonData = (PKERB_SURROGATE_LOGON_DATA)SurrogateEntry->Data;
-    auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->PackageData;
+    auto TktBridgeCreds = (PTKTBRIDGEAP_CREDS)SurrogateLogonData->AsRepCallbackData;
 
     if (TktBridgeCreds == nullptr)
         RETURN_NTSTATUS(STATUS_SUCCESS); // in case we get called multiple times
@@ -497,7 +497,7 @@ LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         SaveCredsForLogonSession(*LogonId, TktBridgeCreds);
 
     DereferenceTktBridgeCreds(TktBridgeCreds);
-    SurrogateLogonData->PackageData = nullptr;
+    SurrogateLogonData->AsRepCallbackData = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }

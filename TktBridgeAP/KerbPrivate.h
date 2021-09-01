@@ -166,7 +166,7 @@ typedef union _KERB_AS_REP_CREDENTIAL {
 
 typedef NTSTATUS
 (NTAPI KERB_AS_REP_CALLBACK)(LUID LogonId,
-			     PVOID PackageData,
+			     PVOID AsRepCallbackData,
 			     ULONG Flags,
 			     PKERB_AS_REP_CREDENTIAL *ppKerbAsRepCredential);
 
@@ -177,16 +177,17 @@ EXTERN_C __declspec(selectany) const GUID KERB_SURROGATE_LOGON_TYPE =
 
 /*
  * Surrogate logon data shared with Kerberos package. Note that CloudAP
- * will think it owns this and will attempt to free PackageData. You
- * must arrange to reset PackageData to NULL before CloudAP is called,
+ * will think it owns this and will attempt to free AsRepCallbackData. You
+ * must arrange to reset AsRepCallbackData to NULL before CloudAP is called,
  * or ensure its layout is compatible (i.e. the reference count is at
  * the right offset) so that it never attempts to free it. Clearly,
  * the former solution is less likely to break between Windows builds.
  */
 typedef struct _KERB_SURROGATE_LOGON_DATA {
-    ULONG_PTR Reserved[10];
+    ULONG64 Reserved1[8];
+    ULONG_PTR Reserved2[2];
     PKERB_AS_REP_CALLBACK AsRepCallback;
-    PVOID PackageData;
+    PVOID AsRepCallbackData;
 } KERB_SURROGATE_LOGON_DATA, *PKERB_SURROGATE_LOGON_DATA;
 
 #ifdef __cplusplus
