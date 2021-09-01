@@ -285,7 +285,7 @@ UnprotectString(_In_z_ PWSTR wszProtected,
         WIL_FreeMemory(*pwszUnprotected);
         *pwszUnprotected = nullptr;
 
-        RETURN_LAST_ERROR(); // XXX convert to NTSTATUS
+        RETURN_LAST_ERROR(); // FIXME convert to NTSTATUS
     }
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
@@ -449,7 +449,7 @@ ConvertCspDataToCertificateCredential(_In_reads_bytes_(CspDataLength) PVOID CspD
     auto wszContainerName = &pCspInfo->bBuffer + pCspInfo->nContainerNameOffset;
     auto wszCspName       = &pCspInfo->bBuffer + pCspInfo->nCSPNameOffset;
 
-    // TODO: do we return an error if we have a non-default card/reader name
+    // FIXME: do we return an error if we have a non-default card/reader name
     if (wszCardName[0] || wszReaderName[0]) {
         RETURN_NTSTATUS(STATUS_SMARTCARD_NO_CARD);
     }
