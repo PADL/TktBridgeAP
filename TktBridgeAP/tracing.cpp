@@ -50,8 +50,8 @@ DebugTraceLevelString(UCHAR Level)
         return rgwszLevels[Level];
 }
 
-VOID
-__cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...)
+VOID __cdecl
+DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...)
 {
     if (EventProviderId_Context.IsEnabled ||
         (APFlags & TKTBRIDGEAP_FLAG_DEBUG)) {

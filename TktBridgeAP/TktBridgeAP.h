@@ -333,8 +333,8 @@ IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
 _Success_(return == 0) krb5_error_code
 HeimTracingInit(_In_ krb5_context KrbContext);
 
-VOID
-__cdecl DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
+VOID __cdecl
+DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...);
 
 #ifndef NDEBUG
 VOID
