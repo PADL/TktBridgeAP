@@ -217,7 +217,8 @@ ValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
 {
     if (Creds->Reserved != ULONG_MAX) {
         DebugTrace(WINEVENT_LEVEL_WARNING,
-                   L"CloudAP reference count has changed (%08x), validate post-logon user surrogate order",
+                   L"CloudAP reference count has changed (%08x), "
+                   L"validate post-logon user surrogate order",
                    Creds->Reserved);
     }
 }
