@@ -198,10 +198,8 @@ GssPreauthStep(krb5_context KrbContext,
                InputToken == nullptr ? 0 : InputToken->length);
 
     auto cleanup = wil::scope_exit([&]() {
-        if (KrbError != 0 && KrbError != HEIM_ERR_PA_CONTINUE_NEEDED) {
+        if (KrbError != 0 && KrbError != HEIM_ERR_PA_CONTINUE_NEEDED)
             krb5_data_free(OutputToken);
-            krb5_data_zero(OutputToken);
-        }
         krb5_free_principal(KrbContext, TgsName);
         WIL_FreeMemory(TargetName);
         WIL_FreeMemory(ChannelBindings);
@@ -613,7 +611,6 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
             break;
 
         krb5_data_free(AsRep);
-        krb5_data_zero(AsRep);
 
         // note: AsReq buffer is owned by InitCredsContext, do not free
         KrbError = krb5_sendto_context(KrbContext, SendToContext, &AsReq,
