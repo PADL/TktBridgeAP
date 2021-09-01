@@ -44,7 +44,7 @@ extern "C" {
 static inline krb5_error_code
 krb5_enomem(krb5_context context)
 {
-    krb5_set_error_message(context, ENOMEM, "malloc: out of memory", "");
+    krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
     return ENOMEM;
 }
 
