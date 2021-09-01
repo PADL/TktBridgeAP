@@ -260,7 +260,7 @@ nmake
     <None Include="TktBridgeAP-trace.man" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="HeimPrivate.h" />
+    <ClInclude Include="Heimdal.h" />
     <ClInclude Include="KerbPrivate.h" />
     <ClInclude Include="ntapiext.h" />
     <ClInclude Include="TktBridgeAP-trace.h" />

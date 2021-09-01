@@ -93,7 +93,7 @@
 #include <wil/registry.h>
 #include <wil/nt_result_macros.h>
 
-#include "HeimPrivate.h"
+#include "Heimdal.h"
 #include "TktBridgeAP-trace.h"
 
 #define TKTBRIDGEAP_FLAG_DEBUG                  0x00000001 // enable debugging on free builds

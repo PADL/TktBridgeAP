@@ -67,6 +67,7 @@ KrbErrorToNtStatus(_In_ krb5_error_code KrbError,
     case 0:
         return STATUS_SUCCESS;
     case KRB5_PREAUTH_BAD_TYPE:
+    case HEIM_ERR_NO_MORE_PA_MECHS: // FIXME should not leak error
         return STATUS_UNSUPPORTED_PREAUTH;
     case KRB5_PREAUTH_NO_KEY:
         return STATUS_NO_USER_SESSION_KEY;
@@ -93,6 +94,7 @@ KrbErrorToNtStatus(_In_ krb5_error_code KrbError,
     case KRB5KDC_ERR_PATH_NOT_ACCEPTED:
     case KRB5_KDC_ERR_CLIENT_NOT_TRUSTED:
         return STATUS_LOGON_FAILURE;
+    case KRB5_PREAUTH_FAILED:
     case KRB5KDC_ERR_PREAUTH_FAILED:
     case KRB5KRB_AP_ERR_BAD_INTEGRITY:
         return STATUS_WRONG_PASSWORD;

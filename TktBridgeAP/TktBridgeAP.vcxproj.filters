@@ -33,7 +33,7 @@
     <ClInclude Include="KerbPrivate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="HeimPrivate.h">
+    <ClInclude Include="Heimdal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TktBridgeAP-trace.h">
