@@ -40,7 +40,6 @@ PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
 
 SECPKG_PARAMETERS SpParameters;
 static ULONG_PTR LsaAuthenticationPackageId = SECPKG_ID_NONE;
-static PLSA_DISPATCH_TABLE LsaDispatchTable = nullptr;
 
 static std::mutex APGlobalsLock;
 static std::optional<std::wstring> APKdcHostName;
@@ -126,7 +125,6 @@ SpShutdown(VOID)
     RegistryWatcher = nullptr;
 
     LsaAuthenticationPackageId = SECPKG_ID_NONE;
-    LsaDispatchTable           = nullptr;
     LsaSpFunctionTable         = nullptr;
 
     EventUnregisterPADL_TktBridgeAP();
