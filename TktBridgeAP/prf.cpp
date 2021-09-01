@@ -109,7 +109,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
     *pbPrfOutput = static_cast<PBYTE>(WIL_AllocateMemory(KeySize));
     if (*pbPrfOutput == nullptr) {
-        KrbError = krb5_enomem(KrbContext);
+        KrbError = ENOMEM;
         return KrbError;
     }
 
@@ -118,7 +118,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
     Input.length = 4 + static_cast<SIZE_T>(cbPrfInput);
     Input.data = WIL_AllocateMemory(Input.length);
     if (Input.data == nullptr) {
-        KrbError = krb5_enomem(KrbContext);
+        KrbError = ENOMEM;
         return KrbError;
     }
 

@@ -40,14 +40,6 @@ extern "C" {
 
 #include <krb5.h>
 
-/* FIXME broken linkage in Heimdal */
-static inline krb5_error_code
-krb5_enomem(krb5_context context)
-{
-    krb5_set_error_message(context, ENOMEM, "malloc: out of memory");
-    return ENOMEM;
-}
-
 /*
  * Private APIs that are not exported from the Heimdal SDK and which
  * are used to implement the GSS-API pre-authentication callbacks

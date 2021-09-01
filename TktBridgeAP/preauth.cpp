@@ -85,7 +85,7 @@ MakeWKFederatedName(_In_ krb5_context KrbContext,
     *pPrincipal = nullptr;
 
     if (!NT_SUCCESS(UnicodeToUTF8Alloc(RealmName, &RealmNameUTF8)))
-        return krb5_enomem(KrbContext);
+        return ENOMEM;
 
     auto KrbError = krb5_make_principal(KrbContext,
                                         pPrincipal,
@@ -120,7 +120,7 @@ GssPreauthUnparseName(_In_ krb5_context KrbContext,
     }
 
     KrbError = NT_SUCCESS(UTF8ToUnicodeAlloc(szNameString, pwszNameString))
-               ? 0 : krb5_enomem(KrbContext);
+               ? 0 : ENOMEM;
 
     if (szNameString != Principal->name.name_string.val[0])
         krb5_xfree(szNameString);
@@ -139,7 +139,7 @@ GssPreauthParseName(_In_ krb5_context KrbContext,
     *pPrincipal = nullptr;
 
     if (!NT_SUCCESS(UnicodeToUTF8Alloc(NameString, &szNameString)))
-        return krb5_enomem(KrbContext);
+        return ENOMEM;
 
     KrbError = krb5_parse_name_flags(KrbContext, szNameString, 0, pPrincipal);
 
@@ -160,7 +160,7 @@ MakeChannelBindings(_In_ krb5_context KrbContext,
     ChannelBindings = static_cast<PSEC_CHANNEL_BINDINGS>
         (WIL_AllocateMemory(sizeof(*ChannelBindings) + EncAsReq->length));
     if (ChannelBindings == nullptr) {
-        return krb5_enomem(KrbContext);
+        return ENOMEM;
     }
 
     ChannelBindings->cbApplicationDataLength = static_cast<ULONG>(EncAsReq->length);
@@ -307,7 +307,7 @@ GssPreauthStep(krb5_context KrbContext,
         *GssContextHandle = static_cast<gss_ctx_id_t>(WIL_AllocateMemory(sizeof(gss_ctx_id_t_desc_struct)));
         if (*GssContextHandle == nullptr) {
             DeleteSecurityContext(&OutputContextHandle); // don't orphan it
-            return krb5_enomem(KrbContext);
+            return ENOMEM;
         }
     }
 
@@ -417,7 +417,7 @@ AllocateSendToContext(_In_ krb5_context KrbContext,
         PSTR KdcHostNameUTF8;
 
         if (!NT_SUCCESS(UnicodeToUTF8Alloc(KdcHostName, &KdcHostNameUTF8)))
-            return krb5_enomem(KrbContext);
+            return ENOMEM;
 
         DebugTrace(WINEVENT_LEVEL_VERBOSE, L"PA will prefer KDC %s", KdcHostName);
         krb5_sendto_set_hostname(KrbContext, SendToContext, KdcHostNameUTF8);
