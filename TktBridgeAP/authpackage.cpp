@@ -32,12 +32,11 @@
 
 #include "TktBridgeAP.h"
 
-PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
-
 /*
  * Globals
  */
 
+PLSA_SECPKG_FUNCTION_TABLE LsaSpFunctionTable = nullptr;
 SECPKG_PARAMETERS SpParameters;
 static ULONG_PTR LsaAuthenticationPackageId = SECPKG_ID_NONE;
 
