@@ -67,15 +67,6 @@ GssPreauthDeriveKey(_In_ krb5_context KrbContext,
 }
 
 static krb5_error_code
-MakeWKAnonymousName(_In_ krb5_context KrbContext,
-                    _Out_ krb5_principal *pPrincipal)
-{
-    return krb5_make_principal(KrbContext, pPrincipal,
-                               KRB5_ANON_REALM, KRB5_WELLKNOWN_NAME,
-                               KRB5_ANON_NAME, nullptr);
-}
-
-static krb5_error_code
 MakeWKFederatedName(_In_ krb5_context KrbContext,
                     _In_z_ PCWSTR RealmName,
                     _Out_ krb5_principal *pPrincipal)
