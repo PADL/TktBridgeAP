@@ -45,7 +45,7 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
  * containing the AS-REP and reply key
  */
 extern "C"
-static NTSTATUS
+static NTSTATUS CALLBACK
 RetrieveTktBridgeCreds(LUID LogonId,
                        PVOID AsRepCallbackData,
                        ULONG Flags,
