@@ -34,9 +34,6 @@
 
 #include "detours.h"
 
-extern "C"
-static LSA_AP_LOGON_USER_EX3 KerbLogonUserEx3Detour;
-
 static PSECPKG_FUNCTION_TABLE KerbFunctionTable;
 static HMODULE hKerbPackage;
 
@@ -81,6 +78,29 @@ LoadKerbPackage(VOID)
 }
 
 /*
+ * Need to redeclare it as NTAPI is omitted in the Windows headers, which
+ * results in the incorrect calling convention being used on x86.
+ */
+typedef NTSTATUS
+(NTAPI LsaApLogonUserEx3)(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                          _In_ SECURITY_LOGON_TYPE LogonType,
+                          _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                          _In_ PVOID ClientBufferBase,
+                          _In_ ULONG SubmitBufferSize,
+                          _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+                          _Outptr_result_bytebuffer_(*ProfileBufferSize) PVOID *ProfileBuffer,
+                          _Out_ PULONG ProfileBufferSize,
+                          _Out_ PLUID LogonId,
+                          _Out_ PNTSTATUS SubStatus,
+                          _Out_ PLSA_TOKEN_INFORMATION_TYPE TokenInformationType,
+                          _Outptr_ PVOID *TokenInformation,
+                          _Out_ PUNICODE_STRING *AccountName,
+                          _Out_ PUNICODE_STRING *AuthenticatingAuthority,
+                          _Out_ PUNICODE_STRING *MachineName,
+                          _Out_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
+                          _Outptr_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY *SupplementalCredentials);
+
+/*
  * An extremely inelegant kludge to force the native Kerberos security
  * package to pick up surrogate credentials containing an AS-REP, by
  * pretending the logon was a FIDO logon. The contents of the credentials
@@ -97,7 +117,7 @@ LoadKerbPackage(VOID)
  * first, then this file can go away.
  */
 
-static NTSTATUS
+static NTSTATUS NTAPI
 KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                        _In_ SECURITY_LOGON_TYPE LogonType,
                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
@@ -144,23 +164,24 @@ KerbLogonUserEx3Detour(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         SubmitBufferSize = FidoAuthIdentity.AuthIdentity.cbStructureLength;
     }
 
-    auto Status = KerbFunctionTable->LogonUserEx3(ClientRequest,
-                                                  LogonType,
-                                                  ProtocolSubmitBuffer,
-                                                  ClientBufferBase,
-                                                  SubmitBufferSize,
-                                                  SurrogateLogon,
-                                                  ProfileBuffer,
-                                                  ProfileBufferSize,
-                                                  LogonId,
-                                                  SubStatus,
-                                                  TokenInformationType,
-                                                  TokenInformation,
-                                                  AccountName,
-                                                  AuthenticatingAuthority,
-                                                  MachineName,
-                                                  PrimaryCredentials,
-                                                  SupplementalCredentials);
+    auto Status =
+        ((LsaApLogonUserEx3 *)KerbFunctionTable->LogonUserEx3)(ClientRequest,
+                                                               LogonType,
+                                                               ProtocolSubmitBuffer,
+                                                               ClientBufferBase,
+                                                               SubmitBufferSize,
+                                                               SurrogateLogon,
+                                                               ProfileBuffer,
+                                                               ProfileBufferSize,
+                                                               LogonId,
+                                                               SubStatus,
+                                                               TokenInformationType,
+                                                               TokenInformation,
+                                                               AccountName,
+                                                               AuthenticatingAuthority,
+                                                               MachineName,
+                                                               PrimaryCredentials,
+                                                               SupplementalCredentials);
 
     /*
      * Call our PostLogonUserSurrogate before CloudAP can get to it and stomp

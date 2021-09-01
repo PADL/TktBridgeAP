@@ -165,10 +165,10 @@ typedef union _KERB_AS_REP_CREDENTIAL {
 #define KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT   3
 
 typedef NTSTATUS
-(NTAPI KERB_AS_REP_CALLBACK)(LUID LogonId,
-			     PVOID AsRepCallbackData,
-			     ULONG Flags,
-			     PKERB_AS_REP_CREDENTIAL *ppKerbAsRepCredential);
+(KERB_AS_REP_CALLBACK)(LUID LogonId,
+                       PVOID AsRepCallbackData,
+                       ULONG Flags,
+                       PKERB_AS_REP_CREDENTIAL *ppKerbAsRepCredential);
 
 typedef KERB_AS_REP_CALLBACK *PKERB_AS_REP_CALLBACK;
 

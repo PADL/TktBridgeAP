@@ -137,8 +137,8 @@ TktBridgeAPFunctionTable = {
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
     .GetInfo = SpGetInfo,
-    .PreLogonUserSurrogate = LsaApPreLogonUserSurrogate,
-    .PostLogonUserSurrogate = LsaApPostLogonUserSurrogate
+    .PreLogonUserSurrogate = (PLSA_AP_PRE_LOGON_USER_SURROGATE)LsaApPreLogonUserSurrogate,
+    .PostLogonUserSurrogate = (PLSA_AP_POST_LOGON_USER_SURROGATE)LsaApPostLogonUserSurrogate
 };
 
 extern "C"

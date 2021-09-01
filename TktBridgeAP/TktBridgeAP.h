@@ -293,8 +293,35 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
 extern "C" {
     LSA_AP_LOGON_TERMINATED LsaApLogonTerminated;
-    LSA_AP_PRE_LOGON_USER_SURROGATE LsaApPreLogonUserSurrogate;
-    LSA_AP_POST_LOGON_USER_SURROGATE LsaApPostLogonUserSurrogate;
+
+    NTSTATUS NTAPI
+    LsaApPreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                _In_ SECURITY_LOGON_TYPE LogonType,
+                                _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                _In_ PVOID ClientBufferBase,
+                                _In_ ULONG SubmitBufferSize,
+                                _Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+                                _Out_ PNTSTATUS SubStatus);
+
+    NTSTATUS NTAPI
+    LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                _In_ SECURITY_LOGON_TYPE LogonType,
+                                _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                _In_ PVOID ClientBufferBase,
+                                _In_ ULONG SubmitBufferSize,
+                                _In_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
+                                _In_reads_bytes_(ProfileBufferSize) PVOID ProfileBuffer,
+                                _In_ ULONG ProfileBufferSize,
+                                _In_ PLUID LogonId,
+                                _In_ NTSTATUS Status,
+                                _In_ NTSTATUS SubStatus,
+                                _In_ LSA_TOKEN_INFORMATION_TYPE TokenInformationType,
+                                _In_ PVOID TokenInformation,
+                                _In_ PUNICODE_STRING AccountName,
+                                _In_ PUNICODE_STRING AuthenticatingAuthority,
+                                _In_ PUNICODE_STRING MachineName,
+                                _In_ PSECPKG_PRIMARY_CRED PrimaryCredentials,
+                                _In_ PSECPKG_SUPPLEMENTAL_CRED_ARRAY SupplementalCredentials);
 }
 
 PSECPKG_SURROGATE_LOGON_ENTRY

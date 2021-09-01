@@ -45,7 +45,7 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
  * containing the AS-REP and reply key
  */
 extern "C"
-static NTSTATUS NTAPI
+static NTSTATUS
 RetrieveTktBridgeCreds(LUID LogonId,
                        PVOID AsRepCallbackData,
                        ULONG Flags,
@@ -385,7 +385,7 @@ AddSurrogateLogonEntry(_Inout_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-NTSTATUS
+NTSTATUS NTAPI
 LsaApPreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                            _In_ SECURITY_LOGON_TYPE LogonType,
                            _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
@@ -463,7 +463,7 @@ FindSurrogateLogonCreds(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon)
     return nullptr;
 }
 
-NTSTATUS
+NTSTATUS NTAPI
 LsaApPostLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                             _In_ SECURITY_LOGON_TYPE LogonType,
                             _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
