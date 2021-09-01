@@ -43,10 +43,6 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
  * Callback function called from Kerberos package that passes TktBridgeAP-
  * specific private data and retrieves a KERB_AS_REP_CREDENTIAL
  * containing the AS-REP and reply key
- *
- * FIXME not quite working on x86 (32-bit); AsRepCallbackData is not always
- * present before the ticket bridge credentials are associated with the
- * logon session. Seems to work with runas but not Winlogon.
  */
 extern "C"
 static NTSTATUS CALLBACK
