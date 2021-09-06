@@ -45,8 +45,7 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds);
  * specific private data and retrieves a KERB_AS_REP_CREDENTIAL
  * containing the AS-REP and reply key
  */
-extern "C"
-static NTSTATUS CALLBACK
+EXTERN_C static NTSTATUS CALLBACK
 RetrieveTktBridgeCreds(LUID LogonId,
                        PVOID AsRepCallbackData,
                        ULONG Flags,

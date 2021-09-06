@@ -33,7 +33,7 @@
 
 #pragma once
 
-extern "C" {
+EXTERN_C_START
 
 NTSYSAPI
 NTSTATUS NTAPI
@@ -117,4 +117,4 @@ RtlUpcaseUnicodeString(
     _In_ BOOLEAN          AllocateDestinationString
 );
 
-}
+EXTERN_C_END

@@ -142,9 +142,7 @@ typedef struct _TKTBRIDGEAP_CREDS {
  * callpackage.cpp
  */
 
-extern "C" {
-    LSA_AP_CALL_PACKAGE LsaApCallPackage;
-}
+EXTERN_C LSA_AP_CALL_PACKAGE LsaApCallPackage;
 
 /*
  * cloudapglue.cpp
@@ -264,11 +262,13 @@ RFC4401PRF(_In_ krb5_context KrbContext,
  * surrogate.cpp
  */
 
-extern "C" {
-    LSA_AP_LOGON_TERMINATED LsaApLogonTerminated;
-    LSA_AP_PRE_LOGON_USER_SURROGATE LsaApPreLogonUserSurrogate;
-    LSA_AP_POST_LOGON_USER_SURROGATE LsaApPostLogonUserSurrogate;
-}
+EXTERN_C_START
+
+LSA_AP_LOGON_TERMINATED LsaApLogonTerminated;
+LSA_AP_PRE_LOGON_USER_SURROGATE LsaApPreLogonUserSurrogate;
+LSA_AP_POST_LOGON_USER_SURROGATE LsaApPostLogonUserSurrogate;
+
+EXTERN_C_END
 
 PSECPKG_SURROGATE_LOGON_ENTRY
 FindKerbSurrogateLogonEntry(_In_ PSECPKG_SURROGATE_LOGON SurrogateLogon,
@@ -309,9 +309,7 @@ DereferenceTktBridgeCreds(_Inout_ PTKTBRIDGEAP_CREDS Creds);
 bool
 IsTktBridgeCredsExpired(_In_ PTKTBRIDGEAP_CREDS Creds);
 
-extern "C" {
-    SpAcceptCredentialsFn SpAcceptCredentials;
-}
+EXTERN_C SpAcceptCredentialsFn SpAcceptCredentials;
 
 /*
  * tracing.cpp

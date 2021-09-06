@@ -35,9 +35,7 @@
 
 #include <sspi.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+EXTERN_C_START
 
 #include <krb5.h>
 
@@ -141,6 +139,4 @@ KRB5_LIB_FUNCTION krb5_timestamp KRB5_LIB_CALL
 _krb5_init_creds_get_cred_endtime(krb5_context /*context*/,
                                   krb5_init_creds_context /*ctx*/);
 
-#ifdef __cplusplus
-}
-#endif
+EXTERN_C_END

@@ -35,9 +35,7 @@
 
 #include <NTSecPKG.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+EXTERN_C_START
 
 /*
  * WOW64 (32-bit) client support
@@ -188,6 +186,4 @@ typedef struct _KERB_SURROGATE_LOGON_DATA {
     PVOID AsRepCallbackData;
 } KERB_SURROGATE_LOGON_DATA, *PKERB_SURROGATE_LOGON_DATA;
 
-#ifdef __cplusplus
-}
-#endif
+EXTERN_C_END

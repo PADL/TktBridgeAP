@@ -49,11 +49,13 @@ std::atomic<unsigned long> APFlags = 0;
 
 static wil::unique_registry_watcher_nothrow RegistryWatcher;
 
-extern "C" {
-    static SpInitializeFn SpInitialize;
-    static SpShutdownFn SpShutdown;
-    static SpGetInfoFn SpGetInfo;
-}
+EXTERN_C_START
+
+static SpInitializeFn SpInitialize;
+static SpShutdownFn SpShutdown;
+static SpGetInfoFn SpGetInfo;
+
+EXTERN_C_END
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeRegistryNotification(VOID);
@@ -142,8 +144,7 @@ TktBridgeAPFunctionTable = {
     .PostLogonUserSurrogate = LsaApPostLogonUserSurrogate
 };
 
-extern "C"
-TKTBRIDGEAP_API NTSTATUS NTAPI
+EXTERN_C TKTBRIDGEAP_API NTSTATUS NTAPI
 SpLsaModeInitialize(_In_ ULONG LsaVersion,
                     _Out_ PULONG PackageVersion,
                     _Out_ PSECPKG_FUNCTION_TABLE *ppTables,
