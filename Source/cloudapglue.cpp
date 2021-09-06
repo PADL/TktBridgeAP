@@ -71,6 +71,8 @@ AllocateCloudAPCallbackData(VOID)
 {
     struct _CloudAPCallbackData *CBData;
 
+    static_assert(sizeof(TKTBRIDGEAP_CREDS) + sizeof(ULONG) < sizeof(*CBData));
+
     CBData = static_cast<struct _CloudAPCallbackData *>
         (LsaSpFunctionTable->AllocateLsaHeap(sizeof(*CBData)));
     if (CBData == nullptr)
