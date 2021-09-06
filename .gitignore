@@ -1,0 +1,14 @@
+kseceap.inf
+kseceap.rc
+x86/
+x64/
+debug/
+release/
+*.user
+.vs/
+*.aps
+/TktBridgeAP/.TktBridgeAP.vcxproj.swp
+/TktBridgeAP/.TktBridgeAP.vcxproj.swo
+.DS_Store
+.*.swp
+*~

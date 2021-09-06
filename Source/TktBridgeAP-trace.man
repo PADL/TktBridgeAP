@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instrumentationManifest xsi:schemaLocation="http://schemas.microsoft.com/win/2004/08/events eventman.xsd" xmlns="http://schemas.microsoft.com/win/2004/08/events" xmlns:win="http://manifests.microsoft.com/win/2004/08/windows/events" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:trace="http://schemas.microsoft.com/win/2004/08/events/trace">
+  <instrumentation>
+    <events>
+      <provider name="TktBridgeAP" guid="{dd29d3f8-3952-4c29-9af9-0742504de328}" symbol="EventProviderId" resourceFileName="C:\Windows\System32\TktBridgeAP.dll" messageFileName="C:\Windows\System32\TktBridgeAP.dll" parameterFileName="C:\Windows\System32\TktBridgeAP.dll">
+        <events>
+          <event symbol="TKTBRIDGEAP_EVENT_GSS_PA_AS_REQ_SUCCESS" value="1000" version="1" channel="Operational" level="win:Informational" task="Gss-Preauth-As-Req" template="Gss-Preauth-As-Req" message="$(string.event.1000.message)">
+          </event>
+          <event symbol="TKTBRIDGEAP_EVENT_GSS_PA_AS_REQ_FAILURE" value="1001" version="1" channel="Operational" level="win:Warning" task="Gss-Preauth-As-Req" template="Gss-Preauth-As-Req" message="$(string.event.1001.message)">
+          </event>
+          <event symbol="TKTBRIDGEAP_EVENT_DEBUG_TRACE" value="0" version="1" channel="Debug" level="win:Verbose">
+          </event>
+        </events>
+        <levels>
+        </levels>
+        <tasks>
+          <task name="Gss-Preauth-As-Req" symbol="TKTBRIDGEAP_EVENT_TASK_GSS_PA_AS_REQ" value="1000" eventGUID="{39a69ec3-6f77-46cc-bca0-b136ee0809ef}">
+          </task>
+        </tasks>
+        <channels>
+          <channel name="TktBridgeAP/Admin" chid="Admin" symbol="TKTBRIDGEAP_EVENT_CHANNEL_ADMIN" type="Admin" enabled="true">
+          </channel>
+          <channel name="TktBridgeAP/Operational" chid="Operational" symbol="TKTBRIDGEAP_EVENT_CHANNEL_OPERATIONAL" type="Operational" enabled="true">
+          </channel>
+          <channel name="TktBridgeAP/Diagnostic" chid="Diagnostic" symbol="TKTBRIDGEAP_EVENT_CHANNEL_DIAGNOSTIC" type="Analytic" enabled="false">
+          </channel>
+          <channel name="TktBridgeAP/Debug" chid="Debug" symbol="TKTBRIDGEAP_EVENT_CHANNEL_DEBUG" type="Debug" enabled="false">
+          </channel>
+        </channels>
+        <templates>
+          <template tid="Gss-Preauth-As-Req">
+            <data name="RealmName" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="PackageName" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="KdcHostName" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="UserName" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="DomainName" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="PrincipalName" inType="win:UnicodeString" outType="xs:string"></data>
+            <data name="SecStatus" inType="win:UInt32" outType="win:Win32Error"></data>
+            <data name="KrbError" inType="win:Int32" outType="xs:int"></data>
+            <data name="ErrorMessage" inType="win:AnsiString" outType="win:Utf8"></data>
+          </template>
+        </templates>
+        <keywords>
+          <!--
+          <keyword name="TKTBRIDGEAP_KEYWORD_LOGON" mask="0x1"/>
+          -->
+        </keywords>
+      </provider>
+    </events>
+  </instrumentation>
+  <localization>
+    <resources culture="en-US">
+      <stringTable>
+        <string id="event.1000.message" value="SSPI pre-authentication succeeded.%n%nSubject:%n%tAccount Domain:%t%t%1%n%tSecurity Package:%t%t%2%n%tKDC Host Name:%t%t%3%n%tUser Principal Name:%t%4@%5%n%tKerberos Principal Name:%t%6%n"></string>
+        <string id="event.1001.message" value="SSPI pre-authentication failed: %9.%n%nSubject:%n%tAccount Domain:%t%t%1%n%tSecurity Package:%t%t%2%n%tKDC Host Name:%t%t%3%n%tUser Principal Name:%t%4@%5%n%tKerberos Principal Name:%t%6%n%tSecurity Status:%t%t%7%n%tKerberos Error:%t%t%8%n"></string>
+      </stringTable>
+    </resources>
+  </localization>
+</instrumentationManifest>

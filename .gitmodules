@@ -1,0 +1,6 @@
+[submodule "wil"]
+	path = wil
+	url = git@github.com:microsoft/wil.git
+[submodule "Detours"]
+	path = Detours
+	url = git@github.com:microsoft/Detours.git

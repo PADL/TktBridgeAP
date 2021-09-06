@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+    <?define GuidTktBridgeAP=3dee3591-bc1b-4043-99a4-9e081206ca26 ?>
+
+    <?if $(var.Platform)=x64 ?>
+    <?define Win64=yes ?>
+    <?define Architecture=AMD64 ?>
+    <?define PlatformSystemFolder="System64Folder" ?>
+    <?define PlatformProgramFilesFolder="ProgramFiles64Folder" ?>
+    <?else?>
+    <?define Win64=no ?>
+    <?define Architecture=i386 ?>
+    <?define PlatformSystemFolder="SystemFolder" ?>
+    <?define PlatformProgramFilesFolder="ProgramFilesFolder" ?>
+    <?endif?>
+
+    <?define BinDir="$(var.SolutionDir)$(var.OutDir)..\..\$(var.Configuration)" ?>    
+    <?define HeimdalRedist="..\..\heimdal\out\sdk\redist" ?>
+    <?define HeimdalModule="$(var.HeimdalRedist)\$(var.Architecture)\Heimdal.msm" ?>
+    <?define InstalledDll=[$(var.PlatformSystemFolder)]TktBridgeAP.dll ?>
+
+    <Product Name="!(loc.ProductName) $(var.Version)"
+             Id="*" UpgradeCode="a7067991-680d-4ddc-bb74-d07b1b9b0aed"
+             Language="!(loc.LanguageCode)" Codepage="1252" Version="$(var.Version)"
+             Manufacturer="!(loc.Manufacturer)">
+        <Package Description="!(loc.Description)"
+                 Manufacturer="!(loc.Manufacturer)"
+                 Platform="$(var.Platform)"
+                 InstallerVersion="300" Languages="!(loc.LanguageCode)"
+                 Compressed="yes" SummaryCodepage="1252" />
+
+        <Media Id="1" Cabinet="Disk1" CompressionLevel="high" EmbedCab="yes" />
+
+        <Property Id="TktBridgeAPFlags" Value="1" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir" DiskId="1">
+            <Directory Id="$(var.PlatformSystemFolder)" FileSource="$(var.BinDir)" />
+            <Merge Id="M_Heimdal" Language="0" SourceFile="$(var.HeimdalModule)" />
+        </Directory>
+
+        <DirectoryRef Id="$(var.PlatformSystemFolder)" FileSource="$(var.BinDir)">
+            <Component Id="C_TktBridgeAP_Dll"
+                       Guid="$(var.GuidTktBridgeAP)" Win64="$(var.Win64)">
+                <File Name="TktBridgeAP.dll" KeyPath="yes"/>
+            </Component>
+            <Component Id="C_TktBridgeAP_Registry" Win64="$(var.Win64)">
+                <RegistryKey Root="HKLM"
+                             Key="SYSTEM\CurrentControlSet\Control\Lsa\TktBridgeAP">
+                    <RegistryValue Name="Flags" Type="integer"
+                                   Value="[TktBridgeAPFlags]" KeyPath="yes" />
+                </RegistryKey>
+                <RegistryKey Root="HKLM"
+                             Key="SYSTEM\CurrentControlSet\Control\Lsa">
+                    <RegistryValue Name="Security Packages" Type="multiString"
+                                   Value="TktBridgeAP" KeyPath="no" Action="append" />
+                </RegistryKey>
+            </Component>
+            <Component Id="C_TktBridgeAP_EventManifest" Win64="$(var.Win64)">
+                <File Name="TktBridgeAP.man"
+                      Source="$(var.SolutionDir)\Source\TktBridgeAP-trace.man" KeyPath="yes">
+                    <util:EventManifest MessageFile="$(var.InstalledDll)"
+                                        ParameterFile="$(var.InstalledDll)"
+                                        ResourceFile="$(var.InstalledDll)" />
+                </File>
+            </Component>
+        </DirectoryRef>
+
+        <Upgrade Id="a7067991-680d-4ddc-bb74-d07b1b9b0aed">
+            <UpgradeVersion IncludeMaximum="no" MigrateFeatures="yes" Maximum="$(var.Version)"
+                            Property="PREVIOUSINSTALLATION" />
+            <UpgradeVersion Minimum="$(var.Version)" IncludeMinimum="yes"
+                            Maximum="127.127.32767.32767"
+                            OnlyDetect="yes" Property="EXISTINGINSTALLATION" />
+        </Upgrade>
+
+        <Property Id="HASCLOUDAP">
+            <DirectorySearch Id="CloudAP_SearchSystem" Path="[$(var.PlatformSystemFolder)]" Depth="0">
+                <FileSearch Id="CloudAP_SearchFile" Name="cloudAP.dll"/>
+            </DirectorySearch>
+        </Property>
+
+        <Condition Message="!(loc.AdminRequired)">Installed OR Privileged</Condition>
+        <Condition Message="!(loc.AlreadyInstalled)">Installed OR NOT EXISTINGINSTALLATION</Condition>
+        <Condition Message="This application is only supported on Windows 10 or higher.">
+             <![CDATA[Installed OR (VersionNT >= 603 AND HASCLOUDAP)]]>
+        </Condition>
+
+        <Feature Id="F_TktBridgeAP"
+                 Title="!(loc.FeaMainTitle)"
+                 Description="!(loc.FeaMainDesc)" Display="expand"
+                 Level="1" TypicalDefault="install" InstallDefault="local">
+            <MergeRef Id="M_Heimdal" />
+            <ComponentRef Id="C_TktBridgeAP_Dll" />
+            <ComponentRef Id="C_TktBridgeAP_Registry" />
+            <ComponentRef Id="C_TktBridgeAP_EventManifest" />
+        </Feature>
+
+        <!-- Properties for Add/Remove Programs -->
+        <Property Id="ARPHELPLINK" Value="https://www.padl.com/" />
+        <Property Id="ARPCONTACT" Value="dev@padl.com" />
+        <Property Id="ARPURLINFOABOUT" Value="https://www.padl.com/" />
+
+        <!-- Other properties -->
+        <Property Id="ALLUSERS" Value="1" Secure="yes" />
+
+        <InstallExecuteSequence>
+            <RemoveExistingProducts After="InstallFinalize" />
+            <ScheduleReboot After="InstallFinalize" />
+        </InstallExecuteSequence>
+    </Product>
+
+</Wix>
