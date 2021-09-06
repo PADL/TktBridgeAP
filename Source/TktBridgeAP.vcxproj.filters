@@ -71,9 +71,6 @@
     <ClCompile Include="kerbapglue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="callpackage.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="cloudapglue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

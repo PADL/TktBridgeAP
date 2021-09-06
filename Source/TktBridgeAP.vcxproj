@@ -271,7 +271,6 @@ nmake
     <ClInclude Include="TktBridgeAP.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="callpackage.cpp" />
     <ClCompile Include="cloudapglue.cpp" />
     <ClCompile Include="marshall.cpp" />
     <ClCompile Include="kerbapglue.cpp" />

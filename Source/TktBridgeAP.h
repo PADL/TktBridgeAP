@@ -139,12 +139,6 @@ typedef struct _TKTBRIDGEAP_CREDS {
     { if ((ptr) == nullptr) { __RETURN_NTSTATUS_FAIL(STATUS_NO_MEMORY, #ptr); }} __WI_SUPPRESS_4127_E while ((void)0, 0)
 
 /*
- * callpackage.cpp
- */
-
-EXTERN_C LSA_AP_CALL_PACKAGE LsaApCallPackage;
-
-/*
  * cloudapglue.cpp
  */
 

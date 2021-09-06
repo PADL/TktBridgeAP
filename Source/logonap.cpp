@@ -134,7 +134,6 @@ SpShutdown(VOID)
 
 static SECPKG_FUNCTION_TABLE
 TktBridgeAPFunctionTable = {
-    .CallPackage = LsaApCallPackage,
     .LogonTerminated = LsaApLogonTerminated,
     .Initialize = SpInitialize,
     .Shutdown = SpShutdown,
