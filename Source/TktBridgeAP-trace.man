@@ -40,11 +40,6 @@
             <data name="ErrorMessage" inType="win:AnsiString" outType="win:Utf8"></data>
           </template>
         </templates>
-        <keywords>
-          <!--
-          <keyword name="TKTBRIDGEAP_KEYWORD_LOGON" mask="0x1"/>
-          -->
-        </keywords>
       </provider>
     </events>
   </instrumentation>
