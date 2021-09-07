@@ -333,9 +333,6 @@ TimeToSeconds64Since1970(_In_ PLARGE_INTEGER Time,
 ULONG
 GetCallAttributes(VOID);
 
-_Success_(return == STATUS_SUCCESS) NTSTATUS
-GetClientLogonId(_Out_ PLUID pLuid);
-
 ULONG
 RegistryGetULongValueForKey(_In_ const wil::unique_hkey &hKey,
                             _In_z_ PCWSTR KeyName);

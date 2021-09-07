@@ -64,20 +64,6 @@ GetCallAttributes(VOID)
     return CallInfo.Attributes;
 }
 
-_Success_(return == STATUS_SUCCESS) NTSTATUS
-GetClientLogonId(_Out_ PLUID pLuid)
-{
-    NTSTATUS Status;
-    SECPKG_CLIENT_INFO ClientInfo;
-
-    Status = LsaSpFunctionTable->GetClientInfo(&ClientInfo);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
-    *pLuid = ClientInfo.LogonId;
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-}
-
 bool
 IsLocalHost(_In_ PUNICODE_STRING HostName)
 {
