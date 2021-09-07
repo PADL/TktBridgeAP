@@ -344,10 +344,8 @@ GssPreauthFinish(krb5_context KrbContext,
     *ppReplyKey = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
-        if (NativeNames.sClientName != nullptr)
-            FreeContextBuffer(NativeNames.sClientName);
-        if (NativeNames.sServerName != nullptr)
-            FreeContextBuffer(NativeNames.sServerName);
+        FreeContextBuffer(NativeNames.sClientName);
+        FreeContextBuffer(NativeNames.sServerName);
                                    });
 
     SecStatus = QueryContextAttributes(&GssContextHandle->Handle,
