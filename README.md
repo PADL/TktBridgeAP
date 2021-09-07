@@ -29,6 +29,17 @@ When a user logs on to a workstation on which TktBridgeAP is installed, the foll
 
 Workstation unlock is similar, with the refreshed ticket being transferred to the original logon session.
 
+The following diagram shows TktBridgeAP used with EAP:
+
+![TktBridgeAPFlow](Documentation/TktBridgeAPFlow.jpg)
+
+1. User signs in using NAI, workstation performs GSS EAP pre-authentication to bridge KDC in its realm (domain)
+2. Bridge KDC forwards EAP messages to local AAA server
+3. Local AAA server forwards EAP messages to user’s home realm
+4. Bridge KDC issues partial TGT for user lukeh@contoso.com in Kerberos realm FABRIKAM.COM, mapping user via UPN or altSecID attribute
+5. Kerberos package on client workstation sends partial TGT to local AD KDC
+6. AD exchanges partial TGT for full TGT containing user authorisation data, workstation logs user on
+
 KDC configuration
 -----------------
 
