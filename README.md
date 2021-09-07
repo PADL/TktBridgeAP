@@ -122,8 +122,6 @@ Note that `samba-tool` is only used to provision the KDC keytab: you do not need
 TktBridgeAP configuration
 -------------------------
 
-You should set the `CloudKerberosTicketRetrievalEnabled` integer value to 1 in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Kerberos\Parameters`.
-
 TktBridgeAP should be added to the Security Packages key in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa` and the workstation rebooted.
 
 To configure TktBridgeAP itself, set the `KdcHostName` string value in `HKLM\SYSTEM\CurrentControlSet\Control\Lsa\TktBridgeAP` to the hostname of the Heimdal KDC you configured above. If none is specified, then the `_kerberos-tkt-bridge` DNS SRV record will be queried for the primary DNS domain.
