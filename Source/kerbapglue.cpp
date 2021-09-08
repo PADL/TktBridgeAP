@@ -49,7 +49,6 @@
  */
 
 static PSECPKG_FUNCTION_TABLE KerbFunctionTable;
-static HMODULE hKerbPackage;
 
 static _Success_(return == ERROR_SUCCESS) DWORD
 LoadKerbPackage(VOID)
@@ -58,14 +57,7 @@ LoadKerbPackage(VOID)
     ULONG PackageVersion, cTables = 0;
     SpLsaModeInitializeFn KerbLsaModeInitialize;
 
-    auto cleanup = wil::scope_exit([&]() {
-        if (hKerbPackage != nullptr && KerbFunctionTable == nullptr) {
-            FreeLibrary(hKerbPackage);
-            hKerbPackage = nullptr;
-        }
-                                   });
-
-    hKerbPackage = LoadLibrary(L"kerberos.dll");
+    auto hKerbPackage = GetModuleHandle(L"kerberos.dll");
     if (hKerbPackage == nullptr)
         RETURN_WIN32(ERROR_DLL_NOT_FOUND);
 
@@ -195,7 +187,7 @@ DetachKerbLogonDetour(VOID)
 {
     DWORD dwError;
 
-    if (hKerbPackage == nullptr)
+    if (KerbFunctionTable == nullptr)
         return;
 
     dwError = DetourTransactionBegin();
@@ -209,7 +201,5 @@ DetachKerbLogonDetour(VOID)
             DetourTransactionAbort();
     }
 
-    FreeLibrary(hKerbPackage);
-    hKerbPackage = nullptr;
     KerbFunctionTable = nullptr;
 }
