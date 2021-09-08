@@ -54,14 +54,16 @@ DebugTraceLevelString(UCHAR Level)
 VOID __cdecl
 DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...)
 {
+    const size_t TraceMsgSize = 4096;
+
     if (EventProviderId_Context.IsEnabled ||
         (APFlags & TKTBRIDGEAP_FLAG_DEBUG)) {
-        WCHAR TraceMsg[BUFSIZ] = L"";
+        WCHAR TraceMsg[TraceMsgSize] = L"";
         va_list ap;
         SIZE_T cchDebugPrefix;
         EVENT_DESCRIPTOR EventDescriptor = { 0 };
 
-        StringCchPrintfW(TraceMsg, BUFSIZ - 1,
+        StringCchPrintfW(TraceMsg, TraceMsgSize - 1,
             L"%d.%d> TktBridgeAP-%s: ",
             GetCurrentProcessId(), GetCurrentThreadId(),
             DebugTraceLevelString(Level));
@@ -69,7 +71,7 @@ DebugTrace(_In_ UCHAR Level, _In_z_ PCWSTR wszFormat, ...)
 
         va_start(ap, wszFormat);
         StringCchVPrintfW(&TraceMsg[cchDebugPrefix],
-            BUFSIZ - cchDebugPrefix - 1,
+            TraceMsgSize - cchDebugPrefix - 1,
             wszFormat, ap);
         va_end(ap);
 
