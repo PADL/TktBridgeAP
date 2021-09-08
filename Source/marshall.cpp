@@ -721,43 +721,12 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-
-static _Success_(return == STATUS_SUCCESS) NTSTATUS
-ValidateAuthIdentityEx2(PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentityEx2)
-{
-    NTSTATUS Status;
-
-    if (AuthIdentityEx2->Version != SEC_WINNT_AUTH_IDENTITY_VERSION_2)
-        RETURN_NTSTATUS(STATUS_UNKNOWN_REVISION);
-
-    if (AuthIdentityEx2->cbHeaderLength < sizeof(SEC_WINNT_AUTH_IDENTITY_EX2))
-        RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
-
-    Status = ValidateOffset(AuthIdentityEx2->cbStructureLength,
-                            AuthIdentityEx2->UserOffset,
-                            AuthIdentityEx2->UserLength);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
-    Status = ValidateOffset(AuthIdentityEx2->cbStructureLength,
-                            AuthIdentityEx2->DomainOffset,
-                            AuthIdentityEx2->DomainLength);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
-    Status = ValidateOffset(AuthIdentityEx2->cbStructureLength,
-                            AuthIdentityEx2->PackedCredentialsOffset,
-                            AuthIdentityEx2->PackedCredentialsLength);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-}
-
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                       _In_ ULONG SubmitBufferSize,
                                       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity;
-    NTSTATUS Status;
     SECURITY_STATUS SecStatus;
 
     *pAuthIdentity = nullptr;
@@ -766,19 +735,23 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
         SspiFreeAuthIdentity(AuthIdentity);
     });
 
+    /*
+     * We probably only need to call SspiValidateAuthIdentity() for
+     * SEC_WINNT_AUTH_IDENTITY_VERSION2 as it does not contain any
+     * pointers, but let's leave this here just in case. At least
+     * it ensures we use the correct allocation function.
+     */
     SecStatus = SspiUnmarshalAuthIdentity(SubmitBufferSize,
                                           static_cast<PCHAR>(ProtocolSubmitBuffer),
                                           &AuthIdentity);
-    if (SecStatus != SEC_E_OK)
-        return SecStatus;
+    RETURN_IF_NTSTATUS_FAILED(SecStatus);
 
-    Status = ValidateAuthIdentityEx2((PSEC_WINNT_AUTH_IDENTITY_EX2)AuthIdentity);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    SecStatus = SspiValidateAuthIdentity(AuthIdentity);
+    RETURN_IF_NTSTATUS_FAILED(SecStatus);
 
     if (SspiIsAuthIdentityEncrypted(AuthIdentity)) {
         SecStatus = SspiDecryptAuthIdentity(AuthIdentity);
-        if (SecStatus != SEC_E_OK)
-            return SecStatus;
+        RETURN_IF_NTSTATUS_FAILED(SecStatus);
     }
 
     *pAuthIdentity = AuthIdentity;
