@@ -628,6 +628,10 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
                                    &Size);
     RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to decode AS-REP enc-part");
 
+    // zero TGT session key before logging
+    if (AsRepPart.key.keyvalue.data != nullptr)
+        SecureZeroMemory(AsRepPart.key.keyvalue.data, AsRepPart.key.keyvalue.length);
+
     auto szEncASRepPart = print_EncASRepPart(&AsRepPart, 0);
     if (szEncASRepPart != nullptr) {
         DebugTrace(WINEVENT_LEVEL_VERBOSE, L"EncASRepPart\r\n%S", szEncASRepPart);
