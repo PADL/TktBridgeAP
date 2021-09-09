@@ -515,7 +515,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
         PackageName = NEGOSSP_NAME_W;
 
     // make sure we do not try to use Kerberos as a pre-auth mech
-    if (wcscmp(PackageName, NEGOSSP_NAME_W) == 0) {
+    if (_wcsicmp(PackageName, NEGOSSP_NAME_W) == 0) {
         SecStatus = SspiExcludePackage(AuthIdentity,
                                        MICROSOFT_KERBEROS_NAME_W,
                                        &NegoAuthIdentity);
