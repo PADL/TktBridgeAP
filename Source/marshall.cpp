@@ -722,37 +722,32 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
 }
 
 static VOID
-GetAuthIdentityDecryptOptions(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
+GetAuthIdentityDecryptOptions(_In_ PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentity,
                               _Out_ PULONG pulDecryptOptions,
                               _Out_ bool *pbImpersonateRequired)
 {
     auto AuthIdentityInfo = reinterpret_cast<PSEC_WINNT_AUTH_IDENTITY_INFO>(AuthIdentity);
-    ULONG ulAuthIdentityFlags;
 
-    if (AuthIdentityInfo->AuthIdEx2.Version == SEC_WINNT_AUTH_IDENTITY_VERSION_2)
-        ulAuthIdentityFlags = AuthIdentityInfo->AuthIdEx2.Flags;
-    else if (AuthIdentityInfo->AuthIdEx2.Version == SEC_WINNT_AUTH_IDENTITY_VERSION)
-        ulAuthIdentityFlags = AuthIdentityInfo->AuthIdExw.Flags;
-    else
-        ulAuthIdentityFlags = AuthIdentityInfo->AuthId_w.Flags;
+    // SspiUnmarshalAuthIdentity() should not have changed this
+    assert(AuthIdentityInfo->Version == SEC_WINNT_AUTH_IDENTITY_VERSION_2);
 
-    if (ulAuthIdentityFlags & SEC_WINNT_AUTH_IDENTITY_FLAGS_PROCESS_ENCRYPTED)
+    if (AuthIdentity->Flags & SEC_WINNT_AUTH_IDENTITY_FLAGS_PROCESS_ENCRYPTED)
         *pulDecryptOptions = SEC_WINNT_AUTH_IDENTITY_ENCRYPT_SAME_PROCESS;
-    else if (ulAuthIdentityFlags & (SEC_WINNT_AUTH_IDENTITY_FLAGS_SYSTEM_PROTECTED |
+    else if (AuthIdentity->Flags & (SEC_WINNT_AUTH_IDENTITY_FLAGS_SYSTEM_PROTECTED |
                                     SEC_WINNT_AUTH_IDENTITY_FLAGS_USER_PROTECTED))
         *pulDecryptOptions = SEC_WINNT_AUTH_IDENTITY_ENCRYPT_SAME_LOGON;
-    else if (ulAuthIdentityFlags & SEC_WINNT_AUTH_IDENTITY_FLAGS_SYSTEM_ENCRYPTED)
+    else if (AuthIdentity->Flags & SEC_WINNT_AUTH_IDENTITY_FLAGS_SYSTEM_ENCRYPTED)
         *pulDecryptOptions = SEC_WINNT_AUTH_IDENTITY_ENCRYPT_FOR_SYSTEM;
     else
         *pulDecryptOptions = 0;
 
-    *pbImpersonateRequired = !!(ulAuthIdentityFlags & SEC_WINNT_AUTH_IDENTITY_FLAGS_USER_PROTECTED);
+    *pbImpersonateRequired = !!(AuthIdentity->Flags & SEC_WINNT_AUTH_IDENTITY_FLAGS_USER_PROTECTED);
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                                      _In_ ULONG SubmitBufferSize,
-                                      _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
+UnmarshalAndDecryptAuthIdentityEx2(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                   _In_ ULONG SubmitBufferSize,
+                                   _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity;
     SECURITY_STATUS SecStatus;
@@ -768,12 +763,6 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
         SspiFreeAuthIdentity(AuthIdentity);
     });
 
-    /*
-     * We probably only need to call SspiValidateAuthIdentity() for
-     * SEC_WINNT_AUTH_IDENTITY_VERSION2 as it does not contain any
-     * pointers, but let's leave this here just in case. At least
-     * it ensures we use the correct allocation function.
-     */
     SecStatus = SspiUnmarshalAuthIdentity(SubmitBufferSize,
                                           static_cast<PCHAR>(ProtocolSubmitBuffer),
                                           &AuthIdentity);
@@ -782,7 +771,8 @@ ConvertSspiAuthIdentityToAuthIdentity(_In_reads_bytes_(SubmitBufferSize) PVOID P
     SecStatus = SspiValidateAuthIdentity(AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(SecStatus);
 
-    GetAuthIdentityDecryptOptions(AuthIdentity, &ulDecryptOptions, &bImpersonateRequired);
+    GetAuthIdentityDecryptOptions(reinterpret_cast<PSEC_WINNT_AUTH_IDENTITY_EX2>(AuthIdentity),
+                                  &ulDecryptOptions, &bImpersonateRequired);
 
     if (ulDecryptOptions != 0) {
         assert(SspiIsAuthIdentityEncrypted(AuthIdentity));
@@ -867,9 +857,9 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     switch (LogonSubmitType) {
     case SEC_WINNT_AUTH_IDENTITY_VERSION_2:
-        Status = ConvertSspiAuthIdentityToAuthIdentity(ProtocolSubmitBuffer,
-                                                       SubmitBufferSize,
-                                                       pAuthIdentity);
+        Status = UnmarshalAndDecryptAuthIdentityEx2(ProtocolSubmitBuffer,
+                                                    SubmitBufferSize,
+                                                    pAuthIdentity);
         break;
     case KerbInteractiveLogon:
     case KerbWorkstationUnlockLogon:
