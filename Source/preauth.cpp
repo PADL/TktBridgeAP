@@ -511,7 +511,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     SspiEncodeAuthIdentityAsStrings(AuthIdentity, &wszUserName, &wszDomainName, nullptr);
 
     // pass the package name via GssMech so we can query token size later
-    if (PackageName == nullptr)
+    if (PackageName == nullptr || PackageName[0] == L'\0')
         PackageName = NEGOSSP_NAME_W;
 
     // make sure we do not try to use Kerberos as a pre-auth mech
