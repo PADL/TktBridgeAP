@@ -391,7 +391,7 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                              wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
                                              wszUnprotectedPassword != nullptr ? wszUnprotectedPassword : wszPassword,
                                              pAuthIdentity);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -625,7 +625,7 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                              nullptr,
                                              wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
                                              pAuthIdentity);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -716,7 +716,7 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                              wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
                                              wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
                                              pAuthIdentity);
-    RETURN_IF_NTSTATUS_FAILED(Status);
+    RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
