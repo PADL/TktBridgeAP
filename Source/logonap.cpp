@@ -331,11 +331,11 @@ IsEnabledUPNSuffix(PCWSTR Suffix,
 }
 
 typedef SECURITY_STATUS
-(SEC_ENTRY *SSPI_ENCRYPT_AUTH_IDENTITY_EX)(_In_ ULONG Options,
-                                           _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData);
+(SEC_ENTRY *PSSPI_ENCRYPT_AUTH_IDENTITY_EX)(_In_ ULONG Options,
+                                            _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData);
 
-static SSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiEncryptAuthIdentityEx;
-static SSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiDecryptAuthIdentityEx;
+static PSSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiEncryptAuthIdentityEx;
+static PSSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiDecryptAuthIdentityEx;
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeWeakImports(VOID)
@@ -347,9 +347,9 @@ InitializeWeakImports(VOID)
         RETURN_NTSTATUS(STATUS_DLL_NOT_FOUND);
 
     WeakImportSspiEncryptAuthIdentityEx =
-        reinterpret_cast<SSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiEncryptAuthIdentityEx"));
+        reinterpret_cast<PSSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiEncryptAuthIdentityEx"));
     WeakImportSspiDecryptAuthIdentityEx =
-        reinterpret_cast<SSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiDecryptAuthIdentityEx"));
+        reinterpret_cast<PSSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiDecryptAuthIdentityEx"));
 
     if (WeakImportSspiEncryptAuthIdentityEx == nullptr ||
         WeakImportSspiDecryptAuthIdentityEx == nullptr)
