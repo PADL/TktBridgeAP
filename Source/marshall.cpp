@@ -749,7 +749,7 @@ UnmarshalAndDecryptAuthIdentityEx2(_In_reads_bytes_(SubmitBufferSize) PVOID Prot
                                    _In_ ULONG SubmitBufferSize,
                                    _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
-    PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity;
+    PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity = nullptr;
     SECURITY_STATUS SecStatus;
     ULONG ulDecryptOptions;
     bool bImpersonateRequired, bImpersonatedClient = false;
