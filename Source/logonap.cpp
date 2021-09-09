@@ -60,6 +60,9 @@ EXTERN_C_END
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeRegistryNotification(VOID);
 
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+InitializeWeakImports(VOID);
+
 static NTSTATUS NTAPI
 SpInitialize(_In_ ULONG_PTR PackageId,
              _In_ PSECPKG_PARAMETERS Parameters,
@@ -176,6 +179,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
 
     EventRegisterTktBridgeAP();
     InitializeRegistryNotification();
+    InitializeWeakImports();
 
     Status = AttachKerbLogonDetour();
     NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to attach Kerberos logon interposer");
@@ -324,4 +328,60 @@ IsEnabledUPNSuffix(PCWSTR Suffix,
     }
 
     return false;
+}
+
+typedef SECURITY_STATUS
+(SEC_ENTRY *SSPI_ENCRYPT_AUTH_IDENTITY_EX)(_In_ ULONG Options,
+                                           _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData);
+
+static SSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiEncryptAuthIdentityEx;
+static SSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiDecryptAuthIdentityEx;
+
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+InitializeWeakImports(VOID)
+{
+    HMODULE hSspiCli;
+
+    hSspiCli = GetModuleHandle(L"sspicli.dll");
+    if (hSspiCli == nullptr)
+        RETURN_NTSTATUS(STATUS_DLL_NOT_FOUND);
+
+    WeakImportSspiEncryptAuthIdentityEx =
+        reinterpret_cast<SSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiEncryptAuthIdentityEx"));
+    WeakImportSspiDecryptAuthIdentityEx =
+        reinterpret_cast<SSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiDecryptAuthIdentityEx"));
+
+    if (WeakImportSspiEncryptAuthIdentityEx == nullptr ||
+        WeakImportSspiDecryptAuthIdentityEx == nullptr)
+        RETURN_NTSTATUS(STATUS_ENTRYPOINT_NOT_FOUND);
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+SECURITY_STATUS SEC_ENTRY
+SspiEncryptAuthIdentityEx(_In_ ULONG Options,
+                          _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData)
+{
+    if (WeakImportSspiEncryptAuthIdentityEx == nullptr) {
+        if (Options == SEC_WINNT_AUTH_IDENTITY_ENCRYPT_SAME_PROCESS)
+            return SspiEncryptAuthIdentity(AuthData);
+        else
+            return SEC_E_ENCRYPT_FAILURE;
+    } else {
+        return WeakImportSspiEncryptAuthIdentityEx(Options, AuthData);
+    }
+}
+
+SECURITY_STATUS SEC_ENTRY
+SspiDecryptAuthIdentityEx(_In_ ULONG Options,
+                          _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData)
+{
+    if (WeakImportSspiDecryptAuthIdentityEx == nullptr) {
+        if (Options == SEC_WINNT_AUTH_IDENTITY_ENCRYPT_SAME_PROCESS)
+            return SspiDecryptAuthIdentity(AuthData);
+        else
+            return SEC_E_ENCRYPT_FAILURE;
+    } else {
+        return WeakImportSspiDecryptAuthIdentityEx(Options, AuthData);
+    }
 }
