@@ -295,6 +295,59 @@ UnprotectString(_In_z_ PWSTR wszProtected,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+EncodeStringsAsAuthIdentityEx2(_In_z_ PCWSTR pszUserName,
+			       _In_z_ PCWSTR pszDomainName,
+			       _In_z_ PCWSTR pszPackedCredentialsString,
+			       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *ppAuthIdentity)
+{
+    NTSTATUS Status;
+    PSEC_WINNT_AUTH_IDENTITY_EX2 pAuthIdentityEx2;
+    SIZE_T cbStructureLength;
+    SIZE_T cbUserName = pwszUserName != nullptr ? wcslen(pwszUserName) * sizeof(WCHAR) : 0;
+    SIZE_T cbDomainName = pwszDomainName != nullptr ? wcslen(pszDomainName) * sizeof(WCHAR) : 0;
+    SIZE_T cbPackedCredentialsString = pszPackedCredentialsString != nullptr ? wcslen(pszPackedCredentialsString) * sizeof(WCHAR) : 0;
+
+    *ppAuthIdentity = nullptr;
+
+    if (cchUserName == 0)
+        RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
+
+    cbStructureLength = sizeof(*pAuthIdentityEx2) + cbUserName + cbDomainName + cbPackedCredentialsString;
+
+    if (cbStructureLength > ULONG_MAX)
+        RETURN_NTSTATUS(STATUS_INTEGER_OVERFLOW);
+
+    pAuthIdentityEx2 = static_cast<PSEC_WINNT_AUTH_IDENTITY_EX2>(LocalAlloc(LPTR, cbStructureLength));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(pAuthIdentityEx2);
+
+    pAuthIdentityEx2->Version                 = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
+    pAuthIdentityEx2->cbHeaderLength          = sizeof(*pAuthIdentityEx2);
+    pAuthIdentityEx2->cbStructureLength       = static_cast<ULONG>(cbStructureLength);
+    pAuthIdentityEx2->UserOffset              = pAuthIdentityEx2->cbHeaderLength;
+    pAuthIdentityEx2->UserLength              = cbUserName;
+    pAuthIdentityEx2->DomainOffset            = pAuthIdentityEx2->UserOffset + pAuthIdentityEx2->UserLength;
+    pAuthIdentityEx2->DomainLength            = cbDomainName;
+    pAuthIdentityEx2->PackedCredentialsOffset = pAuthIdentityEx2->DomainOffset + pAuthIdentityEx2->DomainLength;
+    pAuthIdentityEx2->PackedCredentialsLength = cbPackedCredentialsString;
+    pAuthIdentityEx2->Flags                   = SEC_WINNT_AUTH_IDENTITY_UNICODE | SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
+
+    auto AuthIdentityBase = reinterpret_cast<PBYTE>(pAuthIdentityEx2);
+
+    if (pszUserName != nullptr)
+        memcpy(AuthIdentityBase + pAuthIdentityEx2->UserOffset, pszUserName, cbUserName);
+
+    if (pszDomainName != nullptr)
+        memcpy(AuthIdentityBase + pAuthIdentityEx2->DomainOffset, pszDomainName, cbDomainName);
+
+    if (pszPackedCredentialsString != nullptr)
+        memcpy(AuthIdentityBase + pAuthIdentityEx2->PackedCredentialsOffset, pszPackedCredentialsString, cbPackedCredentials);
+
+    *ppAuthIdentity = reinterpret_cast<PSEC_WINNT_AUTH_IDENTITY_OPAQUE>(pAuthIdentityEx2);
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
 #define VALIDATE_UNPACK_UNICODE_STRING32(UnicodeString, WString) do {           \
         Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,          \
                                                         ProtocolSubmitBuffer,   \
