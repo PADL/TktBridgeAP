@@ -295,60 +295,6 @@ UnprotectString(_In_z_ PWSTR wszProtected,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-static _Success_(return == STATUS_SUCCESS) NTSTATUS
-EncodeStringsAsAuthIdentityEx2(_In_z_ PCWSTR pszUserName,
-			       _In_z_ PCWSTR pszDomainName,
-			       _In_z_ PCWSTR pszPackedCredentialsString,
-			       _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *ppAuthIdentity)
-{
-    PSEC_WINNT_AUTH_IDENTITY_EX2 pAuthIdentityEx2;
-    SIZE_T cbStructureLength;
-    SIZE_T cbUserName = pszUserName != nullptr ? wcslen(pszUserName) * sizeof(WCHAR) : 0;
-    SIZE_T cbDomainName = pszDomainName != nullptr ? wcslen(pszDomainName) * sizeof(WCHAR) : 0;
-    SIZE_T cbPackedCredentialsString = pszPackedCredentialsString != nullptr ? wcslen(pszPackedCredentialsString) * sizeof(WCHAR) : 0;
-
-    *ppAuthIdentity = nullptr;
-
-    if (cbUserName == 0)
-        RETURN_NTSTATUS(STATUS_NO_SUCH_USER);
-
-    cbStructureLength = sizeof(*pAuthIdentityEx2) + cbUserName + cbDomainName + cbPackedCredentialsString;
-
-    if (cbStructureLength > ULONG_MAX ||
-        cbUserName > USHRT_MAX || cbDomainName > USHRT_MAX ||
-        cbPackedCredentialsString > USHRT_MAX)
-        RETURN_NTSTATUS(STATUS_INTEGER_OVERFLOW);
-
-    pAuthIdentityEx2 = static_cast<PSEC_WINNT_AUTH_IDENTITY_EX2>(LocalAlloc(LPTR, cbStructureLength));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(pAuthIdentityEx2);
-
-    pAuthIdentityEx2->Version                 = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
-    pAuthIdentityEx2->cbHeaderLength          = sizeof(*pAuthIdentityEx2);
-    pAuthIdentityEx2->cbStructureLength       = static_cast<ULONG>(cbStructureLength);
-    pAuthIdentityEx2->UserOffset              = pAuthIdentityEx2->cbHeaderLength;
-    pAuthIdentityEx2->UserLength              = static_cast<USHORT>(cbUserName);
-    pAuthIdentityEx2->DomainOffset            = pAuthIdentityEx2->UserOffset + pAuthIdentityEx2->UserLength;
-    pAuthIdentityEx2->DomainLength            = static_cast<USHORT>(cbDomainName);
-    pAuthIdentityEx2->PackedCredentialsOffset = pAuthIdentityEx2->DomainOffset + pAuthIdentityEx2->DomainLength;
-    pAuthIdentityEx2->PackedCredentialsLength = static_cast<USHORT>(cbPackedCredentialsString);
-    pAuthIdentityEx2->Flags                   = SEC_WINNT_AUTH_IDENTITY_UNICODE | SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
-
-    auto AuthIdentityBase = reinterpret_cast<PBYTE>(pAuthIdentityEx2);
-
-    if (pszUserName != nullptr)
-        memcpy(AuthIdentityBase + pAuthIdentityEx2->UserOffset, pszUserName, cbUserName);
-
-    if (pszDomainName != nullptr)
-        memcpy(AuthIdentityBase + pAuthIdentityEx2->DomainOffset, pszDomainName, cbDomainName);
-
-    if (pszPackedCredentialsString != nullptr)
-        memcpy(AuthIdentityBase + pAuthIdentityEx2->PackedCredentialsOffset, pszPackedCredentialsString, cbPackedCredentialsString);
-
-    *ppAuthIdentity = reinterpret_cast<PSEC_WINNT_AUTH_IDENTITY_OPAQUE>(pAuthIdentityEx2);
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-}
-
 #define VALIDATE_UNPACK_UNICODE_STRING32(UnicodeString, WString) do {           \
         Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,          \
                                                         ProtocolSubmitBuffer,   \
@@ -441,10 +387,10 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     Status = UnprotectString(wszPassword, &wszUnprotectedPassword);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = EncodeStringsAsAuthIdentityEx2(wszUserName,
-                                            wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
-                                            wszUnprotectedPassword != nullptr ? wszUnprotectedPassword : wszPassword,
-                                            pAuthIdentity);
+    Status = SspiEncodeStringsAsAuthIdentity(wszUserName,
+                                             wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
+                                             wszUnprotectedPassword != nullptr ? wszUnprotectedPassword : wszPassword,
+                                             pAuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
@@ -675,10 +621,10 @@ ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     Status = UnprotectString(wszPin, &wszUnprotectedPin);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = EncodeStringsAsAuthIdentityEx2(wszCspData,
-                                            nullptr,
-                                            wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
-                                            pAuthIdentity);
+    Status = SspiEncodeStringsAsAuthIdentity(wszCspData,
+                                             nullptr,
+                                             wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
+                                             pAuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
@@ -766,10 +712,10 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     Status = UnprotectString(wszPin, &wszUnprotectedPin);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = EncodeStringsAsAuthIdentityEx2(wszCspData,
-                                            wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
-                                            wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
-                                            pAuthIdentity);
+    Status = SspiEncodeStringsAsAuthIdentity(wszCspData,
+                                             wszUpnSuffix != nullptr ? wszUpnSuffix : wszDomainName,
+                                             wszUnprotectedPin != nullptr ? wszUnprotectedPin : wszPin,
+                                             pAuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
