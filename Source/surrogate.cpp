@@ -99,7 +99,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
         auto KerbAsRepCred = &KerbAsRepCredU->CloudTgtCredential;
         auto KerbAsRepCredBase = reinterpret_cast<PBYTE>(KerbAsRepCred);
 
-        KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT;
+        KerbAsRepCred->Version              = KERB_AS_REP_CREDENTIAL_CLOUD_TGT_VERSION;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
         KerbAsRepCred->TgtMessageLength     = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
         KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageLength;
@@ -117,7 +117,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
         auto KerbAsRepCred = &KerbAsRepCredU->TgtCredential;
         auto KerbAsRepCredBase = reinterpret_cast<PBYTE>(KerbAsRepCred);
 
-        KerbAsRepCred->Type                 = KERB_AS_REP_CREDENTIAL_TYPE_TGT;
+        KerbAsRepCred->Version              = KERB_AS_REP_CREDENTIAL_TGT_VERSION;
         KerbAsRepCred->TgtMessageOffset     = sizeof(*KerbAsRepCred);
         KerbAsRepCred->TgtMessageLength     = static_cast<ULONG>(TktBridgeCreds->AsRep.length);
         KerbAsRepCred->TgtClientKeyOffset   = sizeof(*KerbAsRepCred) + KerbAsRepCred->TgtMessageLength;

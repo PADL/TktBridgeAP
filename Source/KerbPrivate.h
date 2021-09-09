@@ -120,7 +120,7 @@ typedef struct _KERB_SMARTCARD_CSP_INFO {
  * Windows 10
  */
 typedef struct _KERB_AS_REP_TGT_CREDENTIAL {
-    ULONG Type;
+    ULONG Version;
     ULONG Flags;
     ULONG TgtMessageOffset;
     ULONG TgtMessageLength;
@@ -135,7 +135,7 @@ typedef struct _KERB_AS_REP_TGT_CREDENTIAL {
  * Windows 11 Insider Preview
  */
 typedef struct _KERB_AS_REP_CLOUD_TGT_CREDENTIAL {
-    ULONG Type;
+    ULONG Version;
     ULONG Flags;
     ULONG ReservedOffset;
     ULONG ReservedLength;
@@ -160,8 +160,8 @@ typedef union _KERB_AS_REP_CREDENTIAL {
     KERB_AS_REP_CLOUD_TGT_CREDENTIAL CloudTgtCredential;
 } KERB_AS_REP_CREDENTIAL, *PKERB_AS_REP_CREDENTIAL;
 
-#define KERB_AS_REP_CREDENTIAL_TYPE_TGT         1
-#define KERB_AS_REP_CREDENTIAL_TYPE_CLOUD_TGT   3
+#define KERB_AS_REP_CREDENTIAL_TGT_VERSION         1
+#define KERB_AS_REP_CREDENTIAL_CLOUD_TGT_VERSION   3
 
 typedef NTSTATUS
 (CALLBACK KERB_AS_REP_CALLBACK)(LUID LogonId,
