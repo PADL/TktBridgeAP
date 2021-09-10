@@ -161,12 +161,12 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     NTSTATUS Status;
     ULONG cbUTF8String = 0;
     SIZE_T cbUnicodeString = (wcslen(wszUnicodeString) + 1) * sizeof(WCHAR);
-    ULONG ulcbUnicodeString = static_cast<ULONG>(cbUnicodeString);
+    ULONG ulcbUnicodeString;
 
     *pszUTF8String = nullptr;
 
-    if (cbUnicodeString < ulcbUnicodeString)
-        RETURN_NTSTATUS(STATUS_INTEGER_OVERFLOW);
+    Status = RtlSizeTToULong(cbUnicodeString, &ulcbUnicodeString);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = RtlUnicodeToUTF8N(nullptr, 0, &cbUTF8String, wszUnicodeString, ulcbUnicodeString);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -188,12 +188,12 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     NTSTATUS Status;
     ULONG cbUnicodeString = 0;
     SIZE_T cbUTF8String = strlen(szUTF8String) + 1;
-    ULONG ulcbUTF8String = static_cast<ULONG>(cbUTF8String);
+    ULONG ulcbUTF8String;
 
     *pwszUnicodeString = nullptr;
 
-    if (cbUTF8String < ulcbUTF8String)
-        RETURN_NTSTATUS(STATUS_INTEGER_OVERFLOW);
+    Status = RtlSizeTToULong(cbUTF8String, &ulcbUTF8String);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = RtlUTF8ToUnicodeN(nullptr, 0, &cbUnicodeString, szUTF8String, ulcbUTF8String);
     RETURN_IF_NTSTATUS_FAILED(Status);

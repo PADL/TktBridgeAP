@@ -90,6 +90,8 @@
 #include <wil/registry.h>
 #include <wil/nt_result_macros.h>
 
+#include <../km/ntintsafe.h>
+
 #include "Heimdal.h"
 #include "TktBridgeAP-trace.h"
 
