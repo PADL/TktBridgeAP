@@ -305,13 +305,18 @@ CanonicalizeUPN(_In_ PUNICODE_STRING DomainName,
     if (DomainName->Length == 0) {
         auto wszUpnSuffix = wcschr(UserName->Buffer, L'@');
         if (wszUpnSuffix != nullptr) {
+            // this can't fail so no need to use RtlSizeTToUShort
+            auto cchUpnSuffix = wszUpnSuffix - UserName->Buffer;
+            UserName->Length = static_cast<USHORT>(cchUpnSuffix * sizeof(WCHAR));
+
             *wszUpnSuffix = L'\0';
-            wszUpnSuffix++;
         }
         RtlInitUnicodeString(UpnSuffix, wszUpnSuffix);
     } else {
-        // Winlogon canonicalizes UPNSUFFIX\user to NETBIOSDOMAIN\user
-        // which breaks unlock, so force UPN logons for now
+        /*
+         * Winlogon canonicalizes UPNSUFFIX\user to NETBIOSDOMAIN\user
+         * which breaks unlock, so force UPN logons for now
+         */
         RETURN_NTSTATUS(STATUS_NO_SUCH_DOMAIN);
     }
 
