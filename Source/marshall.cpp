@@ -43,6 +43,9 @@ IsWowClient(VOID)
 #endif
 }
 
+static PCWSTR
+GetLogonSubmitTypeDescription(KERB_LOGON_SUBMIT_TYPE LogonSubmitType);
+
 static VOID
 FreeUnicodeString(_Inout_ PUNICODE_STRING UnicodeString)
 {
@@ -804,8 +807,6 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     if (SubmitBufferSize < sizeof(KERB_LOGON_SUBMIT_TYPE))
         RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
 
-    // FIXME can we use CredUnPackAuthenticationBuffer() instead?
-
     KERB_LOGON_SUBMIT_TYPE LogonSubmitType =
         *static_cast<KERB_LOGON_SUBMIT_TYPE *>(ProtocolSubmitBuffer);
 
@@ -833,7 +834,8 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         break;
     default:
         DebugTrace(WINEVENT_LEVEL_VERBOSE,
-                   L"Ignoring unknown logon submit type %x", LogonSubmitType);
+                   L"Ignoring unsupported logon submit type %x/%s",
+                   LogonSubmitType, GetLogonSubmitTypeDescription(LogonSubmitType));
         Status = STATUS_INVALID_LOGON_TYPE;
         break;
     }
