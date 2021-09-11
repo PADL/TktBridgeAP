@@ -314,7 +314,7 @@ CanonicalizeUPN(_In_ PUNICODE_STRING DomainName,
 
             *wszUpnSuffix = L'\0';
         }
-        RtlInitUnicodeString(UpnSuffix, wszUpnSuffix);
+        RtlInitUnicodeString(UpnSuffix, wszUpnSuffix + 1);
     } else {
         /*
          * Winlogon canonicalizes UPNSUFFIX\user to NETBIOSDOMAIN\user
