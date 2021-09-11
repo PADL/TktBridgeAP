@@ -60,7 +60,7 @@ SecureFreeUnicodeString(_Inout_ PUNICODE_STRING UnicodeString)
     FreeUnicodeString(UnicodeString);
 }
 
-static void
+static VOID
 SecureFreePackedCredentials(_Inout_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCreds)
 {
     if (PackedCreds != nullptr) {
@@ -540,7 +540,7 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 
     RtlZeroMemory(pPackedCreds, cbPackedCreds);
 
-    pPackedCreds->cbHeaderLength    = sizeof(*pPackedCreds);
+    pPackedCreds->cbHeaderLength = sizeof(*pPackedCreds);
 
     Status = RtlSizeTToUShort(cbPackedCreds, &pPackedCreds->cbStructureLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
