@@ -430,11 +430,7 @@ MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
     *pAuthIdentity = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
-        // don't use SspiFreeAuthIdentity as it may not yet be valid
-        if (AuthIdentityEx2 != nullptr) {
-            SecureZeroMemory(AuthIdentityEx2, cbAuthIdentityEx2);
-            LocalFree(AuthIdentityEx2);
-        }
+        SspiFreeAuthIdentity(AuthIdentityEx2);
     });
 
     cbAuthIdentityEx2 = sizeof(*AuthIdentityEx2) +
@@ -469,7 +465,7 @@ MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
         memcpy(AuthIdentityEx2Base + AuthIdentityEx2->PackedCredentialsOffset, PackedCredentials, PackedCredentials->cbStructureLength);
     }
 
-    AuthIdentityEx2->Flags = SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
+    AuthIdentityEx2->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE | SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
 
     Status = SspiValidateAuthIdentity(AuthIdentityEx2);
     RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
