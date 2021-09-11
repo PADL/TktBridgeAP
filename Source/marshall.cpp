@@ -436,6 +436,9 @@ MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
     cbAuthIdentityEx2 = sizeof(*AuthIdentityEx2) +
         DomainName->Length + UserName->Length + PackedCredentials->cbStructureLength;
 
+    // round up for encryption padding
+    cbAuthIdentityEx2 = (cbAuthIdentityEx2 + 7) & ~7;
+
     // LPTR guarantees memory is zeroed
     AuthIdentityEx2 = static_cast<PSEC_WINNT_AUTH_IDENTITY_EX2>(LocalAlloc(LPTR, cbAuthIdentityEx2));
     RETURN_NTSTATUS_IF_NULL_ALLOC(AuthIdentityEx2);
@@ -465,7 +468,10 @@ MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
         memcpy(AuthIdentityEx2Base + AuthIdentityEx2->PackedCredentialsOffset, PackedCredentials, PackedCredentials->cbStructureLength);
     }
 
-    AuthIdentityEx2->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE | SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
+    // according to MSDN, SEC_WINNT_AUTH_IDENTITY_FLAGS_RESERVED indicates padding bytes present
+    AuthIdentityEx2->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE    |
+                             SEC_WINNT_AUTH_IDENTITY_MARSHALLED |
+                             SEC_WINNT_AUTH_IDENTITY_FLAGS_RESERVED;
 
     Status = SspiValidateAuthIdentity(AuthIdentityEx2);
     RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
