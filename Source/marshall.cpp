@@ -67,20 +67,11 @@ static PCWSTR
 GetLogonSubmitTypeDescription(KERB_LOGON_SUBMIT_TYPE LogonSubmitType);
 
 static VOID
-FreeUnicodeString(_Inout_ PUNICODE_STRING UnicodeString)
-{
-    if (UnicodeString != nullptr) {
-        WIL_FreeMemory(UnicodeString->Buffer);
-        RtlInitUnicodeString(UnicodeString, nullptr);
-    }
-}
-
-static VOID
 SecureFreeUnicodeString(_Inout_ PUNICODE_STRING UnicodeString)
 {
     if (UnicodeString != nullptr && UnicodeString->Buffer != nullptr)
         SecureZeroMemory(UnicodeString->Buffer, UnicodeString->Length);
-    FreeUnicodeString(UnicodeString);
+    RtlFreeUnicodeString(UnicodeString);
 }
 
 static VOID
@@ -541,8 +532,8 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     RtlInitUnicodeString(&UnprotectedPassword, nullptr);
 
     auto cleanup = wil::scope_exit([&]() {
-        FreeUnicodeString(&DomainName);
-        FreeUnicodeString(&UserName);
+        RtlFreeUnicodeString(&DomainName);
+        RtlFreeUnicodeString(&UserName);
         SecureFreeUnicodeString(&Password);
         SecureFreeUnicodeString(&UnprotectedPassword);
     });
@@ -725,8 +716,8 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     RtlInitUnicodeString(&UnprotectedPin, nullptr);
 
     auto cleanup = wil::scope_exit([&]() {
-        FreeUnicodeString(&DomainName);
-        FreeUnicodeString(&UserName);
+        RtlFreeUnicodeString(&DomainName);
+        RtlFreeUnicodeString(&UserName);
         SecureFreeUnicodeString(&Pin);
         SecureFreeUnicodeString(&UnprotectedPin);
         SecureFreePackedCredentials(PackedCredentials);
