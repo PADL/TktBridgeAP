@@ -33,6 +33,26 @@
 
 #include "TktBridgeAP.h"
 
+#define VALIDATE_UNPACK_UNICODE_STRING32(SourceString, DestinationString) do {  \
+        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,          \
+                                                        ProtocolSubmitBuffer,   \
+                                                        ClientBufferBase,       \
+                                                        SubmitBufferSize,       \
+                                                        &(SourceString),        \
+                                                        &(DestinationString));  \
+        RETURN_IF_NTSTATUS_FAILED(Status);                                      \
+    } while (0)
+
+#define VALIDATE_UNPACK_UNICODE_STRING(SourceString, DestinationString) do {    \
+        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,            \
+                                                      ProtocolSubmitBuffer,     \
+                                                      ClientBufferBase,         \
+                                                      SubmitBufferSize,         \
+                                                      &(SourceString),          \
+                                                      &(DestinationString));    \
+        RETURN_IF_NTSTATUS_FAILED(Status);                                      \
+    } while (0)
+
 static inline bool
 IsWowClient(VOID)
 {
@@ -397,25 +417,107 @@ UnprotectString(_In_ PUNICODE_STRING Protected,
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
-#define VALIDATE_UNPACK_UNICODE_STRING32(SourceString, DestinationString) do {  \
-        Status = ValidateAndUnpackUnicodeString32AllocZ(ClientRequest,          \
-                                                        ProtocolSubmitBuffer,   \
-                                                        ClientBufferBase,       \
-                                                        SubmitBufferSize,       \
-                                                        &(SourceString),        \
-                                                        &(DestinationString));  \
-        RETURN_IF_NTSTATUS_FAILED(Status);                                      \
-    } while (0)
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
+                                     _In_ PUNICODE_STRING DomainName,
+                                     _In_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials,
+                                     _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
+{
+    NTSTATUS Status;
+    PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentityEx2 = nullptr;
+    SIZE_T cbAuthIdentityEx2 = 0;
 
-#define VALIDATE_UNPACK_UNICODE_STRING(SourceString, DestinationString) do {    \
-        Status = ValidateAndUnpackUnicodeStringAllocZ(ClientRequest,            \
-                                                      ProtocolSubmitBuffer,     \
-                                                      ClientBufferBase,         \
-                                                      SubmitBufferSize,         \
-                                                      &(SourceString),          \
-                                                      &(DestinationString));    \
-        RETURN_IF_NTSTATUS_FAILED(Status);                                      \
-    } while (0)
+    *pAuthIdentity = nullptr;
+
+    auto cleanup = wil::scope_exit([&]() {
+        // don't use SspiFreeAuthIdentity as it may not yet be valid
+        if (AuthIdentityEx2 != nullptr) {
+            SecureZeroMemory(AuthIdentityEx2, cbAuthIdentityEx2);
+            LocalFree(AuthIdentityEx2);
+        }
+    });
+
+    cbAuthIdentityEx2 = sizeof(*AuthIdentityEx2) +
+        DomainName->Length + UserName->Length + PackedCredentials->cbStructureLength;
+
+    // LPTR guarantees memory is zeroed
+    AuthIdentityEx2 = static_cast<PSEC_WINNT_AUTH_IDENTITY_EX2>(LocalAlloc(LPTR, cbAuthIdentityEx2));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(AuthIdentityEx2);
+
+    auto AuthIdentityEx2Base = reinterpret_cast<PBYTE>(AuthIdentityEx2);
+
+    AuthIdentityEx2->Version                 = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
+    AuthIdentityEx2->cbHeaderLength          = sizeof(*AuthIdentityEx2);
+    Status = RtlSizeTToULong(cbAuthIdentityEx2, &AuthIdentityEx2->cbStructureLength);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    if (UserName->Buffer != nullptr) {
+        AuthIdentityEx2->UserOffset          = AuthIdentityEx2->cbHeaderLength;
+        AuthIdentityEx2->UserLength          = UserName->Length;
+        memcpy(AuthIdentityEx2Base + AuthIdentityEx2->UserOffset, UserName->Buffer, UserName->Length);
+    }
+
+    if (DomainName->Buffer != nullptr) {
+        AuthIdentityEx2->DomainOffset        = AuthIdentityEx2->UserOffset + AuthIdentityEx2->UserLength;
+        AuthIdentityEx2->DomainLength        = DomainName->Length;
+        memcpy(AuthIdentityEx2Base + AuthIdentityEx2->DomainOffset, DomainName->Buffer, DomainName->Length);
+    }
+
+    if (PackedCredentials != nullptr) {
+        AuthIdentityEx2->PackedCredentialsOffset = AuthIdentityEx2->DomainOffset + AuthIdentityEx2->DomainLength;
+        AuthIdentityEx2->PackedCredentialsLength = PackedCredentials->cbStructureLength;
+        memcpy(AuthIdentityEx2Base + AuthIdentityEx2->PackedCredentialsOffset, PackedCredentials, PackedCredentials->cbStructureLength);
+    }
+
+    AuthIdentityEx2->Flags = SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
+
+    Status = SspiValidateAuthIdentity(AuthIdentityEx2);
+    RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
+
+    *pAuthIdentity = static_cast<PSEC_WINNT_AUTH_IDENTITY_OPAQUE>(AuthIdentityEx2);
+    AuthIdentityEx2 = nullptr; // don't free on exit
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
+ConvertPasswordToPackedCreds(_In_ PUNICODE_STRING UnprotectedPassword,
+                             _Out_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS *pPackedCredentials)
+{
+    NTSTATUS Status;
+    PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials = nullptr;
+    SIZE_T cbPackedCreds;
+
+    auto cleanup = wil::scope_exit([&]() {
+        SecureFreePackedCredentials(PackedCredentials);
+    });
+
+    cbPackedCreds = sizeof(SEC_WINNT_AUTH_PACKED_CREDENTIALS) + UnprotectedPassword->Length;
+
+    PackedCredentials = static_cast<PSEC_WINNT_AUTH_PACKED_CREDENTIALS>(WIL_AllocateMemory(cbPackedCreds));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(PackedCredentials);
+
+    RtlZeroMemory(PackedCredentials, cbPackedCreds);
+
+    PackedCredentials->cbHeaderLength = sizeof(*PackedCredentials);
+
+    Status = RtlSizeTToUShort(cbPackedCreds, &PackedCredentials->cbStructureLength);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    PackedCredentials->AuthData.CredType = SEC_WINNT_AUTH_DATA_TYPE_PASSWORD;
+
+    auto CredData = &PackedCredentials->AuthData.CredData;
+
+    CredData->ByteArrayOffset = sizeof(SEC_WINNT_AUTH_PACKED_CREDENTIALS);
+    CredData->ByteArrayLength = UnprotectedPassword->Length;
+    memcpy(reinterpret_cast<PBYTE>(PackedCredentials) + CredData->ByteArrayOffset,
+           UnprotectedPassword->Buffer, UnprotectedPassword->Length);
+
+    *pPackedCredentials = PackedCredentials;
+    PackedCredentials = nullptr;
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
@@ -473,11 +575,27 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     Status = UnprotectString(&Password, &UnprotectedPassword);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
+#ifdef PACKED_CREDS_PASSWORD
+    // for testing MakePackedCredentialsAuthIdentityEx2()
+    PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials = nullptr;
+
+    Status = ConvertPasswordToPackedCreds(UnprotectedPassword.Buffer != nullptr ? &UnprotectedPassword : &Password,
+                                          &PackedCredentials);
+    if (NT_SUCCESS(Status)) {
+        Status = MakePackedCredentialsAuthIdentityEx2(&UserName,
+                                                      &UpnSuffix,
+                                                      PackedCredentials,
+                                                      pAuthIdentity);
+        SecureFreePackedCredentials(PackedCredentials);
+    }
+    RETURN_IF_NTSTATUS_FAILED(Status);
+#else
     Status = SspiEncodeStringsAsAuthIdentity(UserName.Buffer,
                                              UpnSuffix.Buffer,
                                              UnprotectedPassword.Buffer != nullptr ? UnprotectedPassword.Buffer : Password.Buffer,
                                              pAuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
+#endif
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -488,10 +606,10 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                          _In_ PVOID ClientBufferBase,
                                          _In_ ULONG SubmitBufferSize,
                                          _In_ PUNICODE_STRING UnprotectedPin,
-                                         _Out_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS *ppPackedCreds)
+                                         _Out_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS *pPackedCredentials)
 {
     NTSTATUS Status;
-    PSEC_WINNT_AUTH_PACKED_CREDENTIALS pPackedCreds = nullptr;
+    PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials = nullptr;
     SIZE_T cbPackedCreds;
     ULONG_PTR CspDataOffset;
     PBYTE CspData;
@@ -504,7 +622,7 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
             SecureZeroMemory(ClientCspData, CspDataLength);
             WIL_FreeMemory(ClientCspData);
         }
-        SecureFreePackedCredentials(pPackedCreds);
+        SecureFreePackedCredentials(PackedCredentials);
     });
 
     if (IsWowClient()) {
@@ -538,19 +656,19 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     cbPackedCreds = sizeof(SEC_WINNT_AUTH_PACKED_CREDENTIALS) + sizeof(SEC_WINNT_AUTH_NGC_DATA) +
                     CspDataLength + UnprotectedPin->Length;
 
-    pPackedCreds = static_cast<PSEC_WINNT_AUTH_PACKED_CREDENTIALS>(WIL_AllocateMemory(cbPackedCreds));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(pPackedCreds);
+    PackedCredentials = static_cast<PSEC_WINNT_AUTH_PACKED_CREDENTIALS>(WIL_AllocateMemory(cbPackedCreds));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(PackedCredentials);
 
-    RtlZeroMemory(pPackedCreds, cbPackedCreds);
+    RtlZeroMemory(PackedCredentials, cbPackedCreds);
 
-    pPackedCreds->cbHeaderLength = sizeof(*pPackedCreds);
+    PackedCredentials->cbHeaderLength = sizeof(*PackedCredentials);
 
-    Status = RtlSizeTToUShort(cbPackedCreds, &pPackedCreds->cbStructureLength);
+    Status = RtlSizeTToUShort(cbPackedCreds, &PackedCredentials->cbStructureLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    pPackedCreds->AuthData.CredType = SEC_WINNT_AUTH_DATA_TYPE_NGC;
+    PackedCredentials->AuthData.CredType = SEC_WINNT_AUTH_DATA_TYPE_NGC;
 
-    auto CredData = &pPackedCreds->AuthData.CredData;
+    auto CredData = &PackedCredentials->AuthData.CredData;
 
     CredData->ByteArrayOffset = sizeof(SEC_WINNT_AUTH_PACKED_CREDENTIALS);
 
@@ -558,8 +676,8 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                               CspDataLength + UnprotectedPin->Length, &CredData->ByteArrayLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    auto pPackedCredsBase = reinterpret_cast<PBYTE>(pPackedCreds);
-    auto NgcData = reinterpret_cast<PSEC_WINNT_AUTH_NGC_DATA>(pPackedCredsBase + CredData->ByteArrayOffset);
+    auto PackedCredentialsBase = reinterpret_cast<PBYTE>(PackedCredentials);
+    auto NgcData = reinterpret_cast<PSEC_WINNT_AUTH_NGC_DATA>(PackedCredentialsBase + CredData->ByteArrayOffset);
 
     NgcData->Flags = NGC_DATA_FLAG_IS_SMARTCARD_DATA;
     if (KerbCertificateLogonFlags & KERB_CERTIFICATE_LOGON_FLAG_CHECK_DUPLICATES)
@@ -572,75 +690,14 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     Status = RtlSizeTToUShort(CspDataLength, &NgcData->CspInfo.ByteArrayLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    memcpy(pPackedCredsBase + NgcData->CspInfo.ByteArrayOffset, CspData, CspDataLength);
+    memcpy(PackedCredentialsBase + NgcData->CspInfo.ByteArrayOffset, CspData, CspDataLength);
 
     NgcData->UserIdKeyAuthTicket.ByteArrayOffset = NgcData->CspInfo.ByteArrayOffset + CspDataLength;
     NgcData->UserIdKeyAuthTicket.ByteArrayLength = UnprotectedPin->Length;
-    memcpy(pPackedCredsBase + NgcData->UserIdKeyAuthTicket.ByteArrayOffset, UnprotectedPin->Buffer, UnprotectedPin->Length);
+    memcpy(PackedCredentialsBase + NgcData->UserIdKeyAuthTicket.ByteArrayOffset, UnprotectedPin->Buffer, UnprotectedPin->Length);
 
-    *ppPackedCreds = pPackedCreds;
-    pPackedCreds = nullptr;
-
-    RETURN_NTSTATUS(STATUS_SUCCESS);
-}
-
-static _Success_(return == STATUS_SUCCESS) NTSTATUS
-MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING DomainName,
-                                     _In_ PUNICODE_STRING UserName,
-                                     _In_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials,
-                                     _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
-{
-    NTSTATUS Status;
-    PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentityEx2 = nullptr;
-    SIZE_T cbAuthIdentityEx2 = 0;
-
-    *pAuthIdentity = nullptr;
-
-    auto cleanup = wil::scope_exit([&]() {
-        // don't use SspiFreeAuthIdentity as it may not yet be valid
-        if (AuthIdentityEx2 != nullptr) {
-            SecureZeroMemory(AuthIdentityEx2, cbAuthIdentityEx2);
-            LocalFree(AuthIdentityEx2);
-        }
-    });
-
-    cbAuthIdentityEx2 = sizeof(*AuthIdentityEx2) +
-        DomainName->Length + UserName->Length + PackedCredentials->cbStructureLength;
-
-    // LPTR guarantees memory is zeroed
-    AuthIdentityEx2 = static_cast<PSEC_WINNT_AUTH_IDENTITY_EX2>(LocalAlloc(LPTR, cbAuthIdentityEx2));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(AuthIdentityEx2);
-
-    auto AuthIdentityEx2Base = reinterpret_cast<PBYTE>(AuthIdentityEx2);
-
-    AuthIdentityEx2->Version                 = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
-    AuthIdentityEx2->cbHeaderLength          = sizeof(*AuthIdentityEx2);
-    Status = RtlSizeTToULong(cbAuthIdentityEx2, &AuthIdentityEx2->cbStructureLength);
-    RETURN_IF_NTSTATUS_FAILED(Status);
-
-    if (UserName->Buffer != nullptr) {
-        AuthIdentityEx2->UserOffset          = AuthIdentityEx2->cbHeaderLength;
-        AuthIdentityEx2->UserLength          = UserName->Length;
-        memcpy(AuthIdentityEx2Base + AuthIdentityEx2->UserOffset, UserName->Buffer, UserName->Length);
-    }
-
-    if (DomainName->Buffer != nullptr) {
-        AuthIdentityEx2->DomainOffset        = AuthIdentityEx2->UserOffset + AuthIdentityEx2->UserLength;
-        AuthIdentityEx2->DomainLength        = DomainName->Length;
-        memcpy(AuthIdentityEx2Base + AuthIdentityEx2->DomainOffset, DomainName->Buffer, DomainName->Length);
-    }
-
-    AuthIdentityEx2->PackedCredentialsOffset = AuthIdentityEx2->DomainOffset + AuthIdentityEx2->DomainLength;
-    AuthIdentityEx2->PackedCredentialsLength = PackedCredentials->cbStructureLength;
-    memcpy(AuthIdentityEx2Base + AuthIdentityEx2->PackedCredentialsOffset, PackedCredentials, PackedCredentials->cbStructureLength);
-
-    AuthIdentityEx2->Flags = SEC_WINNT_AUTH_IDENTITY_MARSHALLED;
-
-    Status = SspiValidateAuthIdentity(AuthIdentityEx2);
-    RETURN_IF_NTSTATUS_FAILED(Status); // FIXME not NTSTATUS
-
-    *pAuthIdentity = static_cast<PSEC_WINNT_AUTH_IDENTITY_OPAQUE>(AuthIdentityEx2);
-    AuthIdentityEx2 = nullptr; // don't free on exit
+    *pPackedCredentials = PackedCredentials;
+    PackedCredentials = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -655,7 +712,7 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     NTSTATUS Status;
     UNICODE_STRING DomainName, UserName, UpnSuffix;
     UNICODE_STRING Pin, UnprotectedPin;
-    PSEC_WINNT_AUTH_PACKED_CREDENTIALS pPackedCreds = nullptr;
+    PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials = nullptr;
 
     *pAuthIdentity = nullptr;
 
@@ -670,7 +727,7 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
         FreeUnicodeString(&UserName);
         SecureFreeUnicodeString(&Pin);
         SecureFreeUnicodeString(&UnprotectedPin);
-        SecureFreePackedCredentials(pPackedCreds);
+        SecureFreePackedCredentials(PackedCredentials);
     });
 
     if (IsWowClient()) {
@@ -708,12 +765,12 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
                                                       ClientBufferBase,
                                                       SubmitBufferSize,
                                                       UnprotectedPin.Buffer != nullptr ? &UnprotectedPin : &Pin,
-                                                      &pPackedCreds);
+                                                      &PackedCredentials);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = MakePackedCredentialsAuthIdentityEx2(&DomainName,
+    Status = MakePackedCredentialsAuthIdentityEx2(&UserName,
                                                   &UpnSuffix,
-                                                  pPackedCreds,
+                                                  PackedCredentials,
                                                   pAuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
