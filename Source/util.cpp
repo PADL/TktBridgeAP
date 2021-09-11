@@ -246,7 +246,7 @@ DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
     Status = RtlCopySid(SidLength, Sid, SourceSid);
-    RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
+    RETURN_IF_NTSTATUS_FAILED(Status);
 
     *DestinationSid = Sid;
     Sid = nullptr;
