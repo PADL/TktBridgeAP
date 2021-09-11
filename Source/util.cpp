@@ -162,8 +162,13 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     ULONG cbUTF8String = 0;
     SIZE_T cbUnicodeString = (wcslen(wszUnicodeString) + 1) * sizeof(WCHAR);
     ULONG ulcbUnicodeString;
+    PCHAR szUTF8String = nullptr;
 
     *pszUTF8String = nullptr;
+
+    auto cleanup = wil::scope_exit([&]() {
+        WIL_FreeMemory(szUTF8String);
+    });
 
     Status = RtlSizeTToULong(cbUnicodeString, &ulcbUnicodeString);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -171,12 +176,15 @@ UnicodeToUTF8Alloc(_In_ PCWSTR wszUnicodeString,
     Status = RtlUnicodeToUTF8N(nullptr, 0, &cbUTF8String, wszUnicodeString, ulcbUnicodeString);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    *pszUTF8String = static_cast<PCHAR>(WIL_AllocateMemory(cbUTF8String));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(*pszUTF8String);
+    szUTF8String = static_cast<PCHAR>(WIL_AllocateMemory(cbUTF8String));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(szUTF8String);
 
-    Status = RtlUnicodeToUTF8N(*pszUTF8String, cbUTF8String, &cbUTF8String,
+    Status = RtlUnicodeToUTF8N(szUTF8String, cbUTF8String, &cbUTF8String,
                                wszUnicodeString, ulcbUnicodeString);
     RETURN_IF_NTSTATUS_FAILED(Status);
+
+    *pszUTF8String = szUTF8String;
+    szUTF8String = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -189,8 +197,13 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     ULONG cbUnicodeString = 0;
     SIZE_T cbUTF8String = strlen(szUTF8String) + 1;
     ULONG ulcbUTF8String;
+    PWSTR wszUnicodeString = nullptr;
 
     *pwszUnicodeString = nullptr;
+
+    auto cleanup = wil::scope_exit([&]() {
+        WIL_FreeMemory(wszUnicodeString);
+    });
 
     Status = RtlSizeTToULong(cbUTF8String, &ulcbUTF8String);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -198,12 +211,15 @@ UTF8ToUnicodeAlloc(_In_ const PCHAR szUTF8String,
     Status = RtlUTF8ToUnicodeN(nullptr, 0, &cbUnicodeString, szUTF8String, ulcbUTF8String);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    *pwszUnicodeString = static_cast<PWSTR>(WIL_AllocateMemory(cbUnicodeString));
-    RETURN_NTSTATUS_IF_NULL_ALLOC(*pwszUnicodeString);
+    wszUnicodeString = static_cast<PWSTR>(WIL_AllocateMemory(cbUnicodeString));
+    RETURN_NTSTATUS_IF_NULL_ALLOC(wszUnicodeString);
 
-    Status = RtlUTF8ToUnicodeN(*pwszUnicodeString, cbUnicodeString, &cbUnicodeString,
+    Status = RtlUTF8ToUnicodeN(wszUnicodeString, cbUnicodeString, &cbUnicodeString,
                                szUTF8String, ulcbUTF8String);
     RETURN_IF_NTSTATUS_FAILED(Status);
+
+    *pwszUnicodeString = wszUnicodeString;
+    wszUnicodeString = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
@@ -213,9 +229,13 @@ DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
 {
     NTSTATUS Status;
     ULONG SidLength;
-    PSID Sid;
+    PSID Sid = nullptr;
 
     *DestinationSid = nullptr;
+
+    auto cleanup = wil::scope_exit([&]() {
+        RtlFreeSid(Sid);
+    });
 
     if (SourceSid == nullptr)
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
@@ -226,11 +246,10 @@ DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
     Status = RtlCopySid(SidLength, Sid, SourceSid);
-    if (!NT_SUCCESS(Status))
-        RtlFreeSid(Sid);
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
     *DestinationSid = Sid;
+    Sid = nullptr;
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
