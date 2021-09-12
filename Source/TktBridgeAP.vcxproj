@@ -41,7 +41,7 @@
     <CreateProperty Value="$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)">
       <Output TaskParameter="Value" PropertyName="Version" />
     </CreateProperty>
-     <Message Importance="high" Text="Build Version: $(Version)" />
+    <Message Importance="high" Text="Build Version: $(Version)" />
   </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -124,7 +124,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5;$(WindowsSdkDir)include\$(WindowsTargetPlatformVersion)\km</AdditionalIncludeDirectories>
       <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
@@ -161,7 +161,7 @@ nmake
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5;$(WindowsSdkDir)include\$(WindowsTargetPlatformVersion)\km</AdditionalIncludeDirectories>
       <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
@@ -198,7 +198,7 @@ nmake
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5;$(WindowsSdkDir)include\$(WindowsTargetPlatformVersion)\km</AdditionalIncludeDirectories>
       <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>
@@ -232,7 +232,7 @@ nmake
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(WilIncludeDir);$(WilIncludeDir)\wil;$(DetoursIncludeDir);$(HeimdalSDKIncDir)\heimdal;$(HeimdalSDKIncDir)\krb5;$(WindowsSdkDir)include\$(WindowsTargetPlatformVersion)\km</AdditionalIncludeDirectories>
       <CallingConvention>StdCall</CallingConvention>
     </ClCompile>
     <Link>

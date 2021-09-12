@@ -90,7 +90,7 @@
 #include <wil/registry.h>
 #include <wil/nt_result_macros.h>
 
-#include <../km/ntintsafe.h>
+#include <ntintsafe.h> // kernel-mode header with NTSTATUS-returning safe integer helpers
 
 #include "Heimdal.h"
 #include "TktBridgeAP-trace.h"
