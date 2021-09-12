@@ -353,8 +353,10 @@ UnprotectString(_In_ PUNICODE_STRING Protected,
     RtlInitUnicodeString(Unprotected, nullptr);
 
     auto cleanup = wil::scope_exit([&]() {
-        if (bImpersonatedClient)
-            RevertToSelf();
+        if (bImpersonatedClient) {
+            if (!RevertToSelf())
+                Status = STATUS_NO_IMPERSONATION_TOKEN;
+        }
 
         if (wszUnprotected != nullptr) {
             SecureZeroMemory(wszUnprotected, cchUnprotected * sizeof(WCHAR));
@@ -405,7 +407,9 @@ UnprotectString(_In_ PUNICODE_STRING Protected,
 
     Unprotected->Length = Unprotected->MaximumLength - sizeof(WCHAR);
 
-    RETURN_NTSTATUS(STATUS_SUCCESS);
+    Status = STATUS_SUCCESS;
+
+    RETURN_NTSTATUS(Status);
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
