@@ -597,13 +597,54 @@ ConvertKerbInteractiveLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     RETURN_NTSTATUS(STATUS_SUCCESS);
 }
 
+static VOID
+GetLogonCspDataOffsetAndFlags(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                              _In_ ULONG SubmitBufferSize,
+                              _Out_ PULONG_PTR pCspDataOffset,
+                              _Out_ PULONG pulCspDataLength,
+                              _Out_ PULONG pulKerbCertLogonFlags)
+{
+    auto LogonSubmitType = *static_cast<KERB_LOGON_SUBMIT_TYPE *>(ProtocolSubmitBuffer);
+
+    if (LogonSubmitType == KerbCertificateLogon || LogonSubmitType == KerbCertificateUnlockLogon) {
+        if (IsWowClient()) {
+            auto pKCL32 = static_cast<PKERB_CERTIFICATE_LOGON_WOW>(ProtocolSubmitBuffer);
+            assert(SubmitBufferSize >= sizeof(*pKCL32));
+            *pCspDataOffset        = pKCL32->CspData;
+            *pulCspDataLength      = pKCL32->CspDataLength;
+            *pulKerbCertLogonFlags = pKCL32->Flags;
+        } else {
+            auto pKCL = static_cast<PKERB_CERTIFICATE_LOGON>(ProtocolSubmitBuffer);
+            assert(SubmitBufferSize >= sizeof(*pKCL));
+            *pCspDataOffset        = reinterpret_cast<ULONG_PTR>(pKCL->CspData);
+            *pulCspDataLength      = pKCL->CspDataLength;
+            *pulKerbCertLogonFlags = pKCL->Flags;
+        }
+    } else if (LogonSubmitType == KerbSmartCardLogon || LogonSubmitType == KerbSmartCardUnlockLogon) {
+        if (IsWowClient()) {
+            auto pKSCL32 = static_cast<PKERB_SMART_CARD_LOGON_WOW>(ProtocolSubmitBuffer);
+            assert(SubmitBufferSize >= sizeof(*pKSCL32));
+            *pCspDataOffset        = pKSCL32->CspData;
+            *pulCspDataLength      = pKSCL32->CspDataLength;
+        } else {
+            auto pKSCL = static_cast<PKERB_SMART_CARD_LOGON>(ProtocolSubmitBuffer);
+            assert(SubmitBufferSize >= sizeof(*pKSCL));
+            *pCspDataOffset        = reinterpret_cast<ULONG_PTR>(pKSCL->CspData);
+            *pulCspDataLength      = pKSCL->CspDataLength;
+        }
+        *pulKerbCertLogonFlags = 0;
+    } else {
+        assert(0 && "Invalid logon type");
+    }
+}
+
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
-                                         _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
-                                         _In_ PVOID ClientBufferBase,
-                                         _In_ ULONG SubmitBufferSize,
-                                         _In_ PUNICODE_STRING UnprotectedPin,
-                                         _Out_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS *pPackedCredentials)
+ConvertKerbSmartCardOrCertLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                             _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                             _In_ PVOID ClientBufferBase,
+                                             _In_ ULONG SubmitBufferSize,
+                                             _In_ PUNICODE_STRING UnprotectedPin,
+                                             _Out_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS *pPackedCredentials)
 {
     NTSTATUS Status;
     PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials = nullptr;
@@ -612,7 +653,7 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     PBYTE CspData;
     PBYTE ClientCspData = nullptr;
     ULONG CspDataLength = 0;
-    ULONG KerbCertificateLogonFlags;
+    ULONG KerbCertificateLogonFlags = 0;
 
     auto cleanup = wil::scope_exit([&]() {
         if (ClientCspData != nullptr) {
@@ -622,17 +663,11 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
         SecureFreePackedCredentials(PackedCredentials);
     });
 
-    if (IsWowClient()) {
-        auto pKCL32 = static_cast<PKERB_CERTIFICATE_LOGON_WOW>(ProtocolSubmitBuffer);
-        CspDataOffset             = pKCL32->CspData;
-        CspDataLength             = pKCL32->CspDataLength;
-        KerbCertificateLogonFlags = pKCL32->Flags;
-    } else {
-        auto pKCL = static_cast<PKERB_CERTIFICATE_LOGON>(ProtocolSubmitBuffer);
-        CspDataOffset             = reinterpret_cast<ULONG_PTR>(pKCL->CspData);
-        CspDataLength             = pKCL->CspDataLength;
-        KerbCertificateLogonFlags = pKCL->Flags;
-    }
+    GetLogonCspDataOffsetAndFlags(ProtocolSubmitBuffer,
+                                  SubmitBufferSize,
+                                  &CspDataOffset,
+                                  &CspDataLength,
+                                  &KerbCertificateLogonFlags);
 
     Status = ValidateOffset(SubmitBufferSize, CspDataOffset, CspDataLength);
     if (NT_SUCCESS(Status)) {
@@ -700,6 +735,66 @@ ConvertKerbCertificateLogonToPackedCreds(_In_ PLSA_CLIENT_REQUEST ClientRequest,
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
+ConvertKerbSmartCardLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
+                                        _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
+                                        _In_ PVOID ClientBufferBase,
+                                        _In_ ULONG SubmitBufferSize,
+                                        _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
+{
+    NTSTATUS Status;
+    UNICODE_STRING Pin, UnprotectedPin;
+    PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials = nullptr;
+
+    *pAuthIdentity = nullptr;
+
+    RtlInitUnicodeString(&Pin, nullptr);
+    RtlInitUnicodeString(&UnprotectedPin, nullptr);
+
+    auto cleanup = wil::scope_exit([&]() {
+        SecureFreeUnicodeString(&Pin);
+        SecureFreeUnicodeString(&UnprotectedPin);
+        SecureFreePackedCredentials(PackedCredentials);
+    });
+
+    if (IsWowClient()) {
+        PKERB_SMART_CARD_LOGON_WOW pKSCL32;
+
+        if (SubmitBufferSize < sizeof(*pKSCL32))
+            RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+        pKSCL32 = static_cast<PKERB_SMART_CARD_LOGON_WOW>(ProtocolSubmitBuffer);
+        VALIDATE_UNPACK_UNICODE_STRING32(pKSCL32->Pin,        Pin);
+    } else {
+        PKERB_SMART_CARD_LOGON pKSCL;
+
+        if (SubmitBufferSize < sizeof(*pKSCL))
+            RETURN_NTSTATUS(STATUS_BUFFER_TOO_SMALL);
+
+        pKSCL = static_cast<PKERB_SMART_CARD_LOGON>(ProtocolSubmitBuffer);
+        VALIDATE_UNPACK_UNICODE_STRING(pKSCL->Pin,            Pin);
+    }
+
+    Status = UnprotectString(&Pin, &UnprotectedPin);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    Status = ConvertKerbSmartCardOrCertLogonToPackedCreds(ClientRequest,
+                                                          ProtocolSubmitBuffer,
+                                                          ClientBufferBase,
+                                                          SubmitBufferSize,
+                                                          UnprotectedPin.Buffer != nullptr ? &UnprotectedPin : &Pin,
+                                                          &PackedCredentials);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    Status = MakePackedCredentialsAuthIdentityEx2(nullptr,
+                                                  nullptr,
+                                                  PackedCredentials,
+                                                  pAuthIdentity);
+    RETURN_IF_NTSTATUS_FAILED(Status);
+
+    RETURN_NTSTATUS(STATUS_SUCCESS);
+}
+
+static _Success_(return == STATUS_SUCCESS) NTSTATUS
 ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                           _In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                           _In_ PVOID ClientBufferBase,
@@ -757,12 +852,12 @@ ConvertKerbCertificateLogonToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest
     Status = UnprotectString(&Pin, &UnprotectedPin);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    Status = ConvertKerbCertificateLogonToPackedCreds(ClientRequest,
-                                                      ProtocolSubmitBuffer,
-                                                      ClientBufferBase,
-                                                      SubmitBufferSize,
-                                                      UnprotectedPin.Buffer != nullptr ? &UnprotectedPin : &Pin,
-                                                      &PackedCredentials);
+    Status = ConvertKerbSmartCardOrCertLogonToPackedCreds(ClientRequest,
+                                                          ProtocolSubmitBuffer,
+                                                          ClientBufferBase,
+                                                          SubmitBufferSize,
+                                                          UnprotectedPin.Buffer != nullptr ? &UnprotectedPin : &Pin,
+                                                          &PackedCredentials);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     Status = MakePackedCredentialsAuthIdentityEx2(&UserName,
@@ -881,6 +976,14 @@ ConvertLogonSubmitBufferToAuthIdentity(_In_ PLSA_CLIENT_REQUEST ClientRequest,
                                                            ClientBufferBase,
                                                            SubmitBufferSize,
                                                            pAuthIdentity);
+        break;
+    case KerbSmartCardLogon:
+    case KerbSmartCardUnlockLogon:
+        Status = ConvertKerbSmartCardLogonToAuthIdentity(ClientRequest,
+                                                         ProtocolSubmitBuffer,
+                                                         ClientBufferBase,
+                                                         SubmitBufferSize,
+                                                         pAuthIdentity);
         break;
     case KerbCertificateLogon:
     case KerbCertificateUnlockLogon:
