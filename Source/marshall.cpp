@@ -795,7 +795,7 @@ GetAuthIdentityDecryptOptions(_In_ PSEC_WINNT_AUTH_IDENTITY_EX2 AuthIdentity,
     *pbImpersonateRequired = !!(AuthIdentity->Flags & SEC_WINNT_AUTH_IDENTITY_FLAGS_USER_PROTECTED);
 }
 
-static _Success_(return == STATUS_SUCCESS) NTSTATUS
+static _Success_(return == SEC_E_OK) SECURITY_STATUS
 UnmarshalAndDecryptAuthIdentityEx2(_In_reads_bytes_(SubmitBufferSize) PVOID ProtocolSubmitBuffer,
                                    _In_ ULONG SubmitBufferSize,
                                    _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
@@ -808,8 +808,10 @@ UnmarshalAndDecryptAuthIdentityEx2(_In_reads_bytes_(SubmitBufferSize) PVOID Prot
     *pAuthIdentity = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
-        if (bImpersonatedClient)
-            RevertToSelf();
+        if (bImpersonatedClient) {
+            if (!RevertToSelf())
+                SecStatus = STATUS_NO_IMPERSONATION_TOKEN;
+        }
 
         SspiFreeAuthIdentity(AuthIdentity);
     });
@@ -842,7 +844,9 @@ UnmarshalAndDecryptAuthIdentityEx2(_In_reads_bytes_(SubmitBufferSize) PVOID Prot
     *pAuthIdentity = AuthIdentity;
     AuthIdentity = nullptr;
 
-    RETURN_NTSTATUS(STATUS_SUCCESS);
+    SecStatus = SEC_E_OK;
+
+    RETURN_NTSTATUS(SecStatus);
 }
 
 _Success_(return == STATUS_SUCCESS) NTSTATUS
