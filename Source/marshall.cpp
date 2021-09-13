@@ -413,9 +413,9 @@ UnprotectString(_In_ PUNICODE_STRING Protected,
 }
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
-MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
-                                     _In_ PUNICODE_STRING DomainName,
-                                     _In_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials,
+MakePackedCredentialsAuthIdentityEx2(_In_opt_ PUNICODE_STRING UserName,
+                                     _In_opt_ PUNICODE_STRING DomainName,
+                                     _In_opt_ PSEC_WINNT_AUTH_PACKED_CREDENTIALS PackedCredentials,
                                      _Out_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE *pAuthIdentity)
 {
     NTSTATUS Status;
@@ -445,13 +445,13 @@ MakePackedCredentialsAuthIdentityEx2(_In_ PUNICODE_STRING UserName,
     Status = RtlSizeTToULong(cbAuthIdentityEx2, &AuthIdentityEx2->cbStructureLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
-    if (UserName->Buffer != nullptr) {
+    if (UserName != nullptr && UserName->Buffer != nullptr) {
         AuthIdentityEx2->UserOffset          = AuthIdentityEx2->cbHeaderLength;
         AuthIdentityEx2->UserLength          = UserName->Length;
         memcpy(AuthIdentityEx2Base + AuthIdentityEx2->UserOffset, UserName->Buffer, UserName->Length);
     }
 
-    if (DomainName->Buffer != nullptr) {
+    if (DomainName != nullptr && DomainName->Buffer != nullptr) {
         AuthIdentityEx2->DomainOffset        = AuthIdentityEx2->UserOffset + AuthIdentityEx2->UserLength;
         AuthIdentityEx2->DomainLength        = DomainName->Length;
         memcpy(AuthIdentityEx2Base + AuthIdentityEx2->DomainOffset, DomainName->Buffer, DomainName->Length);
