@@ -78,7 +78,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
         if (KrbCrypto != nullptr) {
             krb5_crypto_destroy(KrbContext, KrbCrypto);
         }
-                                   });
+    });
 
     SecStatus = QueryContextAttributes(phContext, SECPKG_ATTR_SESSION_KEY, &SessionKey);
     if (SecStatus != SEC_E_OK) {
