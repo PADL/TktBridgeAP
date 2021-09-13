@@ -445,20 +445,20 @@ MakePackedCredentialsAuthIdentityEx2(_In_opt_ PUNICODE_STRING UserName,
 
     auto AuthIdentityEx2Base = reinterpret_cast<PBYTE>(AuthIdentityEx2);
 
-    AuthIdentityEx2->Version                 = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
-    AuthIdentityEx2->cbHeaderLength          = sizeof(*AuthIdentityEx2);
+    AuthIdentityEx2->Version = SEC_WINNT_AUTH_IDENTITY_VERSION_2;
+    AuthIdentityEx2->cbHeaderLength = sizeof(*AuthIdentityEx2);
     Status = RtlSizeTToULong(cbAuthIdentityEx2, &AuthIdentityEx2->cbStructureLength);
     RETURN_IF_NTSTATUS_FAILED(Status);
 
     if (UserName != nullptr && UserName->Buffer != nullptr) {
-        AuthIdentityEx2->UserOffset          = AuthIdentityEx2->cbHeaderLength;
-        AuthIdentityEx2->UserLength          = UserName->Length;
+        AuthIdentityEx2->UserOffset = AuthIdentityEx2->cbHeaderLength;
+        AuthIdentityEx2->UserLength = UserName->Length;
         memcpy(AuthIdentityEx2Base + AuthIdentityEx2->UserOffset, UserName->Buffer, UserName->Length);
     }
 
     if (DomainName != nullptr && DomainName->Buffer != nullptr) {
-        AuthIdentityEx2->DomainOffset        = AuthIdentityEx2->UserOffset + AuthIdentityEx2->UserLength;
-        AuthIdentityEx2->DomainLength        = DomainName->Length;
+        AuthIdentityEx2->DomainOffset = AuthIdentityEx2->UserOffset + AuthIdentityEx2->UserLength;
+        AuthIdentityEx2->DomainLength = DomainName->Length;
         memcpy(AuthIdentityEx2Base + AuthIdentityEx2->DomainOffset, DomainName->Buffer, DomainName->Length);
     }
 
