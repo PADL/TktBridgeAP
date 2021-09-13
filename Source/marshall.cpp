@@ -428,8 +428,13 @@ MakePackedCredentialsAuthIdentityEx2(_In_opt_ PUNICODE_STRING UserName,
         SspiFreeAuthIdentity(AuthIdentityEx2);
     });
 
-    cbAuthIdentityEx2 = sizeof(*AuthIdentityEx2) +
-        DomainName->Length + UserName->Length + PackedCredentials->cbStructureLength;
+    cbAuthIdentityEx2 = sizeof(*AuthIdentityEx2);
+    if (DomainName != nullptr)
+        cbAuthIdentityEx2 += DomainName->Length;
+    if (UserName != nullptr)
+        cbAuthIdentityEx2 += UserName->Length;
+    if (PackedCredentials != nullptr)
+        cbAuthIdentityEx2 += PackedCredentials->cbStructureLength;
 
     // round up for encryption padding
     cbAuthIdentityEx2 = (cbAuthIdentityEx2 + 7) & ~7;
