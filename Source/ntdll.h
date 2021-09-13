@@ -75,7 +75,7 @@ NTSTATUS NTAPI
 RtlUTF8ToUnicodeN(_Out_writes_bytes_(*UnicodeStringActualByteCount) PWSTR UnicodeStringDestination,
                   _In_ ULONG UnicodeStringMaxByteCount,
                   _Out_ PULONG UnicodeStringActualByteCount,
-                  _In_reads_bytes_(UTF8StringByteCount) PCCH  UTF8StringSource,
+                  _In_reads_bytes_(UTF8StringByteCount) PCCH UTF8StringSource,
                   _In_ ULONG UTF8StringByteCount);
 
 /*
