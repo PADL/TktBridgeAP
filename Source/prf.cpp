@@ -72,9 +72,7 @@ RFC4401PRF(_In_ krb5_context KrbContext,
             WIL_FreeMemory(*pbPrfOutput);
             *pbPrfOutput = nullptr;
         }
-        if (Input.data) {
-            WIL_FreeMemory(Input.data);
-        }
+        WIL_FreeMemory(Input.data);
         if (KrbCrypto != nullptr) {
             krb5_crypto_destroy(KrbContext, KrbCrypto);
         }
