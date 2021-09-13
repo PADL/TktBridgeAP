@@ -116,14 +116,14 @@ RFC4401PRF(_In_ krb5_context KrbContext,
 
     *pcbPrfOutput = KeySize;
 
-    Input.length = 4 + static_cast<SIZE_T>(cbPrfInput);
+    Input.length = sizeof(ULONG) + static_cast<SIZE_T>(cbPrfInput);
     Input.data = WIL_AllocateMemory(Input.length);
     if (Input.data == nullptr) {
         KrbError = ENOMEM;
         return KrbError;
     }
 
-    memcpy(static_cast<PBYTE>(Input.data) + 4, pbPrfInput, cbPrfInput);
+    memcpy(static_cast<PBYTE>(Input.data) + sizeof(ULONG), pbPrfInput, cbPrfInput);
 
     ULONG iPrf = 0;
     auto pbPrf = static_cast<PBYTE>(*pbPrfOutput);
