@@ -334,8 +334,8 @@ typedef SECURITY_STATUS
 (SEC_ENTRY *PSSPI_ENCRYPT_AUTH_IDENTITY_EX)(_In_ ULONG Options,
                                             _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData);
 
-static PSSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiEncryptAuthIdentityEx;
-static PSSPI_ENCRYPT_AUTH_IDENTITY_EX WeakImportSspiDecryptAuthIdentityEx;
+static PSSPI_ENCRYPT_AUTH_IDENTITY_EX _weak_imp_SspiEncryptAuthIdentityEx;
+static PSSPI_ENCRYPT_AUTH_IDENTITY_EX _weak_imp_SspiDecryptAuthIdentityEx;
 
 static _Success_(return == STATUS_SUCCESS) NTSTATUS
 InitializeWeakImports(VOID)
@@ -346,13 +346,13 @@ InitializeWeakImports(VOID)
     if (hSspiCli == nullptr)
         RETURN_NTSTATUS(STATUS_DLL_NOT_FOUND);
 
-    WeakImportSspiEncryptAuthIdentityEx =
+    _weak_imp_SspiEncryptAuthIdentityEx =
         reinterpret_cast<PSSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiEncryptAuthIdentityEx"));
-    WeakImportSspiDecryptAuthIdentityEx =
+    _weak_imp_SspiDecryptAuthIdentityEx =
         reinterpret_cast<PSSPI_ENCRYPT_AUTH_IDENTITY_EX>(GetProcAddress(hSspiCli, "SspiDecryptAuthIdentityEx"));
 
-    if (WeakImportSspiEncryptAuthIdentityEx == nullptr ||
-        WeakImportSspiDecryptAuthIdentityEx == nullptr)
+    if (_weak_imp_SspiEncryptAuthIdentityEx == nullptr ||
+        _weak_imp_SspiDecryptAuthIdentityEx == nullptr)
         RETURN_NTSTATUS(STATUS_ENTRYPOINT_NOT_FOUND);
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
@@ -362,13 +362,13 @@ SECURITY_STATUS SEC_ENTRY
 SspiEncryptAuthIdentityEx(_In_ ULONG Options,
                           _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData)
 {
-    if (WeakImportSspiEncryptAuthIdentityEx == nullptr) {
+    if (_weak_imp_SspiEncryptAuthIdentityEx == nullptr) {
         if (Options == SEC_WINNT_AUTH_IDENTITY_ENCRYPT_SAME_PROCESS)
             return SspiEncryptAuthIdentity(AuthData);
         else
             return SEC_E_ENCRYPT_FAILURE;
     } else {
-        return WeakImportSspiEncryptAuthIdentityEx(Options, AuthData);
+        return _weak_imp_SspiEncryptAuthIdentityEx(Options, AuthData);
     }
 }
 
@@ -376,12 +376,12 @@ SECURITY_STATUS SEC_ENTRY
 SspiDecryptAuthIdentityEx(_In_ ULONG Options,
                           _Inout_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthData)
 {
-    if (WeakImportSspiDecryptAuthIdentityEx == nullptr) {
+    if (_weak_imp_SspiDecryptAuthIdentityEx == nullptr) {
         if (Options == SEC_WINNT_AUTH_IDENTITY_ENCRYPT_SAME_PROCESS)
             return SspiDecryptAuthIdentity(AuthData);
         else
             return SEC_E_ENCRYPT_FAILURE;
     } else {
-        return WeakImportSspiDecryptAuthIdentityEx(Options, AuthData);
+        return _weak_imp_SspiDecryptAuthIdentityEx(Options, AuthData);
     }
 }

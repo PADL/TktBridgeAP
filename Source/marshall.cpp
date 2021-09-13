@@ -348,7 +348,7 @@ UnprotectString(_In_ PUNICODE_STRING Protected,
     bool bImpersonatedClient = false;
 
     assert(Protected->MaximumLength >= Protected->Length + sizeof(WCHAR));
-    assert(Protected->Buffer[Protected->Length / sizeof(WCHAR)] == L'\0');
+    _ASSERT(Protected->Buffer[Protected->Length / sizeof(WCHAR)] == L'\0');
 
     RtlInitUnicodeString(Unprotected, nullptr);
 
