@@ -115,7 +115,7 @@ SpShutdown(VOID)
 
     DetachKerbLogonDetour();
 
-    RtlFreeSid(SpParameters.DomainSid);
+    WIL_FreeMemory(SpParameters.DomainSid);
     RtlFreeUnicodeString(&SpParameters.DomainName);
     RtlFreeUnicodeString(&SpParameters.DnsDomainName);
     ZeroMemory(&SpParameters, sizeof(SpParameters));

@@ -234,7 +234,7 @@ DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
     *DestinationSid = nullptr;
 
     auto cleanup = wil::scope_exit([&]() {
-        RtlFreeSid(Sid);
+        WIL_FreeMemory(Sid);
     });
 
     if (SourceSid == nullptr)
@@ -242,7 +242,7 @@ DuplicateSid(_Out_ PSID *DestinationSid, _In_ PSID SourceSid)
 
     SidLength = RtlLengthSid(SourceSid);
 
-    Sid = static_cast<PSID>(RtlAllocateHeap(GetProcessHeap(), 0, SidLength));
+    Sid = static_cast<PSID>(WIL_AllocateMemory(SidLength));
     RETURN_NTSTATUS_IF_NULL_ALLOC(Sid);
 
     Status = RtlCopySid(SidLength, Sid, SourceSid);
