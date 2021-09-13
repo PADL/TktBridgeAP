@@ -111,7 +111,6 @@ FindCredsForLogonSession(_In_ const LUID &LogonId,
                          _Out_ PTKTBRIDGEAP_CREDS *pTktBridgeCreds)
 {
     NTSTATUS Status = STATUS_NO_SUCH_LOGON_SESSION;
-    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     *pTktBridgeCreds = nullptr;
 
@@ -119,7 +118,9 @@ FindCredsForLogonSession(_In_ const LUID &LogonId,
         RETURN_NTSTATUS(STATUS_NO_SUCH_LOGON_SESSION);
 
     try {
+        std::lock_guard CredsCacheLockGuard(CredsCacheLock);
         auto CacheEntry = CredsCache.find(LogonId);
+
         if (CacheEntry != CredsCache.end()) {
             *pTktBridgeCreds = ReferenceTktBridgeCreds(CacheEntry->second.get());
             Status = STATUS_SUCCESS;
@@ -142,12 +143,13 @@ SaveCredsForLogonSession(_In_ const LUID &LogonId,
                          _In_ PTKTBRIDGEAP_CREDS TktBridgeCreds)
 {
     NTSTATUS Status;
-    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     if (IsZeroLuid(LogonId))
         RETURN_NTSTATUS(STATUS_INVALID_PARAMETER);
 
     try {
+        std::lock_guard CredsCacheLockGuard(CredsCacheLock);
+
         CredsCache.erase(LogonId);
         CredsCache.emplace(LogonId, Credentials(TktBridgeCreds));
         assert(TktBridgeCreds->RefCount > 1);
@@ -168,13 +170,14 @@ _Success_(return == STATUS_SUCCESS) NTSTATUS
 RemoveCredsForLogonSession(_In_ const LUID &LogonId)
 {
     NTSTATUS Status;
-    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     if (IsZeroLuid(LogonId))
         RETURN_NTSTATUS(STATUS_NO_SUCH_LOGON_SESSION);
 
     try {
+        std::lock_guard CredsCacheLockGuard(CredsCacheLock);
         auto Count = CredsCache.erase(LogonId);
+
         Status = Count == 0 ? STATUS_NO_SUCH_LOGON_SESSION : STATUS_SUCCESS;
         RETURN_IF_NTSTATUS_FAILED_EXPECTED(Status); // logon may belong to another package
     } catch (std::bad_alloc) {
@@ -195,7 +198,6 @@ TransferCredsFromLogonSession(_In_ const LUID &OriginLogonId,
                               _In_ ULONG Flags)
 {
     NTSTATUS Status = STATUS_NO_SUCH_LOGON_SESSION;
-    std::lock_guard CredsCacheLockGuard(CredsCacheLock);
 
     if (IsZeroLuid(OriginLogonId))
         RETURN_NTSTATUS(STATUS_NO_SUCH_LOGON_SESSION);
@@ -212,7 +214,9 @@ TransferCredsFromLogonSession(_In_ const LUID &OriginLogonId,
                Flags);
 
     try {
+        std::lock_guard CredsCacheLockGuard(CredsCacheLock);
         auto CacheEntry = CredsCache.find(OriginLogonId);
+
         if (CacheEntry != CredsCache.end()) {
             if (Flags & SECPKG_CALL_PACKAGE_TRANSFER_CRED_REQUEST_FLAG_CLEANUP_CREDENTIALS)
                 CredsCache.erase(OriginLogonId);

@@ -277,11 +277,11 @@ GetGlobalConfigValue(std::optional<std::wstring> &ConfigValue,
                      std::wstring &Buffer,
                      PCWSTR *pValue)
 {
-    std::lock_guard GlobalsLockGuard(APGlobalsLock);
-
     *pValue = nullptr;
 
     try {
+        std::lock_guard GlobalsLockGuard(APGlobalsLock);
+
         if (ConfigValue.has_value()) {
             Buffer = ConfigValue.value();
             *pValue = Buffer.c_str();
@@ -311,9 +311,9 @@ bool
 IsEnabledUPNSuffix(PCWSTR Suffix,
                    bool *Authoritative)
 {
-    std::lock_guard GlobalsLockGuard(APGlobalsLock);
-
     try {
+        std::lock_guard GlobalsLockGuard(APGlobalsLock);
+
         *Authoritative = !APUPNSuffixes.empty();
 
         if (*Authoritative) {
