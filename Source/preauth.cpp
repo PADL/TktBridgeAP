@@ -205,7 +205,7 @@ GssPreauthStep(krb5_context KrbContext,
         krb5_free_principal(KrbContext, TgsName);
         WIL_FreeMemory(TargetName);
         WIL_FreeMemory(ChannelBindings);
-                                   });
+    });
 
     PSecPkgInfo SecurityInfo;
     SecStatus = QuerySecurityPackageInfo(const_cast<PWSTR>(Mech->Package), &SecurityInfo);
@@ -346,7 +346,7 @@ GssPreauthFinish(krb5_context KrbContext,
     auto cleanup = wil::scope_exit([&]() {
         FreeContextBuffer(NativeNames.sClientName);
         FreeContextBuffer(NativeNames.sServerName);
-                                   });
+    });
 
     SecStatus = QueryContextAttributes(&GssContextHandle->Handle,
                                        SECPKG_ATTR_NATIVE_NAMES,
@@ -506,7 +506,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
 
         SspiFreeAuthIdentity(NegoAuthIdentity);
         FreeCredentialsHandle(&GssCredHandle.Handle);
-                                   });
+    });
 
     SspiEncodeAuthIdentityAsStrings(AuthIdentity, &wszUserName, &wszDomainName, nullptr);
 

@@ -160,7 +160,7 @@ AttachKerbLogonDetour(VOID)
     auto cleanup = wil::scope_exit([&]() {
         if (dwError != ERROR_SUCCESS && BegunTransaction)
             DetourTransactionAbort();
-                                   });
+    });
 
     dwError = LoadKerbPackage();
     RETURN_IF_WIN32_ERROR(dwError);

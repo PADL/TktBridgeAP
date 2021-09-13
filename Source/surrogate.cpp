@@ -57,7 +57,7 @@ RetrieveTktBridgeCreds(LUID LogonId,
 
     auto cleanup = wil::scope_exit([&]() {
         DereferenceTktBridgeCreds(TktBridgeCreds);
-                                   });
+    });
 
     if (TktBridgeCreds != nullptr) {
         ReferenceTktBridgeCreds(TktBridgeCreds);
@@ -167,7 +167,7 @@ ValidateSurrogateLogonDomain(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity)
         NetApiBufferFree(Domains);
         SspiLocalFree((PVOID)wszUserName);
         SspiLocalFree((PVOID)wszDomainName);
-                                   });
+    });
 
     SecStatus = SspiEncodeAuthIdentityAsStrings(AuthIdentity, &wszUserName,
                                                 &wszDomainName, nullptr);
@@ -253,7 +253,7 @@ AcquireTktBridgeCreds(_In_ PSEC_WINNT_AUTH_IDENTITY_OPAQUE AuthIdentity,
     auto cleanup = wil::scope_exit([&]() {
         DereferenceTktBridgeCreds(TktBridgeCreds);
         RtlFreeUnicodeString(&RealmName);
-                                   });
+    });
 
     TktBridgeCreds = AllocateTktBridgeCreds();
     RETURN_NTSTATUS_IF_NULL_ALLOC(TktBridgeCreds);
@@ -379,7 +379,7 @@ LsaApPreLogonUserSurrogate(_In_ PLSA_CLIENT_REQUEST ClientRequest,
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
         DereferenceTktBridgeCreds(TktBridgeCreds);
-                                   });
+    });
 
     if (ProtocolSubmitBuffer == nullptr || SubmitBufferSize == 0 ||
         SubStatus == nullptr || SurrogateLogon == nullptr)
@@ -521,7 +521,7 @@ RefreshTktBridgeCreds(_In_ const LUID &LogonId,
 
     auto cleanup = wil::scope_exit([&]() {
         SspiFreeAuthIdentity(AuthIdentity);
-                                   });
+    });
 
     Status = SspiCopyAuthIdentity(ExistingCreds->InitialCreds, &AuthIdentity);
     RETURN_IF_NTSTATUS_FAILED(Status);
@@ -591,7 +591,7 @@ DebugValidateTktBridgeCreds(_In_ PTKTBRIDGEAP_CREDS Creds)
             krb5_free_context(KrbContext);
             krb5_data_free(&Data);
         }
-                                   });
+    });
 
     KrbError = decode_AS_REP(static_cast<PBYTE>(Creds->AsRep.data),
                              Creds->AsRep.length,
