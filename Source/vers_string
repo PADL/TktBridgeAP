@@ -33,17 +33,35 @@ if (!defined($PROJECT)) {
 	}
 }
 
+sub beginCxxGuard() {
+        my ($filehandle) = @_;
+        print $filehandle "#ifdef __cplusplus\n";
+        print $filehandle "extern " . '"C"' . " { \n";
+        print $filehandle "#endif\n\n";
+}
+
+sub endCxxGuard() {
+        my ($filehandle) = @_;
+        print $filehandle "#ifdef __cplusplus\n";
+        print $filehandle "}\n";
+        print $filehandle "#endif\n";
+}
+
 if ($ARGV[0] eq "-f") {
 	print $PROJECT, $SEP, $VERSION, "\n";
 } elsif ($ARGV[0] eq "-l") {
+        &beginCxxGuard(STDOUT);
 	print "static const char SGS_VERS[] = \"";
 	print '@(#)LIBRARY:', $PROGRAM, '  PROJECT:', $PROJECT, $SEP, $VERSION, '  DEVELOPER:', $AUTHOR,  '  BUILT:', $DATE;
 	print "\";\n";
+        &endCxxGuard(STDOUT);
 } elsif ($ARGV[0] eq "-c") {
+        &beginCxxGuard(STDOUT);
 	print "const char SGS_VERS[] = \"";
 	print '@(#)PROGRAM:', $PROGRAM, '  PROJECT:', $PROJECT, $SEP, $VERSION, '  DEVELOPER:', $AUTHOR,  '  BUILT:', $DATE;
 	print "\";\n";
 	print "const char VERS_NUM[] = \"$VERSION\";\n";
+        &endCxxGuard(STDOUT);
 } elsif ($ARGV[0] eq "-n") {
 	print "$VERSION\n";
 } elsif ($ARGV[0] eq "-N") {
@@ -80,10 +98,12 @@ if ($ARGV[0] eq "-f") {
 	if ($OUTFILE eq "version.h") {
 		print OUTFILE "#define USE_SGS_VERS\n\n";
 	}
+        &beginCxxGuard(OUTFILE);
 	print OUTFILE "const char SGS_VERS[] = \"";
 	print OUTFILE '@(#)PROGRAM:', $PROGRAM, '  PROJECT:', $PROJECT, $SEP, $VERSION, '  DEVELOPER:', $AUTHOR,  '  BUILT:', $DATE;
 	print OUTFILE "\";\n\n";
 	print OUTFILE "const char VERS_NUM[] = \"$VERSION\";\n\n";
+        &endCxxGuard(OUTFILE);
 	close(OUTFILE);
 } elsif ($ARGV[0] ne "") {
 	print STDERR "$HEADER\n";
