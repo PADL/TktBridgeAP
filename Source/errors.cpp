@@ -142,6 +142,9 @@ KrbErrorToNtStatus(_In_ krb5_error_code KrbError,
     case EINVAL:
         Status = STATUS_INVALID_PARAMETER;
         break;
+    case ERANGE:
+        Status = STATUS_INTEGER_OVERFLOW;
+        break;
     case KRB5KDC_ERR_POLICY:
     case KRB5KDC_ERR_PATH_NOT_ACCEPTED:
     case KRB5_KDC_ERR_CLIENT_NOT_TRUSTED:
