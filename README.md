@@ -146,9 +146,17 @@ If you have a debug build of TktBridgeAP, make sure the debug Visual C++ librari
 * `vcruntime140_1d.dll`
 * `ucrtbased.dll`
 
-If you do not have a signed build of TktBridgeAP, you must also disable test signing with the command `bcdedit /set TESTSIGNING OFF`.
-
 TktBridgeAP relies on the Heimdal client library assembly that should be installed by recent versions of EapSSP.
+
+Test Signing
+------------
+
+If you have not signed TktBridgeAP with an extended validation (EV) code signing certificate, you will also need to do the following:
+
+* Generate a test signing certificate and update the path in `Source/TktBridgeAP.vcxproj.user` accordingly to point to the PFX file
+* Import the CA certificate into the Trusted Root Certification Authorities local machine store using `certlm.exe`
+* Import the code signing certificate into the Trusted Publishers local machine store
+* Enable test signing mode with the command `bcdedit /set TESTSIGNING ON`.
 
 User configuration
 ------------------
