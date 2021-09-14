@@ -34,15 +34,6 @@
     <ProdVerMajor>1</ProdVerMajor>
     <ProdVerMinor>0</ProdVerMinor>
   </PropertyGroup>
-  <Target Name="GetVersionString" BeforeTargets="Build">
-    <Exec Command="perl -I$(MSBuildProjectDirectory) $(MSBuildProjectDirectory)\vers_string -N" ConsoleToMSBuild="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerBuild" />
-    </Exec>
-    <CreateProperty Value="$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)">
-      <Output TaskParameter="Value" PropertyName="Version" />
-    </CreateProperty>
-    <Message Importance="high" Text="Build Version: $(Version)" />
-  </Target>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -134,6 +125,7 @@
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
+      <AdditionalOptions>/integritycheck %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man
@@ -173,6 +165,7 @@ nmake
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
+      <AdditionalOptions>/integritycheck %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man
@@ -208,6 +201,7 @@ nmake
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
+      <AdditionalOptions>/integritycheck %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -244,6 +238,7 @@ nmake
       <AdditionalLibraryDirectories>$(DetoursLibraryDir);$(HeimdalSDKLibDir)</AdditionalLibraryDirectories>
       <AdditionalDependencies>detours.lib;heimdal.lib;ntdll.lib;kernel32.lib;advapi32.lib;secur32.lib;user32.lib;advapi32.lib;uuid.lib;crypt32.lib;netapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>TktBridgeAP-exports.def</ModuleDefinitionFile>
+      <AdditionalOptions>/integritycheck %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <CustomBuildStep>
       <Command>mc.exe -um $(ProjectDir)\TktBridgeAP-trace.man</Command>
@@ -289,4 +284,22 @@ nmake
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <Target Name="GetVersionString" BeforeTargets="Build">
+    <Exec Command="perl -I$(MSBuildProjectDirectory) $(MSBuildProjectDirectory)\vers_string -N" ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="ProdVerBuild" />
+    </Exec>
+    <CreateProperty Value="$(ProdVerMajor).$(ProdVerMinor).$(ProdVerBuild)">
+      <Output TaskParameter="Value" PropertyName="Version" />
+    </CreateProperty>
+    <Message Importance="high" Text="Build Version: $(Version)" />
+  </Target>
+  <PropertyGroup>
+    <TimestampServer>http://timestamp.digicert.com</TimestampServer>
+    <AdditionalSignToolOptions>/ph $(AdditionalSignToolOptions)</AdditionalSignToolOptions>
+    <SignFile>$(OutputPath)TktBridgeAP.dll</SignFile>
+  </PropertyGroup>
+  <Target Name="Sign" AfterTargets="LinkEmbedManifest">
+      <Exec Command="signtool sign /fd sha1 $(AdditionalSignToolOptions) /t $(TimestampServer) /f $(Certificate) /v $(SignFile)" />
+      <Exec Command="signtool sign /as /fd sha256 /td sha256 $(AdditionalSignToolOptions) /tr $(TimestampServer) /f $(Certificate) /v $(SignFile)" />
+  </Target>
 </Project>
