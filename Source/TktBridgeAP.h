@@ -111,16 +111,14 @@
 #define TKTBRIDGEAP_PACKAGE_COMMENT_W           L"TktBridge Authentication Package"
 
 /*
- * Ticket Bridge credential structure: an AS-REP containing a TGT,
- * optionally with the initial credentials used to acquire it.
- * 
- * Unfortunately CloudAP thinks this structure is a user cache
- * entry and its LsaApPostLogonUserSurrogate will attempt to release
- * it. The workarounds to avoid this are fragile; see cloudapglue.cpp.
+ * TktBridgeAP credentials containing a TGT, optionally along with
+ * the initial credentials used to acquire it. Credentials are
+ * immutable. The AsReplyKey is encrypted with LsaProtectMemory
+ * and InitialCreds with SspiEncryptAuthIdentity. Make a copy
+ * before decrypting; decrypting in-place is not thread-safe.
  *
- * Credentials are immutable and are encrypted with LsaProtectMemory.
- * If you need the key, make a copy. If you need to modify it, create
- * a new one and replace it. That avoids needing a lock.
+ * Credentials are reference counted using ReferenceTktBridgeCreds
+ * and DereferenceTktBridgeCreds.
  */
 
 typedef struct _TKTBRIDGEAP_CREDS {
