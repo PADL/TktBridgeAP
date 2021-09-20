@@ -69,9 +69,11 @@ GetLogonSubmitTypeDescription(KERB_LOGON_SUBMIT_TYPE LogonSubmitType);
 static VOID
 SecureFreeUnicodeString(_Inout_ PUNICODE_STRING UnicodeString)
 {
-    if (UnicodeString != nullptr && UnicodeString->Buffer != nullptr)
-        SecureZeroMemory(UnicodeString->Buffer, UnicodeString->Length);
-    RtlFreeUnicodeString(UnicodeString);
+    if (UnicodeString != nullptr) {
+        if (UnicodeString->Buffer != nullptr)
+            SecureZeroMemory(UnicodeString->Buffer, UnicodeString->Length);
+        RtlFreeUnicodeString(UnicodeString);
+    }
 }
 
 static VOID
