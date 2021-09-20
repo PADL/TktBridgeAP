@@ -181,7 +181,7 @@ SpLsaModeInitialize(_In_ ULONG LsaVersion,
     InitializeRegistryNotification();
     InitializeWeakImports();
 
-    Status = AttachKerbLogonDetour();
+    Status = (AttachKerbLogonDetour() == ERROR_SUCCESS) ? STATUS_SUCCESS : STATUS_ENTRYPOINT_NOT_FOUND;
     NT_RETURN_IF_NTSTATUS_FAILED_MSG(Status, "Failed to attach Kerberos logon interposer");
 
     RETURN_NTSTATUS(STATUS_SUCCESS);
