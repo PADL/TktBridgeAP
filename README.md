@@ -128,7 +128,7 @@ To configure TktBridgeAP itself, set the `KdcHostName` string value in `HKLM\SYS
 
 By default TktBridgeAP will use SPNEGO/NegoEx to authenticate to the KDC. (All versions of Heimdal that support GSS pre-authentication also support NegoEx.) You can force a single package with the `RestrictPackage` key.
 
-To avoid locking out domain users, TktBridgeAP by default will not attempt GSS pre-authentication where the logging in domain matches an Active Directory domain (as opposed to UPN suffix). If you wish to positively associate a set of realms, it can be done with the `DomainSuffixes` registry key. This key is authoritative.
+To avoid locking out domain users, TktBridgeAP by default will not attempt GSS pre-authentication where the logging in domain matches an Active Directory domain (as opposed to UPN suffix). If you wish to positively associate a set of realms, it can be done with the `UPNSuffixes` registry key. This key is authoritative.
 
 There are a variety of additional flags which can be set on TktBridgeAP in the `flags` key:
 
