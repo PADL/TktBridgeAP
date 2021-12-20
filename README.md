@@ -168,7 +168,7 @@ Heimdal also includes a `altsecid_gss_preauth_authorizer` KDC plugin that can ma
 PacRequestorEnforcement
 -----------------------
 
-Recent Windows updates require TGTs to contain the security identifier (RID) of the client that requested the ticket. If the PacRequestorEnforcement registry key is set to 2 (enforce), then you must use the `altsecid_gss_preauth_authorizer' KDC plugin to include the user's SID in the TGT. Note that there still exists a race condition where the user could be renamed between authenticating and SID lookup; to fix this, the KDC would need to be modified to allow user enrolment by both name and SID, which would run contrary to the goal of making the bridge KDC as stateless as possible.
+Recent Windows updates require TGTs to contain the security identifier (RID) of the client that requested the ticket. If the PacRequestorEnforcement registry key is set to 2 (enforce), then you must use the `altsecid_gss_preauth_authorizer` KDC plugin to include the user's SID in the TGT. Note that there still exists a race condition where the user could be renamed between authenticating and SID lookup; to fix this, the KDC would need to be modified to allow user enrolment by both name and SID, which would run contrary to the goal of making the bridge KDC as stateless as possible.
 
 Debugging
 ---------
