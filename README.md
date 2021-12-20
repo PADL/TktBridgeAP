@@ -165,6 +165,11 @@ To enable a user for GSS pre-authentication, they must first be a member of the 
 
 Heimdal also includes a `altsecid_gss_preauth_authorizer` KDC plugin that can map GSS-API initiators to Kerberos principals using the altSecurityIdentities attribute, consistent with how the EAP SSP authorizes client principals. If you install this plugin (by moving it to `/usr/heimdal/lib/plugin/kdc`) then you will need to ensure the KDC has access to outgoing credentials for performing LDAP searches in AD. You cannot use the RODC TGS account for this as it cannot act as a client, but you can use the RODC domain controller account. You may need to set `userPrincipalName` on the domain controller account to match the service principal name to avoid salting issues.
 
+PacRequestorEnforcement
+-----------------------
+
+Recent Windows updates require TGTs to contain the security identifier (RID) of the client that requested the ticket. If the PacRequestorEnforcement registry key is set to 2 (enforce), then you must use the `altsecid_gss_preauth_authorizer' KDC plugin to include the user's SID in the TGT. Note that there still exists a race condition where the user could be renamed between authenticating and SID lookup; to fix this, the KDC would need to be modified to allow user enrolment by both name and SID, which would run contrary to the goal of making the bridge KDC as stateless as possible.
+
 Debugging
 ---------
 
