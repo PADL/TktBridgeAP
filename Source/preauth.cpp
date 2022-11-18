@@ -463,6 +463,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
     struct gss_OID_desc_struct GssMech;
     krb5_data AsReq;
     krb5_sendto_ctx SendToContext = nullptr;
+    krb5_realm szOutRealm = nullptr;
 
     SECURITY_STATUS SecStatus;
     PSEC_WINNT_AUTH_IDENTITY_OPAQUE NegoAuthIdentity = nullptr;
@@ -509,6 +510,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
                 krb5_init_creds_free(KrbContext, InitCredsContext);
             krb5_get_init_creds_opt_free(KrbContext, InitCredsOpt);
             krb5_free_principal(KrbContext, FederatedPrinc);
+            krb5_xfree(szOutRealm);
             krb5_free_context(KrbContext);
             KrbContext = nullptr;
         }
@@ -612,7 +614,7 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
         unsigned int Flags = 0;
 
         KrbError = krb5_init_creds_step(KrbContext, InitCredsContext,
-                                        AsRep, &AsReq, nullptr, &Flags);
+                                        AsRep, &AsReq, &szOutRealm, &Flags);
         if (KrbError != 0)
             *pSecStatus = GssCredHandle.LastStatus;
         RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to advance GSS preauth conversation");
@@ -626,6 +628,9 @@ GssPreauthGetInitCreds(_In_z_ PCWSTR RealmName,
         KrbError = krb5_sendto_context(KrbContext, SendToContext, &AsReq,
                                        FederatedPrinc->realm, AsRep);
         RETURN_IF_KRB_FAILED_MSG(KrbError, L"Failed to send AS-REQ to KDC");
+
+        krb5_xfree(szOutRealm);
+        szOutRealm = nullptr;
     }
 
     auto ClientName = _krb5_init_creds_get_cred_client(KrbContext, InitCredsContext);
